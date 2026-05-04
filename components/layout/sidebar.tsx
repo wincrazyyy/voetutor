@@ -1,146 +1,70 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Suspense } from "react";
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Settings, 
-  LogOut, 
-  GraduationCap,
-  BookMarked,
-  Library
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { GraduationCap } from "lucide-react";
+
+import { getCurrentProfile } from "@/lib/queries/profile";
+import { getEnrolledClasses } from "@/lib/queries/classes";
+import { getClassesForEducator } from "@/lib/queries/educator";
+import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
+import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
 
-const sidebarLinks = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Document Vault", href: "/vault", icon: BookOpen },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+export async function Sidebar() {
+  const profile = await getCurrentProfile();
 
-const registeredClasses = [
-  { 
-    id: "pkg-11a2b3c4-d5e6-7f8a-9b0c-1234567890ab", 
-    name: "IBDP Math AA HL", 
-    href: "/classes/pkg-11a2b3c4-d5e6-7f8a-9b0c-1234567890ab", 
-  },
-  { 
-    id: "pkg-99x8y7z6-a1b2-c3d4-e5f6-1234567890ab", 
-    name: "IBDP Physics HL", 
-    href: "/classes/pkg-99x8y7z6-a1b2-c3d4-e5f6-1234567890ab", 
-  },
-];
+  const role = profile?.role ?? "student";
+  const isApproved = profile?.is_approved ?? true;
+  const isPendingEducator = role === "educator" && !isApproved;
 
-function SidebarNav() {
-  const pathname = usePathname();
+  let classes: Array<{ id: string; code: string; title: string }> = [];
+  let pendingApplicationCount = 0;
 
-  return (
-    <nav className="flex-1 flex flex-col gap-6 px-4 py-6 overflow-y-auto">
-      <div className="flex flex-col gap-2">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">
-          Menu
-        </div>
-        {sidebarLinks.map((link) => {
-          const Icon = link.icon;
-          const isActive = pathname === link.href;
+  if (profile && !isPendingEducator) {
+    if (role === "educator" || role === "admin") {
+      const educatorClasses = await getClassesForEducator(profile.id);
+      classes = educatorClasses.map((c) => ({ id: c.id, code: c.code, title: c.title }));
+    } else {
+      const enrolled = await getEnrolledClasses(profile.id);
+      classes = enrolled.map((c) => ({ id: c.id, code: c.code, title: c.title }));
+    }
+  }
 
-          return (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary/10 text-primary" 
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <Icon className="w-5 h-5" />
-              {link.name}
-            </Link>
-          );
-        })}
-      </div>
+  if (role === "admin") {
+    pendingApplicationCount = await getPendingEducatorCount();
+  }
 
-      <div className="flex flex-col gap-1">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 mt-2">
-          Enrolled Classes
-        </div>
+  let homeHref = "/dashboard";
+  if (role === "admin") homeHref = "/admin";
+  else if (role === "educator" && isApproved) homeHref = "/educator";
+  else if (isPendingEducator) homeHref = "/pending";
 
-        <div className="relative flex flex-col gap-1 mt-1">
-          {registeredClasses.map((cls) => {
-            const isActive = pathname.includes(cls.id);
-
-            return (
-              <Link
-                key={cls.id}
-                href={cls.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
-                  isActive 
-                    ? "bg-primary/10 text-primary" 
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <div className={cn(
-                  "w-5 h-5 flex items-center justify-center rounded-md border shrink-0",
-                  isActive ? "border-primary bg-primary/20 text-primary" : "border-muted-foreground/30 text-muted-foreground group-hover:border-foreground"
-                )}>
-                  <BookMarked className="w-3 h-3" />
-                </div>
-                <span className="truncate">{cls.name}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-    </nav>
-  );
-}
-
-export function Sidebar() {
   return (
     <aside className="w-64 bg-card border-r border-border h-screen sticky top-0 flex flex-col md:flex shrink-0">
       <div className="h-16 flex items-center px-6 border-b border-border shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
+        <Link
+          href={homeHref}
+          className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity"
+        >
           <GraduationCap className="w-6 h-6" />
           <span className="font-bold text-lg tracking-tight">WSPortal</span>
         </Link>
       </div>
 
-      <Suspense 
-        fallback={
-          <div className="flex-1 px-4 py-6">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
-              Menu
-            </div>
-            <div className="flex flex-col gap-2 px-2 mt-4">
-              <div className="h-10 w-full bg-muted/50 rounded-lg animate-pulse"></div>
-              <div className="h-10 w-full bg-muted/50 rounded-lg animate-pulse"></div>
-              <div className="h-10 w-full bg-muted/50 rounded-lg animate-pulse"></div>
-            </div>
-          </div>
-        }
-      >
-        <SidebarNav />
-      </Suspense>
+      <SidebarNav
+        role={role}
+        classes={classes}
+        pendingApplicationCount={pendingApplicationCount}
+        isPendingEducator={isPendingEducator}
+      />
 
       <div className="p-4 border-t border-border flex items-center gap-2 shrink-0">
-        <form action="/auth/login" method="post" className="flex-1">
-          <button className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-            <LogOut className="w-5 h-5" />
-            Sign Out
-          </button>
-        </form>
+        <div className="flex-1">
+          <LogoutButton />
+        </div>
         <div className="shrink-0">
           <ThemeSwitcher />
         </div>
       </div>
-
     </aside>
   );
 }

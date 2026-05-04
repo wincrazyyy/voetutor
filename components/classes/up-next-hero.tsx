@@ -1,19 +1,39 @@
 import Link from "next/link";
-import { Play } from "lucide-react";
+import { Play, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatShortDuration } from "@/lib/utils/format";
+
+interface UpNextHeroVideo {
+  id: string;
+  title: string;
+  subtopic_title: string;
+  duration: string | null;
+}
 
 interface UpNextHeroProps {
-  video: {
-    id: string;
-    title: string;
-    subtopicTitle: string;
-    duration: string;
-  } | undefined;
+  video: UpNextHeroVideo | null;
 }
 
 export function UpNextHero({ video }: UpNextHeroProps) {
-  if (!video) return null;
+  if (!video) {
+    return (
+      <Card className="w-full relative overflow-hidden border-2 border-dashed border-border bg-card/50">
+        <div className="p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-start gap-5">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-emerald-500 mb-1 uppercase tracking-wider">All Caught Up</div>
+              <h2 className="text-2xl font-bold mb-2">No active lessons remaining</h2>
+              <p className="text-muted-foreground">You have completed every available lesson in this class.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full relative overflow-hidden border-2 border-primary/20 bg-card shadow-lg">
@@ -26,7 +46,9 @@ export function UpNextHero({ video }: UpNextHeroProps) {
           <div>
             <div className="text-sm font-bold text-primary mb-1 uppercase tracking-wider">Up Next</div>
             <h2 className="text-2xl font-bold mb-2">{video.title}</h2>
-            <p className="text-muted-foreground">{video.subtopicTitle} • {video.duration}</p>
+            <p className="text-muted-foreground">
+              {video.subtopic_title} • {formatShortDuration(video.duration)}
+            </p>
           </div>
         </div>
         <Link href={`/lessons/${video.id}`} className="w-full md:w-auto shrink-0">

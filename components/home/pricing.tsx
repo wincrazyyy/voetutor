@@ -42,7 +42,7 @@ export function Pricing() {
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-foreground text-lg">Direct Tutor Support</h4>
+                  <h4 className="font-semibold text-foreground text-lg">Direct Educator Support</h4>
                   <p className="text-muted-foreground">Never get stuck. Access bridging support for pre-DP concepts whenever you need it.</p>
                 </div>
               </div>

@@ -1,60 +1,52 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+
+import { getCurrentProfile } from "@/lib/queries/profile";
+import { getEnrolledClasses } from "@/lib/queries/classes";
+import { getAnnouncementsForUser } from "@/lib/queries/announcements";
+import { getContinueWatching, getDashboardStats } from "@/lib/queries/progress";
+import { getDisplayName } from "@/lib/utils/format";
 
 import { StatCards } from "@/components/dashboard/stat-cards";
 import { ContinueWatchingHero } from "@/components/dashboard/continue-watching-hero";
 import { GlobalUpdatesFeed } from "@/components/dashboard/global-updates-feed";
 import { EnrolledClassesList } from "@/components/dashboard/enrolled-classes-list";
 
-const enrolledClasses = [
-  {
-    id: "pkg-11a2b3c4-d5e6-7f8a-9b0c-1234567890ab",
-    code: "AA HL",
-    title: "IBDP Math AA HL Mastery System",
-    progress: 38,
-    totalVideos: 32,
-    watchedVideos: 12,
-  },
-  {
-    id: "pkg-99x8y7z6-a1b2-c3d4-e5f6-1234567890ab",
-    code: "PHYS HL",
-    title: "IBDP Physics HL Mastery System",
-    progress: 5,
-    totalVideos: 40,
-    watchedVideos: 2,
-  }
-];
-
 export default async function DashboardHubPage() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/auth/login");
 
-  if (error || !user) {
-    redirect("/login");
+  if (profile.role === "admin") redirect("/admin");
+  if (profile.role === "educator") {
+    if (!profile.is_approved) redirect("/pending");
+    redirect("/educator");
   }
 
-  const firstName = 
-    user.user_metadata?.first_name || 
-    "Student";
+  const [classes, announcements, continueWatching, stats] = await Promise.all([
+    getEnrolledClasses(profile.id),
+    getAnnouncementsForUser(10),
+    getContinueWatching(profile.id, 1),
+    getDashboardStats(profile.id),
+  ]);
+
+  const firstName = profile.first_name ?? getDisplayName(profile.first_name, profile.last_name, profile.display_name);
 
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">
-          Welcome back, {firstName}! 👋
+          Welcome back, {firstName}!
         </h1>
         <p className="text-muted-foreground">
-          Here is your overall progress and the latest updates from your tutors.
+          Here is your overall progress and the latest updates from your educators.
         </p>
       </div>
 
-      <StatCards />
-      <ContinueWatchingHero />
+      <StatCards stats={stats} />
+      <ContinueWatchingHero item={continueWatching[0] ?? null} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
-        <GlobalUpdatesFeed />
-        <EnrolledClassesList classes={enrolledClasses} />
-
+        <GlobalUpdatesFeed announcements={announcements} />
+        <EnrolledClassesList classes={classes} />
       </div>
     </div>
   );

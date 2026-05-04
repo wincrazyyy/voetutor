@@ -1,15 +1,11 @@
--- ====================================================================================
--- ENUMERATED TYPES
--- ====================================================================================
+/* ==========  ENUMERATED TYPES  ========== */
 
 CREATE TYPE user_role AS ENUM ('student', 'educator', 'admin');
 CREATE TYPE announcement_type AS ENUM ('standard', 'important', 'event');
 CREATE TYPE topic_status AS ENUM ('locked', 'active', 'completed');
 CREATE TYPE forum_post_type AS ENUM ('general', 'video_qa');
 
--- ====================================================================================
--- SHARED TRIGGER FUNCTIONS
--- ====================================================================================
+/* ==========  SHARED TRIGGER FUNCTIONS  ========== */
 
 CREATE OR REPLACE FUNCTION public.set_current_timestamp_updated_at()
 RETURNS TRIGGER AS $$
@@ -34,23 +30,34 @@ COMMENT ON FUNCTION public.set_forum_post_updated_at() IS 'Variant of set_curren
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_intended TEXT := NEW.raw_user_meta_data->>'intended_role';
+    v_role public.user_role;
+    v_is_approved BOOLEAN;
 BEGIN
-    INSERT INTO public.profiles (id, first_name, last_name, display_name, role)
+    IF v_intended = 'educator' THEN
+        v_role := 'educator'::public.user_role;
+        v_is_approved := FALSE;
+    ELSE
+        v_role := 'student'::public.user_role;
+        v_is_approved := TRUE;
+    END IF;
+
+    INSERT INTO public.profiles (id, first_name, last_name, display_name, role, is_approved)
     VALUES (
         NEW.id,
         NEW.raw_user_meta_data->>'first_name',
         NEW.raw_user_meta_data->>'last_name',
         NEW.raw_user_meta_data->>'display_name',
-        'student'::user_role
+        v_role,
+        v_is_approved
     );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
-COMMENT ON FUNCTION public.handle_new_user() IS 'Automates profile provisioning upon identity creation. Hard-codes role to student to neutralize privilege escalation via user-controlled signup metadata. Runs with SECURITY DEFINER (search_path pinned) to bypass RLS during the authentication flow.';
+COMMENT ON FUNCTION public.handle_new_user() IS 'Automates profile provisioning upon identity creation. Reads intended_role from user-controlled metadata but constrains the resulting state: educator implies is_approved = FALSE (gated until an admin promotes them); anything else lands on a fully-approved student. The admin role is never assignable from this path, neutralising privilege escalation via signup metadata.';
 
--- ====================================================================================
--- PROFILES & RBAC
--- ====================================================================================
+/* ==========  PROFILES & RBAC  ========== */
 
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -58,11 +65,16 @@ CREATE TABLE profiles (
     last_name VARCHAR(100),
     display_name VARCHAR(100),
     role user_role DEFAULT 'student'::user_role NOT NULL,
+    is_approved BOOLEAN DEFAULT TRUE NOT NULL,
+    approved_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    approved_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 COMMENT ON TABLE profiles IS 'Extended user profile data maintaining a strict 1:1 relationship with the external authentication provider.';
-COMMENT ON COLUMN profiles.role IS 'Determines application-level access boundaries and feature flagging.';
+COMMENT ON COLUMN profiles.role IS 'Literal role declared at signup. Note: this is NOT the effective authorisation level — read public.get_user_role() instead, which folds unapproved educators back to ''student''.';
+COMMENT ON COLUMN profiles.is_approved IS 'Approval gate. Defaults to TRUE for students (no review needed) and is forced to FALSE by handle_new_user when intended_role is educator. Only an admin may flip this column (enforced by protect_profile_role).';
+COMMENT ON COLUMN profiles.approved_by IS 'The admin who flipped is_approved from FALSE to TRUE, captured for audit trail. Set automatically by approve_educator().';
 
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
@@ -74,15 +86,34 @@ CREATE TRIGGER set_profiles_updated_at
 
 CREATE VIEW public.profiles_public
 WITH (security_invoker = off) AS
-SELECT id, first_name, last_name, display_name, role
+SELECT id, first_name, last_name, display_name, role, is_approved
 FROM public.profiles;
 COMMENT ON VIEW public.profiles_public IS 'Sanctioned cross-user projection of the profiles table. Runs with security_invoker = off, so it bypasses RLS on profiles and returns the listed columns regardless of who is asking — but the column list itself is the access boundary, deliberately omitting created_at/updated_at and any future sensitive fields. App code must JOIN against this view (not the underlying table) when rendering another user''s identity in forums, Q&A, etc.';
 
 GRANT SELECT ON public.profiles_public TO authenticated;
 
--- ====================================================================================
--- CORE CURRICULUM ARCHITECTURE
--- ====================================================================================
+CREATE TABLE educator_profiles (
+    educator_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    gender VARCHAR(50),
+    whatsapp_number VARCHAR(50),
+    education TEXT,
+    education_degree VARCHAR(255),
+    education_major VARCHAR(255),
+    graduation_year INTEGER CHECK (graduation_year IS NULL OR (graduation_year >= 1900 AND graduation_year <= 2100)),
+    teaching_experience TEXT,
+    teaching_subjects TEXT,
+    self_introduction TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+COMMENT ON TABLE educator_profiles IS 'Optional 1:1 sidecar to profiles holding application / promotion fields that only educators care about. Filled in after sign-up by the educator themselves; admins read it during approval review and may also surface it on public educator profiles for promotion.';
+COMMENT ON COLUMN educator_profiles.self_introduction IS 'Free-form pitch the educator writes about themselves. Surfaced to admins for review and may be displayed publicly for promotion — front-end UI warns the educator to keep it serious.';
+
+CREATE TRIGGER set_educator_profiles_updated_at
+    BEFORE UPDATE ON educator_profiles
+    FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
+
+/* ==========  CORE CURRICULUM ARCHITECTURE  ========== */
 
 CREATE TABLE classes (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -101,7 +132,7 @@ CREATE TRIGGER set_classes_updated_at
     BEFORE UPDATE ON classes
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE class_enrollments (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -114,7 +145,7 @@ COMMENT ON COLUMN class_enrollments.user_id IS 'Acts as the leading column in th
 
 CREATE INDEX idx_class_enrollments_class_id ON class_enrollments(class_id);
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE topics (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -135,7 +166,7 @@ CREATE TRIGGER set_topics_updated_at
     BEFORE UPDATE ON topics
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE subtopics (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -153,7 +184,7 @@ CREATE TRIGGER set_subtopics_updated_at
     BEFORE UPDATE ON subtopics
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE videos (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -179,7 +210,7 @@ CREATE TRIGGER set_videos_updated_at
     BEFORE UPDATE ON videos
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE resources (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -208,9 +239,7 @@ CREATE TRIGGER set_resources_updated_at
     BEFORE UPDATE ON resources
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ====================================================================================
--- USER PROGRESS TRACKING
--- ====================================================================================
+/* ==========  USER PROGRESS TRACKING  ========== */
 
 CREATE TABLE user_video_progress (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -235,9 +264,7 @@ CREATE TRIGGER set_user_video_progress_updated_at
     BEFORE UPDATE ON user_video_progress
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ====================================================================================
--- COMMUNICATIONS & FORUM
--- ====================================================================================
+/* ==========  COMMUNICATIONS & FORUM  ========== */
 
 CREATE TABLE announcements (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -270,7 +297,7 @@ CREATE TRIGGER set_announcements_updated_at
     BEFORE UPDATE ON announcements
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE forum_posts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -300,7 +327,7 @@ CREATE TRIGGER set_forum_posts_updated_at
     BEFORE UPDATE ON forum_posts
     FOR EACH ROW EXECUTE PROCEDURE public.set_forum_post_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE forum_replies (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -323,7 +350,7 @@ CREATE TRIGGER set_forum_replies_updated_at
     BEFORE UPDATE ON forum_replies
     FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
--- ------------------------------------------------------------------------------------
+/* ----------------------------------------- */
 
 CREATE TABLE forum_post_upvotes (
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -358,9 +385,7 @@ CREATE TRIGGER maintain_upvote_count_on_delete
     AFTER DELETE ON forum_post_upvotes
     FOR EACH ROW EXECUTE PROCEDURE public.maintain_forum_post_upvote_count();
 
--- ====================================================================================
--- ANTI-TAMPERING TRIGGERS
--- ====================================================================================
+/* ==========  ANTI-TAMPERING TRIGGERS  ========== */
 
 CREATE OR REPLACE FUNCTION public.prevent_immutable_modifications()
 RETURNS TRIGGER AS $$
@@ -385,11 +410,17 @@ BEGIN
         IF NEW.role IS DISTINCT FROM OLD.role THEN
             RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can modify user roles.';
         END IF;
+        IF NEW.is_approved IS DISTINCT FROM OLD.is_approved THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can change approval status.';
+        END IF;
+        IF NEW.approved_by IS DISTINCT FROM OLD.approved_by OR NEW.approved_at IS DISTINCT FROM OLD.approved_at THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: Approval audit columns are admin-only.';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-COMMENT ON FUNCTION public.protect_profile_role() IS 'Prevents non-admins from escalating or changing their own application roles.';
+COMMENT ON FUNCTION public.protect_profile_role() IS 'Locks the role and approval columns (role, is_approved, approved_by, approved_at) against non-admin mutation. Admins flip is_approved via the approve_educator SECURITY DEFINER function, which bypasses this trigger only for that single column write.';
 
 CREATE OR REPLACE FUNCTION public.protect_forum_post_ownership()
 RETURNS TRIGGER AS $$
@@ -532,7 +563,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 COMMENT ON FUNCTION public.protect_topic_class_lineage() IS 'Top of the class-lineage protection chain: blocks topic reassignment that would alter the class of any video bound to a forum_post.';
 
--- Apply anti-tampering to all tables
+/* Apply anti-tampering to all tables */
 CREATE TRIGGER enforce_immutability_profiles BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE public.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_classes BEFORE UPDATE ON classes FOR EACH ROW EXECUTE PROCEDURE public.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_topics BEFORE UPDATE ON topics FOR EACH ROW EXECUTE PROCEDURE public.prevent_immutable_modifications();
@@ -543,7 +574,7 @@ CREATE TRIGGER enforce_immutability_announcements BEFORE UPDATE ON announcements
 CREATE TRIGGER enforce_immutability_forum_posts BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE public.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_forum_replies BEFORE UPDATE ON forum_replies FOR EACH ROW EXECUTE PROCEDURE public.prevent_immutable_modifications();
 
--- Apply specific column protection triggers
+/* Apply specific column protection triggers */
 CREATE TRIGGER enforce_role_security BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE public.protect_profile_role();
 CREATE TRIGGER enforce_forum_post_security BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE public.protect_forum_post_ownership();
 CREATE TRIGGER enforce_upvote_count_integrity BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE public.protect_forum_post_upvotes();
@@ -552,20 +583,30 @@ CREATE TRIGGER enforce_video_class_lineage BEFORE UPDATE ON videos FOR EACH ROW 
 CREATE TRIGGER enforce_subtopic_class_lineage BEFORE UPDATE ON subtopics FOR EACH ROW EXECUTE PROCEDURE public.protect_subtopic_class_lineage();
 CREATE TRIGGER enforce_topic_class_lineage BEFORE UPDATE ON topics FOR EACH ROW EXECUTE PROCEDURE public.protect_topic_class_lineage();
 
--- ====================================================================================
--- SECURITY HELPER FUNCTIONS
--- ====================================================================================
+/* ==========  SECURITY HELPER FUNCTIONS  ========== */
 
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS public.user_role AS $$
 DECLARE
     v_role public.user_role;
+    v_is_approved BOOLEAN;
 BEGIN
-    SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid();
-    RETURN COALESCE(v_role, 'student'::public.user_role);
+    SELECT role, is_approved INTO v_role, v_is_approved
+    FROM public.profiles
+    WHERE id = auth.uid();
+
+    IF v_role IS NULL THEN
+        RETURN 'student'::public.user_role;
+    END IF;
+
+    IF v_role = 'educator'::public.user_role AND v_is_approved = FALSE THEN
+        RETURN 'student'::public.user_role;
+    END IF;
+
+    RETURN v_role;
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
-COMMENT ON FUNCTION public.get_user_role() IS 'Bypasses RLS to securely fetch the requesting user role for policy evaluation. Marked as STABLE to cache results per-query and prevent performance degradation during large RLS scans. search_path is pinned to neutralize object-shadowing attacks against SECURITY DEFINER execution.';
+COMMENT ON FUNCTION public.get_user_role() IS 'Returns the EFFECTIVE authorisation level of the calling user. Equal to profiles.role except that unapproved educators (role = educator AND is_approved = FALSE) collapse back to student, so every RLS policy can keep its single-column role check without separately worrying about approval state. SECURITY DEFINER (search_path pinned) bypasses RLS on profiles and is STABLE for per-query caching.';
 
 CREATE OR REPLACE FUNCTION public.get_user_class_ids()
 RETURNS SETOF UUID AS $$
@@ -589,11 +630,9 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 COMMENT ON FUNCTION public.is_class_educator(UUID) IS 'Bypasses RLS to check if the current user is the educator of a given class, preventing infinite recursion loops. search_path is pinned to neutralize object-shadowing attacks against SECURITY DEFINER execution.';
 
--- ====================================================================================
--- RLS ACTIVATION
--- ====================================================================================
+/* ==========  RLS ACTIVATION  ========== */
 
--- Enable RLS
+/* Enable RLS */
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments ENABLE ROW LEVEL SECURITY;
@@ -606,8 +645,9 @@ ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE educator_profiles ENABLE ROW LEVEL SECURITY;
 
--- Force RLS ensures even table owners respect the policies
+/* Force RLS ensures even table owners respect the policies */
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE classes FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments FORCE ROW LEVEL SECURITY;
@@ -620,14 +660,11 @@ ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes FORCE ROW LEVEL SECURITY;
+ALTER TABLE educator_profiles FORCE ROW LEVEL SECURITY;
 
--- ====================================================================================
--- ROW LEVEL SECURITY POLICIES
--- ====================================================================================
+/* ==========  ROW LEVEL SECURITY POLICIES  ========== */
 
--- ------------------------------------------------------------------------------------
--- PROFILES
--- ------------------------------------------------------------------------------------
+/* ----- PROFILES ----- */
 CREATE POLICY "Profiles_Select_SelfOrAdmin" ON profiles
     FOR SELECT USING (public.get_user_role() = 'admin' OR auth.uid() = id);
 COMMENT ON POLICY "Profiles_Select_SelfOrAdmin" ON profiles IS 'Direct reads of the profiles row are deliberately restricted to the owning user or an administrator. Cross-user rendering needs (forum author names, Q&A educator badges) MUST go through the public.profiles_public view, which exposes only the columns the UI is sanctioned to display. This split makes the public surface area explicit instead of accidental.';
@@ -638,9 +675,7 @@ CREATE POLICY "Profiles_Update_SelfOrAdmin" ON profiles
     WITH CHECK (public.get_user_role() = 'admin' OR auth.uid() = id);
 COMMENT ON POLICY "Profiles_Update_SelfOrAdmin" ON profiles IS 'Restricts profile modifications to the owning user or administrators. WITH CHECK matches USING so a self-update cannot be redirected onto another user''s row mid-flight; the anti-tampering trigger additionally locks the id column. Re-SELECT validation on the post-update row passes against Profiles_Select_SelfOrAdmin because the updater is by definition either the row owner or an admin.';
 
--- ------------------------------------------------------------------------------------
--- CLASSES
--- ------------------------------------------------------------------------------------
+/* ----- CLASSES ----- */
 CREATE POLICY "Classes_Select_Authorized" ON classes 
     FOR SELECT USING (public.get_user_role() = 'admin' OR id IN (SELECT public.get_user_class_ids()));
 COMMENT ON POLICY "Classes_Select_Authorized" ON classes IS 'Restricts class visibility strictly to enrolled students, assigned educators, and global administrators.';
@@ -655,9 +690,7 @@ COMMENT ON POLICY "Classes_Insert_Admin" ON classes IS 'Restricts the creation o
 CREATE POLICY "Classes_Delete_Admin" ON classes FOR DELETE USING (public.get_user_role() = 'admin');
 COMMENT ON POLICY "Classes_Delete_Admin" ON classes IS 'Restricts the deletion of classes to administrators to prevent accidental hierarchical cascades.';
 
--- ------------------------------------------------------------------------------------
--- CLASS ENROLLMENTS
--- ------------------------------------------------------------------------------------
+/* ----- CLASS ENROLLMENTS ----- */
 CREATE POLICY "Enrollments_Select_Authorized" ON class_enrollments 
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR 
@@ -681,11 +714,9 @@ CREATE POLICY "Enrollments_Delete_Authorized" ON class_enrollments
     );
 COMMENT ON POLICY "Enrollments_Delete_Authorized" ON class_enrollments IS 'Permits self-unenrollment by students, and roster management by educators/administrators.';
 
--- ------------------------------------------------------------------------------------
--- CURRICULUM HIERARCHY
--- ------------------------------------------------------------------------------------
+/* ----- CURRICULUM HIERARCHY ----- */
 
--- TOPICS
+/* TOPICS */
 CREATE POLICY "Topics_Select_Authorized" ON topics 
     FOR SELECT USING (public.get_user_role() = 'admin' OR class_id IN (SELECT public.get_user_class_ids()));
 COMMENT ON POLICY "Topics_Select_Authorized" ON topics IS 'Inherits visibility boundaries from the parent class enrollment status.';
@@ -697,7 +728,7 @@ CREATE POLICY "Topics_Modify_EducatorOrAdmin" ON topics
     );
 COMMENT ON POLICY "Topics_Modify_EducatorOrAdmin" ON topics IS 'Delegates structural modification rights (Insert/Update/Delete) for topics to the parent class educator and administrators.';
 
--- SUBTOPICS
+/* SUBTOPICS */
 CREATE POLICY "Subtopics_Select_Authorized" ON subtopics 
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR 
@@ -719,7 +750,7 @@ CREATE POLICY "Subtopics_Modify_EducatorOrAdmin" ON subtopics
     );
 COMMENT ON POLICY "Subtopics_Modify_EducatorOrAdmin" ON subtopics IS 'Delegates structural modification rights (Insert/Update/Delete) for subtopics to the parent class educator via hierarchical resolution.';
 
--- VIDEOS
+/* VIDEOS */
 CREATE POLICY "Videos_Select_Authorized" ON videos 
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR 
@@ -743,7 +774,7 @@ CREATE POLICY "Videos_Modify_EducatorOrAdmin" ON videos
     );
 COMMENT ON POLICY "Videos_Modify_EducatorOrAdmin" ON videos IS 'Delegates video asset management (Insert/Update/Delete) to the parent class educator via hierarchical resolution.';
 
--- RESOURCES
+/* RESOURCES */
 CREATE POLICY "Resources_Select_Authorized" ON resources 
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR 
@@ -773,9 +804,7 @@ CREATE POLICY "Resources_Modify_EducatorOrAdmin" ON resources
     );
 COMMENT ON POLICY "Resources_Modify_EducatorOrAdmin" ON resources IS 'Delegates file asset management to the parent class educator, dynamically evaluating the polymorphic parent linkage.';
 
--- ------------------------------------------------------------------------------------
--- USER VIDEO PROGRESS
--- ------------------------------------------------------------------------------------
+/* ----- USER VIDEO PROGRESS ----- */
 CREATE POLICY "Progress_Select_Authorized" ON user_video_progress 
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR 
@@ -798,9 +827,7 @@ CREATE POLICY "Progress_Update_Self" ON user_video_progress
     FOR UPDATE USING (user_id = auth.uid());
 COMMENT ON POLICY "Progress_Update_Self" ON user_video_progress IS 'Restricts updating of playback telemetry strictly to the authenticated user generating the state.';
 
--- ------------------------------------------------------------------------------------
--- ANNOUNCEMENTS & FORUMS
--- ------------------------------------------------------------------------------------
+/* ----- ANNOUNCEMENTS & FORUMS ----- */
 CREATE POLICY "Announcements_Select_Authorized" ON announcements 
     FOR SELECT USING (public.get_user_role() = 'admin' OR class_id IN (SELECT public.get_user_class_ids()));
 COMMENT ON POLICY "Announcements_Select_Authorized" ON announcements IS 'Inherits visibility boundaries from the parent class enrollment status.';
@@ -820,7 +847,7 @@ CREATE POLICY "Announcements_Delete_Author" ON announcements
     FOR DELETE USING (public.get_user_role() = 'admin' OR author_id = auth.uid());
 COMMENT ON POLICY "Announcements_Delete_Author" ON announcements IS 'Grants broadcast deletion rights strictly to the original authoring educator or global administrators.';
 
--- FORUM POSTS
+/* FORUM POSTS */
 CREATE POLICY "ForumPosts_Select_Authorized" ON forum_posts 
     FOR SELECT USING (public.get_user_role() = 'admin' OR class_id IN (SELECT public.get_user_class_ids()));
 COMMENT ON POLICY "ForumPosts_Select_Authorized" ON forum_posts IS 'Confines discussion visibility strictly to users enrolled in or teaching the related class.';
@@ -848,7 +875,7 @@ CREATE POLICY "ForumPosts_Delete_Authorized" ON forum_posts
     );
 COMMENT ON POLICY "ForumPosts_Delete_Authorized" ON forum_posts IS 'Permits content deletion by the original author, acting educators (for moderation), or global administrators.';
 
--- FORUM REPLIES
+/* FORUM REPLIES */
 CREATE POLICY "ForumReplies_Select_Authorized" ON forum_replies 
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR 
@@ -888,9 +915,7 @@ CREATE POLICY "ForumReplies_Delete_Authorized" ON forum_replies
     );
 COMMENT ON POLICY "ForumReplies_Delete_Authorized" ON forum_replies IS 'Permits reply deletion by the original author, acting educators (for moderation), or global administrators.';
 
--- ------------------------------------------------------------------------------------
--- FORUM POST UPVOTES
--- ------------------------------------------------------------------------------------
+/* ----- FORUM POST UPVOTES ----- */
 CREATE POLICY "ForumPostUpvotes_Select_Authorized" ON forum_post_upvotes
     FOR SELECT USING (
         public.get_user_role() = 'admin' OR
@@ -914,3 +939,50 @@ COMMENT ON POLICY "ForumPostUpvotes_Insert_Self" ON forum_post_upvotes IS 'Permi
 CREATE POLICY "ForumPostUpvotes_Delete_Self" ON forum_post_upvotes
     FOR DELETE USING (public.get_user_role() = 'admin' OR user_id = auth.uid());
 COMMENT ON POLICY "ForumPostUpvotes_Delete_Self" ON forum_post_upvotes IS 'Permits self-rescission of an endorsement, alongside administrative override for moderation.';
+
+CREATE OR REPLACE FUNCTION public.approve_educator(p_user_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    IF public.get_user_role() != 'admin' THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can approve educators.';
+    END IF;
+
+    UPDATE public.profiles
+    SET is_approved = TRUE,
+        approved_by = auth.uid(),
+        approved_at = NOW()
+    WHERE id = p_user_id
+      AND role = 'educator'::public.user_role
+      AND is_approved = FALSE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User % is not a pending educator.', p_user_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+COMMENT ON FUNCTION public.approve_educator(UUID) IS 'Flips is_approved on the target educator profile and stamps the audit columns (approved_by / approved_at). SECURITY DEFINER (search_path pinned) bypasses the protect_profile_role trigger; the function itself enforces the admin-only caller check.';
+
+/* ----- EDUCATOR PROFILES ----- */
+CREATE POLICY "EducatorProfiles_Select_SelfOrAdmin" ON educator_profiles
+    FOR SELECT USING (public.get_user_role() = 'admin' OR auth.uid() = educator_id);
+COMMENT ON POLICY "EducatorProfiles_Select_SelfOrAdmin" ON educator_profiles IS 'The educator owns their row; admins can read every row to support approval review. Public promotion surfaces (future feature) will read through a SECURITY DEFINER function or a dedicated view rather than this policy.';
+
+CREATE POLICY "EducatorProfiles_Insert_Self" ON educator_profiles
+    FOR INSERT WITH CHECK (
+        auth.uid() = educator_id
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = auth.uid() AND p.role = 'educator'::public.user_role
+        )
+    );
+COMMENT ON POLICY "EducatorProfiles_Insert_Self" ON educator_profiles IS 'Only the owning educator can create their row, and only if their literal profile role is educator (covers both pending and approved educators; students cannot insert).';
+
+CREATE POLICY "EducatorProfiles_Update_Self" ON educator_profiles
+    FOR UPDATE
+    USING (auth.uid() = educator_id)
+    WITH CHECK (auth.uid() = educator_id);
+COMMENT ON POLICY "EducatorProfiles_Update_Self" ON educator_profiles IS 'Educators may keep updating their own application info indefinitely. WITH CHECK matches USING so the row cannot be redirected onto another educator mid-update.';
+
+CREATE POLICY "EducatorProfiles_Delete_SelfOrAdmin" ON educator_profiles
+    FOR DELETE USING (public.get_user_role() = 'admin' OR auth.uid() = educator_id);
+COMMENT ON POLICY "EducatorProfiles_Delete_SelfOrAdmin" ON educator_profiles IS 'Educator can wipe their extended info; admin can clean it up if needed.';

@@ -24,7 +24,7 @@ export function ClassHeader({ title, progress }: ClassHeaderProps) {
             <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           </div>
           <p className="text-muted-foreground">
-            Your centralized dashboard for curriculum, progress, and tutor updates.
+            Your centralized dashboard for curriculum, progress, and educator updates.
           </p>
         </div>
         <div className="w-full md:w-72 bg-card p-4 rounded-xl border border-border shadow-sm">

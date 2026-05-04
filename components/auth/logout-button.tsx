@@ -1,7 +1,7 @@
 "use client";
 
+import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 export function LogoutButton() {
@@ -13,5 +13,13 @@ export function LogoutButton() {
     router.push("/auth/login");
   };
 
-  return <Button onClick={logout}>Logout</Button>;
+  return (
+    <button
+      onClick={logout}
+      className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+    >
+      <LogOut className="w-5 h-5" />
+      Sign Out
+    </button>
+  );
 }
