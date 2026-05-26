@@ -2,6 +2,20 @@ export type UserRole = "student" | "educator" | "admin";
 export type AnnouncementType = "standard" | "important" | "event";
 export type TopicStatus = "locked" | "active" | "completed";
 export type ForumPostType = "general" | "video_qa";
+export type ClassReportStatus = "pending" | "dismissed" | "actioned";
+export type VideoStatus = "uploading" | "queued" | "processing" | "ready" | "errored";
+
+export interface ClassReport {
+  id: string;
+  class_id: string;
+  reporter_id: string;
+  reason: string;
+  status: ClassReportStatus;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface EducatorProfile {
   educator_id: string;
@@ -44,7 +58,12 @@ export interface Class {
   id: string;
   code: string;
   title: string;
+  description: string | null;
   educator_id: string | null;
+  price_cents: number;
+  currency: string;
+  is_published: boolean;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -82,6 +101,9 @@ export interface Video {
   description: string | null;
   duration: string | null;
   video_url: string | null;
+  cloudflare_uid: string | null;
+  status: VideoStatus;
+  thumbnail_url: string | null;
   order_index: number;
   created_at: string;
   updated_at: string;
