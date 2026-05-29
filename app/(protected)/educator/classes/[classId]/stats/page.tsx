@@ -5,6 +5,7 @@ import { ArrowLeft, BarChart3 } from "lucide-react";
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getClassById } from "@/lib/queries/classes";
 import { getEducatorClassStats } from "@/lib/queries/educator";
+import { getVideoAnalyticsForClass } from "@/lib/queries/video-analytics";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,10 @@ export default async function EducatorClassStatsPage({
     redirect("/educator");
   }
 
-  const stats = await getEducatorClassStats(classId);
+  const [stats, videoAnalytics] = await Promise.all([
+    getEducatorClassStats(classId),
+    getVideoAnalyticsForClass(classId),
+  ]);
   const watchHours = (stats.total_watch_seconds / 3600).toFixed(1);
 
   return (
@@ -60,12 +64,41 @@ export default async function EducatorClassStatsPage({
         <StatCell label="Open Forum Threads" value={`${stats.unanswered_posts}`} />
       </div>
 
-      <Card className="p-10 border border-dashed border-border bg-card/50 text-center">
-        <BarChart3 className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-        <h2 className="text-lg font-bold mb-1">More analytics coming soon</h2>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Per-video retention, drop-off graphs, and Question Bank performance will appear here once the Question Bank and richer telemetry are connected.
-        </p>
+      <Card className="border-border bg-card shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-border">
+          <h2 className="text-lg font-bold">Per-Video Analytics</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Minutes viewed is reported by Cloudflare Stream over the last 90 days; completions are tracked across enrolled students.
+          </p>
+        </div>
+        {videoAnalytics.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            No videos in this class yet.
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="px-5 py-3">Video</th>
+                <th className="px-5 py-3 text-right">Minutes Viewed</th>
+                <th className="px-5 py-3 text-right">Completions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {videoAnalytics.map((video) => (
+                <tr key={video.videoId} className="border-b border-border/50 last:border-0">
+                  <td className="px-5 py-3 font-medium">{video.title}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                    {video.minutesViewed > 0 ? video.minutesViewed.toLocaleString() : "—"}
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                    {video.completions > 0 ? video.completions.toLocaleString() : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
     </div>
   );

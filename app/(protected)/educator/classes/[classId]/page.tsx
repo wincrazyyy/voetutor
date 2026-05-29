@@ -8,6 +8,7 @@ import {
   Megaphone,
   MessageSquare,
   PlayCircle,
+  Settings,
   Users,
 } from "lucide-react";
 
@@ -69,12 +70,20 @@ export default async function EducatorClassPage({
             </div>
             <p className="text-muted-foreground">Manage curriculum, post announcements, and track engagement.</p>
           </div>
-          <Link href={`/educator/classes/${classId}/announcements/new`}>
-            <Button className="gap-2 shadow-md">
-              <Megaphone className="w-4 h-4" />
-              Post Announcement
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href={`/educator/classes/${classId}/edit`}>
+              <Button variant="outline" className="gap-2">
+                <Settings className="w-4 h-4" />
+                Class Settings
+              </Button>
+            </Link>
+            <Link href={`/educator/classes/${classId}/announcements/new`}>
+              <Button className="gap-2 shadow-md">
+                <Megaphone className="w-4 h-4" />
+                Post Announcement
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

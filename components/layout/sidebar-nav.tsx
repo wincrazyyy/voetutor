@@ -6,9 +6,12 @@ import {
   LayoutDashboard,
   Settings,
   BookMarked,
+  BookOpen,
   Library,
   ClipboardList,
+  Flag,
   ShieldCheck,
+  Store,
   UserCheck,
   Hourglass,
   Lock,
@@ -21,6 +24,7 @@ interface SidebarNavProps {
   role: UserRole;
   classes: Array<{ id: string; code: string; title: string }>;
   pendingApplicationCount?: number;
+  pendingReportCount?: number;
   isPendingEducator?: boolean;
 }
 
@@ -30,12 +34,14 @@ export function SidebarNav({
   role,
   classes,
   pendingApplicationCount = 0,
+  pendingReportCount = 0,
   isPendingEducator = false,
 }: SidebarNavProps) {
   const pathname = usePathname();
 
   const studentLinks = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, lockable: true },
+    { name: "Browse Classes", href: "/classes/browse", icon: Store, lockable: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
@@ -62,6 +68,14 @@ export function SidebarNav({
       lockable: false,
       badge: pendingApplicationCount,
     },
+    {
+      name: "Reports",
+      href: "/admin/reports",
+      icon: Flag,
+      lockable: false,
+      badge: pendingReportCount,
+    },
+    { name: "Classes", href: "/admin/classes", icon: BookOpen, lockable: false },
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: false },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: false },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },

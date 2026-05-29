@@ -17,11 +17,26 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { TopicWithChildren } from "@/lib/queries/curriculum";
+import type { VideoStatus } from "@/lib/types/database";
 import { formatBytes, formatShortDuration } from "@/lib/utils/format";
+import { TopicFormDialog } from "@/components/educator/topic-form-dialog";
+import { SubtopicFormDialog } from "@/components/educator/subtopic-form-dialog";
+import { DeleteCurriculumItemButton } from "@/components/educator/delete-curriculum-item-button";
+import { VideoUploadDialog } from "@/components/educator/video-upload-dialog";
 
 interface EducatorCurriculumOverviewProps {
   classId: string;
   curriculum: TopicWithChildren[];
+}
+
+function videoStatusLabel(status: VideoStatus): string | null {
+  if (status === "ready") return null;
+  if (status === "errored") return "Failed";
+  return "Processing";
+}
+
+function pluralise(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurriculumOverviewProps) {
@@ -32,10 +47,7 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
           <FolderTree className="w-6 h-6 text-primary" />
           Curriculum
         </h2>
-        <Button size="sm" className="gap-2" disabled>
-          <Plus className="w-4 h-4" />
-          Add Topic
-        </Button>
+        <TopicFormDialog classId={classId} mode="create" />
       </div>
 
       {curriculum.length === 0 ? (
@@ -43,7 +55,7 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
           <FolderTree className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
           <h3 className="text-lg font-bold mb-1">No topics yet</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Once curriculum CRUD is wired up, you will be able to create topics, subtopics, videos, and resources directly from this page. Class ID: <span className="font-mono text-xs">{classId}</span>
+            Use <span className="font-semibold text-foreground">Add Topic</span> above to start building this class&apos;s curriculum. Each topic holds subtopics, and each subtopic holds video lessons.
           </p>
         </Card>
       ) : (
@@ -84,6 +96,25 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
 
               <AccordionContent className="p-0 border-none">
                 <div className="flex flex-col">
+                  <div className="p-3 bg-muted/20 border-b border-border/50 flex items-center justify-between gap-2">
+                    <SubtopicFormDialog topicId={topic.id} classId={classId} mode="create" />
+                    <div className="flex items-center gap-1">
+                      <TopicFormDialog
+                        classId={classId}
+                        mode="rename"
+                        topicId={topic.id}
+                        initialTitle={topic.title}
+                      />
+                      <DeleteCurriculumItemButton
+                        kind="topic"
+                        itemId={topic.id}
+                        classId={classId}
+                        name={topic.title}
+                        summary={`${pluralise(topic.subtopics.length, "subtopic")} and ${pluralise(topic.total_videos, "video")}`}
+                      />
+                    </div>
+                  </div>
+
                   <div className="p-3 bg-primary/5 border-b border-border/50 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Topic Resources</span>
                     <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-primary" disabled>
@@ -109,12 +140,25 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
 
                   {topic.subtopics.map((subtopic) => (
                     <div key={subtopic.id} className="border-b border-border/50 last:border-0">
-                      <div className="bg-muted/20 px-4 py-2.5 flex items-center justify-between border-b border-border/50">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{subtopic.title}</span>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" disabled>
-                          <Plus className="w-3 h-3" />
-                          Add Video
-                        </Button>
+                      <div className="bg-muted/20 px-4 py-2.5 flex items-center justify-between gap-2 border-b border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{subtopic.title}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <VideoUploadDialog subtopicId={subtopic.id} />
+                          <SubtopicFormDialog
+                            topicId={topic.id}
+                            classId={classId}
+                            mode="rename"
+                            subtopicId={subtopic.id}
+                            initialTitle={subtopic.title}
+                          />
+                          <DeleteCurriculumItemButton
+                            kind="subtopic"
+                            itemId={subtopic.id}
+                            classId={classId}
+                            name={subtopic.title}
+                            summary={pluralise(subtopic.videos.length, "video")}
+                          />
+                        </div>
                       </div>
 
                       {subtopic.videos.length === 0 && subtopic.resources.length === 0 && (
@@ -134,18 +178,33 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
                         </div>
                       ))}
 
-                      {subtopic.videos.map((video) => (
-                        <div
-                          key={video.id}
-                          className="flex items-center gap-3 p-3 px-4 border-b border-border/50 last:border-0"
-                        >
-                          <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-                          <span className="text-sm font-medium truncate">{video.title}</span>
-                          <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
-                            {formatShortDuration(video.duration)}
-                          </span>
-                        </div>
-                      ))}
+                      {subtopic.videos.map((video) => {
+                        const statusLabel = videoStatusLabel(video.status);
+                        return (
+                          <div
+                            key={video.id}
+                            className="flex items-center gap-3 p-3 px-4 border-b border-border/50 last:border-0"
+                          >
+                            <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium truncate">{video.title}</span>
+                            {statusLabel && (
+                              <Badge
+                                variant="secondary"
+                                className={`text-[9px] uppercase tracking-wider font-bold shrink-0 ${
+                                  video.status === "errored"
+                                    ? "bg-destructive/10 text-destructive"
+                                    : "bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                {statusLabel}
+                              </Badge>
+                            )}
+                            <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
+                              {formatShortDuration(video.duration)}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
@@ -154,10 +213,6 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
           ))}
         </Accordion>
       )}
-
-      <Card className="p-4 border border-dashed border-border bg-card/50 text-xs text-muted-foreground leading-relaxed">
-        Curriculum editing (create / update / delete topics, subtopics, videos, resources) will be wired up in a future iteration. The placeholder buttons above mark the integration points.
-      </Card>
     </div>
   );
 }

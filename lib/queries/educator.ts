@@ -13,7 +13,9 @@ export async function getClassesForEducator(educatorId: string): Promise<Educato
   const supabase = await createClient();
   const { data: classes } = await supabase
     .from("classes")
-    .select("id, code, title, educator_id, created_at, updated_at")
+    .select(
+      "id, code, title, description, educator_id, price_cents, currency, is_published, published_at, created_at, updated_at",
+    )
     .eq("educator_id", educatorId)
     .order("created_at", { ascending: false });
 

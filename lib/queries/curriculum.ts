@@ -34,7 +34,7 @@ export async function getCurriculumForClass(classId: string, userId: string): Pr
       .order("order_index", { ascending: true }),
     supabase
       .from("videos")
-      .select("id, subtopic_id, title, description, duration, video_url, order_index, created_at, updated_at, subtopics!inner(topic_id, topics!inner(class_id))")
+      .select("id, subtopic_id, title, description, duration, video_url, cloudflare_uid, status, thumbnail_url, order_index, created_at, updated_at, subtopics!inner(topic_id, topics!inner(class_id))")
       .eq("subtopics.topics.class_id", classId)
       .order("order_index", { ascending: true }),
     supabase
@@ -105,7 +105,7 @@ export async function getVideoById(videoId: string): Promise<Video | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("videos")
-    .select("id, subtopic_id, title, description, duration, video_url, order_index, created_at, updated_at")
+    .select("id, subtopic_id, title, description, duration, video_url, cloudflare_uid, status, thumbnail_url, order_index, created_at, updated_at")
     .eq("id", videoId)
     .maybeSingle();
   return (data as Video | null) ?? null;

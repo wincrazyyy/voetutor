@@ -15,7 +15,9 @@ export async function getEnrolledClasses(userId: string): Promise<EnrolledClassS
   const supabase = await createClient();
   const { data: enrollments } = await supabase
     .from("class_enrollments")
-    .select("class_id, classes(id, code, title, educator_id)")
+    .select(
+      "class_id, classes(id, code, title, description, educator_id, price_cents, currency, is_published, published_at, created_at, updated_at)",
+    )
     .eq("user_id", userId);
 
   if (!enrollments) return [];
@@ -46,7 +48,9 @@ export async function getClassById(classId: string): Promise<Class | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("classes")
-    .select("id, code, title, educator_id, created_at, updated_at")
+    .select(
+      "id, code, title, description, educator_id, price_cents, currency, is_published, published_at, created_at, updated_at",
+    )
     .eq("id", classId)
     .maybeSingle();
   return (data as Class | null) ?? null;

@@ -14,11 +14,3 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   return (data as Profile | null) ?? null;
 }
-
-export async function requireProfile(): Promise<Profile> {
-  const profile = await getCurrentProfile();
-  if (!profile) {
-    throw new Error("No authenticated user; route should have redirected to /auth/login.");
-  }
-  return profile;
-}

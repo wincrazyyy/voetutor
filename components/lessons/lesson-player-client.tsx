@@ -1,10 +1,10 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
-  PlayCircle,
   FileText,
   MessageSquare,
   CheckCircle2,
@@ -14,9 +14,13 @@ import {
   Paperclip,
   ArrowRight,
   Lock,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Stream, type StreamPlayerApi } from "@cloudflare/stream-react";
+import { useVideoProgress } from "@/components/lessons/use-video-progress";
 import type { TopicWithChildren } from "@/lib/queries/curriculum";
 import type { ForumPostListItem, ForumReplyWithAuthor } from "@/lib/queries/forum";
 import type { Video } from "@/lib/types/database";
@@ -31,6 +35,12 @@ interface LessonPlayerClientProps {
   activeTopic: TopicWithChildren | null;
   classId: string;
   qaThreads: QAThread[];
+  signedToken: string | null;
+  customerCode: string;
+  startSeconds: number;
+  initialWatchSeconds: number;
+  initialCompleted: boolean;
+  userId: string;
 }
 
 export function LessonPlayerClient({
@@ -40,6 +50,12 @@ export function LessonPlayerClient({
   activeTopic,
   classId,
   qaThreads,
+  signedToken,
+  customerCode,
+  startSeconds,
+  initialWatchSeconds,
+  initialCompleted,
+  userId,
 }: LessonPlayerClientProps) {
   const flatVideos = curriculum.flatMap((topic) =>
     topic.subtopics.flatMap((sub) =>
@@ -50,15 +66,62 @@ export function LessonPlayerClient({
   const previousVideo = currentIndex > 0 ? flatVideos[currentIndex - 1] : null;
   const nextVideo = currentIndex !== -1 && currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null;
 
+  const streamRef = useRef<StreamPlayerApi | undefined>(undefined);
+  const { completed, recordProgress, markComplete, handleEnded } = useVideoProgress({
+    userId,
+    videoId: lessonId,
+    initialWatchSeconds,
+    initialCompleted,
+  });
+
+  const handleTimeUpdate = () => {
+    const player = streamRef.current;
+    if (player) recordProgress(player.currentTime, player.duration);
+  };
+
+  const isPlayable = video.status === "ready" && Boolean(signedToken);
+
   return (
     <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-background">
       <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 flex flex-col">
-        <div className="w-full aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative group border-4 border-card shrink-0">
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-black/60 to-transparent text-white">
-            <PlayCircle className="w-20 h-20 text-primary/80 group-hover:text-primary transition-all group-hover:scale-110 cursor-pointer" />
-            <p className="mt-4 font-medium text-lg opacity-80">Secure stream not configured</p>
-            <p className="mt-2 text-xs opacity-40 font-mono">Lesson ID: {lessonId}</p>
-          </div>
+        <div className="w-full aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative border-4 border-card shrink-0">
+          {isPlayable ? (
+            <Stream
+              src={signedToken!}
+              customerCode={customerCode}
+              controls
+              responsive={false}
+              height="100%"
+              width="100%"
+              streamRef={streamRef}
+              startTime={startSeconds}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleEnded}
+              className="w-full h-full"
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-black/60 to-transparent text-white text-center px-6">
+              {video.status === "errored" ? (
+                <>
+                  <AlertTriangle className="w-16 h-16 text-destructive/80" />
+                  <p className="mt-4 font-medium text-lg opacity-80">This lesson failed to process</p>
+                  <p className="mt-2 text-xs opacity-40">The educator will need to re-upload it.</p>
+                </>
+              ) : video.status === "ready" ? (
+                <>
+                  <Lock className="w-16 h-16 text-primary/80" />
+                  <p className="mt-4 font-medium text-lg opacity-80">Video playback isn&apos;t available</p>
+                  <p className="mt-2 text-xs opacity-40">Streaming is not configured yet.</p>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="w-16 h-16 text-primary/80 animate-spin" />
+                  <p className="mt-4 font-medium text-lg opacity-80">Lesson is still processing</p>
+                  <p className="mt-2 text-xs opacity-40">Check back in a few minutes.</p>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between mt-6 shrink-0">
@@ -76,9 +139,14 @@ export function LessonPlayerClient({
             </Button>
           )}
 
-          <Button className="rounded-full gap-2 px-6 sm:px-8 font-bold shadow-lg shadow-primary/20" disabled>
-            <span className="hidden sm:inline">Mark as Complete</span>
-            <span className="sm:hidden">Complete</span>
+          <Button
+            className="rounded-full gap-2 px-6 sm:px-8 font-bold shadow-lg shadow-primary/20"
+            variant={completed ? "outline" : "default"}
+            onClick={markComplete}
+            disabled={completed || !isPlayable}
+          >
+            <span className="hidden sm:inline">{completed ? "Completed" : "Mark as Complete"}</span>
+            <span className="sm:hidden">{completed ? "Done" : "Complete"}</span>
             <CheckCircle2 className="w-4 h-4" />
           </Button>
 

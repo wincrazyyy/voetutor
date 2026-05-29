@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/queries/profile";
 import { getEnrolledClasses } from "@/lib/queries/classes";
 import { getClassesForEducator } from "@/lib/queries/educator";
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
+import { getPendingReportCount } from "@/lib/queries/class-reports";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
@@ -18,6 +19,7 @@ export async function Sidebar() {
 
   let classes: Array<{ id: string; code: string; title: string }> = [];
   let pendingApplicationCount = 0;
+  let pendingReportCount = 0;
 
   if (profile && !isPendingEducator) {
     if (role === "educator" || role === "admin") {
@@ -30,7 +32,10 @@ export async function Sidebar() {
   }
 
   if (role === "admin") {
-    pendingApplicationCount = await getPendingEducatorCount();
+    [pendingApplicationCount, pendingReportCount] = await Promise.all([
+      getPendingEducatorCount(),
+      getPendingReportCount(),
+    ]);
   }
 
   let homeHref = "/dashboard";
@@ -54,6 +59,7 @@ export async function Sidebar() {
         role={role}
         classes={classes}
         pendingApplicationCount={pendingApplicationCount}
+        pendingReportCount={pendingReportCount}
         isPendingEducator={isPendingEducator}
       />
 

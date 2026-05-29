@@ -16,6 +16,19 @@ export function getDisplayName(firstName: string | null, lastName: string | null
   return firstName ?? lastName ?? "Unknown User";
 }
 
+export function formatPrice(priceCents: number, currency: string): string {
+  if (priceCents === 0) return "Free";
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: priceCents % 100 === 0 ? 0 : 2,
+    }).format(priceCents / 100);
+  } catch {
+    return `${(priceCents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  }
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -46,16 +59,6 @@ export function intervalToSeconds(interval: string | null): number {
     return total;
   }
   return 0;
-}
-
-export function formatDuration(interval: string | null): string {
-  const seconds = intervalToSeconds(interval);
-  if (seconds === 0) return "—";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m`;
-  if (m > 0) return `${m}m`;
-  return `${Math.round(seconds)}s`;
 }
 
 export function formatShortDuration(interval: string | null): string {

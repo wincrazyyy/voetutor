@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, ClipboardList, GraduationCap, MessageSquare, PlayCircle, Users } from "lucide-react";
+import { ArrowRight, ClipboardList, GraduationCap, MessageSquare, PlayCircle, Plus, Users } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getClassesForEducator } from "@/lib/queries/educator";
@@ -66,13 +66,25 @@ export default async function EducatorHubPage() {
             <ClipboardList className="w-6 h-6 text-primary" />
             Your Classes
           </h2>
+          <Link href="/educator/classes/new">
+            <Button className="gap-2 shadow-md">
+              <Plus className="w-4 h-4" />
+              New Class
+            </Button>
+          </Link>
         </div>
 
         {classes.length === 0 ? (
           <Card className="p-10 border border-dashed border-border bg-card/50 text-center">
             <GraduationCap className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-            <h3 className="text-lg font-bold mb-1">No classes assigned</h3>
-            <p className="text-sm text-muted-foreground">An administrator will assign you to a class shortly.</p>
+            <h3 className="text-lg font-bold mb-1">No classes yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">Create your first class to start teaching.</p>
+            <Link href="/educator/classes/new">
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                Create a Class
+              </Button>
+            </Link>
           </Card>
         ) : (
           <div className="grid gap-5 md:grid-cols-2">
