@@ -58,11 +58,9 @@ export function LessonPlayerClient({
   userId,
 }: LessonPlayerClientProps) {
   const flatVideos = curriculum.flatMap((topic) =>
-    topic.subtopics.flatMap((sub) =>
-      sub.videos.map((v) => ({ id: v.id, locked: topic.status === "locked" })),
-    ),
+    topic.subtopics.flatMap((sub) => sub.videos.map((v) => v.id)),
   );
-  const currentIndex = flatVideos.findIndex((v) => v.id === lessonId);
+  const currentIndex = flatVideos.findIndex((id) => id === lessonId);
   const previousVideo = currentIndex > 0 ? flatVideos[currentIndex - 1] : null;
   const nextVideo = currentIndex !== -1 && currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null;
 
@@ -126,12 +124,12 @@ export function LessonPlayerClient({
 
         <div className="flex items-center justify-between mt-6 shrink-0">
           {previousVideo ? (
-            <Link href={`/lessons/${previousVideo.id}`}>
-              <Button variant="outline" className="rounded-full gap-2 group" disabled={previousVideo.locked}>
+            <Button asChild variant="outline" className="rounded-full gap-2 group">
+              <Link href={`/lessons/${previousVideo}`}>
                 <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 <span className="hidden sm:inline">Previous</span>
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           ) : (
             <Button variant="outline" className="rounded-full gap-2" disabled>
               <ChevronLeft className="w-4 h-4" />
@@ -151,12 +149,12 @@ export function LessonPlayerClient({
           </Button>
 
           {nextVideo ? (
-            <Link href={`/lessons/${nextVideo.id}`}>
-              <Button variant="outline" className="rounded-full gap-2 group" disabled={nextVideo.locked}>
+            <Button asChild variant="outline" className="rounded-full gap-2 group">
+              <Link href={`/lessons/${nextVideo}`}>
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           ) : (
             <Button variant="outline" className="rounded-full gap-2" disabled>
               <span className="hidden sm:inline">Next</span>
@@ -247,19 +245,17 @@ export function LessonPlayerClient({
 
                       {subtopic.videos.map((v) => {
                         const isActive = v.id === lessonId;
-                        const isLocked = activeTopic?.status === "locked";
+                        const isVideoCompleted = v.is_completed || (isActive && completed);
                         return (
                           <Link
                             key={v.id}
                             href={`/lessons/${v.id}`}
                             className={`flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 ${
                               isActive ? "bg-primary/5 border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
-                            } ${isLocked ? "opacity-60 pointer-events-none" : ""}`}
+                            }`}
                           >
                             <div className="flex items-start gap-3">
-                              {isLocked ? (
-                                <Lock className="w-4 h-4 text-muted-foreground/60 mt-0.5 shrink-0" />
-                              ) : v.is_completed ? (
+                              {isVideoCompleted ? (
                                 <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                               ) : (
                                 <div

@@ -4,11 +4,12 @@ import { ArrowLeft, BarChart3 } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getClassById } from "@/lib/queries/classes";
-import { getEducatorClassStats } from "@/lib/queries/educator";
+import { getEducatorClassStats, getStudentRosterProgress } from "@/lib/queries/educator";
 import { getVideoAnalyticsForClass } from "@/lib/queries/video-analytics";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StudentProgressList } from "@/components/educator/student-progress-list";
 
 export default async function EducatorClassStatsPage({
   params,
@@ -27,9 +28,10 @@ export default async function EducatorClassStatsPage({
     redirect("/educator");
   }
 
-  const [stats, videoAnalytics] = await Promise.all([
+  const [stats, videoAnalytics, roster] = await Promise.all([
     getEducatorClassStats(classId),
     getVideoAnalyticsForClass(classId),
+    getStudentRosterProgress(classId),
   ]);
   const watchHours = (stats.total_watch_seconds / 3600).toFixed(1);
 
@@ -68,7 +70,7 @@ export default async function EducatorClassStatsPage({
         <div className="p-5 border-b border-border">
           <h2 className="text-lg font-bold">Per-Video Analytics</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Minutes viewed is reported by Cloudflare Stream over the last 90 days; completions are tracked across enrolled students.
+            Minutes viewed is the total watch time across enrolled students; completions counts students who finished the lesson.
           </p>
         </div>
         {videoAnalytics.length === 0 ? (
@@ -99,6 +101,16 @@ export default async function EducatorClassStatsPage({
             </tbody>
           </table>
         )}
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-border">
+          <h2 className="text-lg font-bold">Student Progress</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Expand a student to see their per-lesson completion, watch time, and resume position.
+          </p>
+        </div>
+        <StudentProgressList students={roster.students} />
       </Card>
     </div>
   );

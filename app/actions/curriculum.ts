@@ -90,7 +90,7 @@ export async function createTopicAction(
 
   const { error } = await supabase
     .from("topics")
-    .insert({ class_id: classId, title: parsed, order_index: orderIndex });
+    .insert({ class_id: classId, title: parsed, order_index: orderIndex, status: "active" });
   if (error) return { error: error.message };
 
   revalidatePath(`/educator/classes/${classId}`);

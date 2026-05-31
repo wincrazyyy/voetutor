@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Lock, Clock, FolderTree, FileText, Download, Paperclip, PlayCircle } from "lucide-react";
+import { CheckCircle2, Clock, FolderTree, FileText, Download, Paperclip, PlayCircle } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -34,7 +34,6 @@ export function CurriculumAccordion({ curriculum }: CurriculumAccordionProps) {
       <Accordion type="single" collapsible defaultValue={defaultValue} className="w-full flex flex-col gap-4">
         {curriculum.map((topic) => {
           const totalVideos = topic.total_videos;
-          const isLocked = topic.status === "locked";
 
           return (
             <AccordionItem
@@ -50,7 +49,6 @@ export function CurriculumAccordion({ curriculum }: CurriculumAccordionProps) {
                     <h3 className="text-base font-bold leading-tight">{topic.title}</h3>
                     <div className="shrink-0 mt-0.5">
                       {topic.status === "completed" && <CheckCircle2 className="w-4 h-4 text-primary" />}
-                      {topic.status === "locked" && <Lock className="w-4 h-4 text-muted-foreground" />}
                     </div>
                   </div>
 
@@ -131,7 +129,7 @@ export function CurriculumAccordion({ curriculum }: CurriculumAccordionProps) {
                           <Link
                             key={video.id}
                             href={`/lessons/${video.id}`}
-                            className={`flex flex-col gap-1.5 p-4 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 ${isLocked ? "opacity-60 pointer-events-none" : ""}`}
+                            className="flex flex-col gap-1.5 p-4 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
                           >
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5">
