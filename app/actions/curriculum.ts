@@ -231,3 +231,82 @@ export async function deleteSubtopicAction(
   revalidatePath(`/educator/classes/${classId}`);
   return { ok: true };
 }
+
+/**
+ * Persists the canonical ordered membership of a subtopic. Every id in
+ * orderedVideoIds is written as (subtopic_id = subtopicId, order_index = its
+ * position), so this single action covers BOTH in-place reordering and
+ * cross-subtopic moves. A video already in the subtopic only has its order_index
+ * touched (subtopic_id is unchanged, so internal.protect_video_class_lineage
+ * early-exits); a dragged-in video is reparented within the same class, which
+ * passes videos_modify_educator_or_admin for both its old and new subtopic and
+ * skips the lineage guard (class never changes). order_index has no unique
+ * constraint, so the concurrent writes settle to a clean 0..n-1 sequence.
+ */
+export async function reorderSubtopicVideosAction(
+  classId: string,
+  subtopicId: string,
+  orderedVideoIds: string[],
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+
+  const supabase = await createClient();
+  if (!(await ownsClass(supabase, classId, auth.profile))) {
+    return { error: "You don't have permission to edit this class." };
+  }
+
+  const { data: target } = await supabase
+    .from("subtopics")
+    .select("id, topics!inner(class_id)")
+    .eq("id", subtopicId)
+    .maybeSingle();
+  const targetRow = target as { topics: { class_id: string } } | null;
+  if (!targetRow || targetRow.topics.class_id !== classId) {
+    return { error: "Subtopic not found in this class." };
+  }
+
+  const results = await Promise.all(
+    orderedVideoIds.map((id, index) =>
+      supabase.from("videos").update({ subtopic_id: subtopicId, order_index: index }).eq("id", id),
+    ),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) return { error: failed.error.message };
+
+  revalidatePath(`/educator/classes/${classId}`);
+  return { ok: true };
+}
+
+export async function renameVideoAction(
+  videoId: string,
+  classId: string,
+  title: string,
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+
+  const parsed = parseTitle(title);
+  if (typeof parsed !== "string") return parsed;
+
+  const supabase = await createClient();
+  if (!(await ownsClass(supabase, classId, auth.profile))) {
+    return { error: "You don't have permission to edit this class." };
+  }
+
+  const { data: video } = await supabase
+    .from("videos")
+    .select("subtopics!inner(topics!inner(class_id))")
+    .eq("id", videoId)
+    .maybeSingle();
+  const videoRow = video as { subtopics: { topics: { class_id: string } } } | null;
+  if (!videoRow || videoRow.subtopics.topics.class_id !== classId) {
+    return { error: "Video not found in this class." };
+  }
+
+  const { error } = await supabase.from("videos").update({ title: parsed }).eq("id", videoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/educator/classes/${classId}`);
+  return { ok: true };
+}
