@@ -7,6 +7,7 @@ import {
   PlayCircle,
   Plus,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Accordion,
   AccordionContent,
@@ -181,12 +182,13 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
                       {subtopic.videos.map((video) => {
                         const statusLabel = videoStatusLabel(video.status);
                         return (
-                          <div
+                          <Link
                             key={video.id}
-                            className="flex items-center gap-3 p-3 px-4 border-b border-border/50 last:border-0"
+                            href={`/lessons/${video.id}`}
+                            className="flex items-center gap-3 p-3 px-4 border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors group"
                           >
-                            <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm font-medium truncate">{video.title}</span>
+                            <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+                            <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{video.title}</span>
                             {statusLabel && (
                               <Badge
                                 variant="secondary"
@@ -202,7 +204,7 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
                             <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
                               {formatShortDuration(video.duration)}
                             </span>
-                          </div>
+                          </Link>
                         );
                       })}
                     </div>

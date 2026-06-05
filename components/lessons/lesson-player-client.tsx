@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -65,6 +65,7 @@ export function LessonPlayerClient({
   const nextVideo = currentIndex !== -1 && currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null;
 
   const streamRef = useRef<StreamPlayerApi | undefined>(undefined);
+  const [playerReady, setPlayerReady] = useState(false);
   const { completed, recordProgress, markComplete, handleEnded } = useVideoProgress({
     userId,
     videoId: lessonId,
@@ -84,19 +85,30 @@ export function LessonPlayerClient({
       <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 flex flex-col">
         <div className="w-full aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative border-4 border-card shrink-0">
           {isPlayable ? (
-            <Stream
-              src={signedToken!}
-              customerCode={customerCode}
-              controls
-              responsive={false}
-              height="100%"
-              width="100%"
-              streamRef={streamRef}
-              startTime={startSeconds}
-              onTimeUpdate={handleTimeUpdate}
-              onEnded={handleEnded}
-              className="w-full h-full"
-            />
+            <>
+              <Stream
+                src={signedToken!}
+                customerCode={customerCode}
+                controls
+                responsive={false}
+                height="100%"
+                width="100%"
+                streamRef={streamRef}
+                startTime={startSeconds}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={handleEnded}
+                onLoadedData={() => setPlayerReady(true)}
+                onCanPlay={() => setPlayerReady(true)}
+                onError={() => setPlayerReady(true)}
+                className="w-full h-full"
+              />
+              {!playerReady && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black text-white pointer-events-none">
+                  <Loader2 className="w-14 h-14 text-primary/80 animate-spin" />
+                  <p className="mt-4 font-medium text-sm opacity-70">Loading video…</p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-black/60 to-transparent text-white text-center px-6">
               {video.status === "errored" ? (
