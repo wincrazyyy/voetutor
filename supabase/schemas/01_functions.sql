@@ -370,6 +370,32 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 COMMENT ON FUNCTION internal.is_active_educator() IS 'Boolean predicate for "is the caller an APPROVED educator?". SECURITY DEFINER bypasses RLS on profiles. Unapproved educators return FALSE — matching the get_user_role downgrade convention but without coupling to enum identity.';
 
+CREATE OR REPLACE FUNCTION internal.owns_video(p_video_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.videos
+        WHERE id = p_video_id AND owner_id = (SELECT auth.uid())
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.owns_video(UUID) IS 'Bypasses RLS to check whether the caller owns a library video. Used inside the video_placements policies to break the videos <-> video_placements RLS recursion: a direct EXISTS on videos there would re-trigger videos_select, which reads video_placements, which re-triggers this policy, looping (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+
+CREATE OR REPLACE FUNCTION internal.video_in_user_classes(p_video_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.video_placements vp
+        JOIN public.subtopics s ON s.id = vp.subtopic_id
+        JOIN public.topics t ON t.id = s.topic_id
+        WHERE vp.video_id = p_video_id
+          AND t.class_id IN (SELECT internal.get_user_class_ids())
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.video_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library video is placed in any class the caller is enrolled in or teaches. Used by videos_select_authorized so the videos policy never reads video_placements under RLS — the other half of the fix that prevents the videos <-> video_placements policy recursion (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+
 /* ==========  PUBLIC RPC FUNCTIONS  ========== */
 /* RPCs deliberately live in the public schema so PostgREST can expose them
    to the authenticated client. Internal helpers and trigger functions live

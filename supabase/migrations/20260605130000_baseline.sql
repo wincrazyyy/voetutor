@@ -303,6 +303,26 @@ $$;
 ALTER FUNCTION "internal"."maintain_forum_post_upvote_count"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "internal"."owns_video"("p_video_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.videos
+        WHERE id = p_video_id AND owner_id = (SELECT auth.uid())
+    );
+END;
+$$;
+
+
+ALTER FUNCTION "internal"."owns_video"("p_video_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "internal"."owns_video"("p_video_id" "uuid") IS 'Bypasses RLS to check whether the caller owns a library video. Used inside the video_placements policies to break the videos <-> video_placements RLS recursion: a direct EXISTS on videos there would re-trigger videos_select, which reads video_placements, which re-triggers this policy, looping (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+
+
+
 CREATE OR REPLACE FUNCTION "internal"."prevent_educator_profile_modifications"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -557,6 +577,30 @@ $$;
 
 
 ALTER FUNCTION "internal"."validate_forum_post_video_class"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "internal"."video_in_user_classes"("p_video_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.video_placements vp
+        JOIN public.subtopics s ON s.id = vp.subtopic_id
+        JOIN public.topics t ON t.id = s.topic_id
+        WHERE vp.video_id = p_video_id
+          AND t.class_id IN (SELECT internal.get_user_class_ids())
+    );
+END;
+$$;
+
+
+ALTER FUNCTION "internal"."video_in_user_classes"("p_video_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "internal"."video_in_user_classes"("p_video_id" "uuid") IS 'Bypasses RLS to check whether a library video is placed in any class the caller is enrolled in or teaches. Used by videos_select_authorized so the videos policy never reads video_placements under RLS — the other half of the fix that prevents the videos <-> video_placements policy recursion (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."approve_educator"("p_user_id" "uuid") RETURNS "void"
@@ -1687,13 +1731,11 @@ CREATE POLICY "video_placements_modify_educator_or_admin" ON "public"."video_pla
    FROM (("public"."subtopics" "s"
      JOIN "public"."topics" "t" ON (("t"."id" = "s"."topic_id")))
      JOIN "public"."classes" "c" ON (("c"."id" = "t"."class_id")))
-  WHERE (("s"."id" = "video_placements"."subtopic_id") AND ("c"."educator_id" = ( SELECT "auth"."uid"() AS "uid"))))) AND (EXISTS ( SELECT 1
-   FROM "public"."videos" "v"
-  WHERE (("v"."id" = "video_placements"."video_id") AND ("v"."owner_id" = ( SELECT "auth"."uid"() AS "uid"))))))));
+  WHERE (("s"."id" = "video_placements"."subtopic_id") AND ("c"."educator_id" = ( SELECT "auth"."uid"() AS "uid"))))) AND ( SELECT "internal"."owns_video"("video_placements"."video_id") AS "owns_video"))));
 
 
 
-COMMENT ON POLICY "video_placements_modify_educator_or_admin" ON "public"."video_placements" IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints.';
+COMMENT ON POLICY "video_placements_modify_educator_or_admin" ON "public"."video_placements" IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints. The video-ownership half goes through internal.owns_video (SECURITY DEFINER) so this policy never reads videos under RLS — otherwise it would recurse with videos_select (Postgres 42P17).';
 
 
 
@@ -1719,15 +1761,11 @@ COMMENT ON POLICY "videos_modify_educator_or_admin" ON "public"."videos" IS 'Lib
 
 
 
-CREATE POLICY "videos_select_authorized" ON "public"."videos" FOR SELECT TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR ("owner_id" = ( SELECT "auth"."uid"() AS "uid")) OR (EXISTS ( SELECT 1
-   FROM (("public"."video_placements" "vp"
-     JOIN "public"."subtopics" "s" ON (("s"."id" = "vp"."subtopic_id")))
-     JOIN "public"."topics" "t" ON (("t"."id" = "s"."topic_id")))
-  WHERE (("vp"."video_id" = "videos"."id") AND ("t"."class_id" IN ( SELECT "internal"."get_user_class_ids"() AS "get_user_class_ids")))))));
+CREATE POLICY "videos_select_authorized" ON "public"."videos" FOR SELECT TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR ("owner_id" = ( SELECT "auth"."uid"() AS "uid")) OR ( SELECT "internal"."video_in_user_classes"("videos"."id") AS "video_in_user_classes")));
 
 
 
-COMMENT ON POLICY "videos_select_authorized" ON "public"."videos" IS 'Library videos are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the video is placed into via video_placements.';
+COMMENT ON POLICY "videos_select_authorized" ON "public"."videos" IS 'Library videos are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the video is placed into. The placement check goes through internal.video_in_user_classes (SECURITY DEFINER) rather than an inline subquery so the videos policy never reads video_placements under RLS — otherwise videos_select and video_placements_modify would recurse (Postgres 42P17).';
 
 
 

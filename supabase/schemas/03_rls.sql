@@ -190,14 +190,9 @@ CREATE POLICY videos_select_authorized ON videos
     USING (
         (SELECT internal.is_admin())
         OR owner_id = (SELECT auth.uid())
-        OR EXISTS (
-            SELECT 1 FROM public.video_placements vp
-            JOIN public.subtopics s ON s.id = vp.subtopic_id
-            JOIN public.topics t ON t.id = s.topic_id
-            WHERE vp.video_id = videos.id AND t.class_id IN (SELECT internal.get_user_class_ids())
-        )
+        OR (SELECT internal.video_in_user_classes(videos.id))
     );
-COMMENT ON POLICY videos_select_authorized ON videos IS 'Library videos are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the video is placed into via video_placements.';
+COMMENT ON POLICY videos_select_authorized ON videos IS 'Library videos are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the video is placed into. The placement check goes through internal.video_in_user_classes (SECURITY DEFINER) rather than an inline subquery so the videos policy never reads video_placements under RLS — otherwise videos_select and video_placements_modify would recurse (Postgres 42P17).';
 
 CREATE POLICY videos_modify_educator_or_admin ON videos
     FOR ALL TO authenticated
@@ -228,13 +223,10 @@ CREATE POLICY video_placements_modify_educator_or_admin ON video_placements
                 JOIN public.classes c ON c.id = t.class_id
                 WHERE s.id = video_placements.subtopic_id AND c.educator_id = (SELECT auth.uid())
             )
-            AND EXISTS (
-                SELECT 1 FROM public.videos v
-                WHERE v.id = video_placements.video_id AND v.owner_id = (SELECT auth.uid())
-            )
+            AND (SELECT internal.owns_video(video_placements.video_id))
         )
     );
-COMMENT ON POLICY video_placements_modify_educator_or_admin ON video_placements IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints.';
+COMMENT ON POLICY video_placements_modify_educator_or_admin ON video_placements IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints. The video-ownership half goes through internal.owns_video (SECURITY DEFINER) so this policy never reads videos under RLS — otherwise it would recurse with videos_select (Postgres 42P17).';
 
 /* RESOURCES */
 CREATE POLICY resources_select_authorized ON resources
