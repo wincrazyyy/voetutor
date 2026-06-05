@@ -88,14 +88,14 @@ export async function createVideoUploadAction(input: {
     return { error: "You don't have permission to add videos to this class." };
   }
 
-  const { data: lastVideo } = await supabase
-    .from("videos")
+  const { data: lastPlacement } = await supabase
+    .from("video_placements")
     .select("order_index")
     .eq("subtopic_id", input.subtopicId)
     .order("order_index", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const orderIndex = ((lastVideo as { order_index: number } | null)?.order_index ?? -1) + 1;
+  const orderIndex = ((lastPlacement as { order_index: number } | null)?.order_index ?? -1) + 1;
 
   const host = appHost();
   let upload;
@@ -110,30 +110,42 @@ export async function createVideoUploadAction(input: {
     return { error: "Could not start the upload. Please try again." };
   }
 
-  const { data: inserted, error } = await supabase
+  /* Create the library video (owned by the uploader), then place it in the
+     target subtopic. Both rows are rolled back — along with the Cloudflare
+     upload — if either insert fails, so a failure never leaves an orphan. */
+  const { data: inserted, error: videoError } = await supabase
     .from("videos")
     .insert({
-      subtopic_id: input.subtopicId,
+      owner_id: profile.id,
       title,
       description: description || null,
       cloudflare_uid: upload.uid,
       status: "uploading",
-      order_index: orderIndex,
     })
     .select("id")
     .single();
 
-  if (error || !inserted) {
-    /* Roll back the Cloudflare upload so it does not linger as reserved storage. */
+  if (videoError || !inserted) {
     await deleteVideo(upload.uid).catch(() => undefined);
-    return { error: error?.message ?? "Could not create the video." };
+    return { error: videoError?.message ?? "Could not create the video." };
+  }
+  const videoId = (inserted as { id: string }).id;
+
+  const { error: placementError } = await supabase
+    .from("video_placements")
+    .insert({ video_id: videoId, subtopic_id: input.subtopicId, order_index: orderIndex });
+
+  if (placementError) {
+    await supabase.from("videos").delete().eq("id", videoId);
+    await deleteVideo(upload.uid).catch(() => undefined);
+    return { error: placementError.message };
   }
 
   revalidatePath(`/educator/classes/${classId}`);
   return {
     ok: true,
     uploadUrl: upload.uploadUrl,
-    videoId: (inserted as { id: string }).id,
+    videoId,
     videoUid: upload.uid,
   };
 }
@@ -153,24 +165,30 @@ export async function deleteVideoAction(videoId: string): Promise<VideoActionSta
 
   const { data: video } = await supabase
     .from("videos")
-    .select("cloudflare_uid, subtopics!inner(topics!inner(class_id, classes!inner(educator_id)))")
+    .select("cloudflare_uid, owner_id")
     .eq("id", videoId)
     .maybeSingle();
 
-  const videoRow = video as
-    | {
-        cloudflare_uid: string | null;
-        subtopics: { topics: { class_id: string; classes: { educator_id: string | null } } };
-      }
-    | null;
+  const videoRow = video as { cloudflare_uid: string | null; owner_id: string } | null;
   if (!videoRow) return { error: "Video not found." };
 
-  const classId = videoRow.subtopics.topics.class_id;
-  const ownsClass =
-    profile.role === "admin" || videoRow.subtopics.topics.classes.educator_id === profile.id;
-  if (!ownsClass) {
+  if (profile.role !== "admin" && videoRow.owner_id !== profile.id) {
     return { error: "You don't have permission to delete this video." };
   }
+
+  /* Capture the classes the video appears in before deleting, so their
+     curriculum pages can be revalidated once the cascade removes placements. */
+  const { data: placementRows } = await supabase
+    .from("video_placements")
+    .select("subtopics!inner(topics!inner(class_id))")
+    .eq("video_id", videoId);
+  const classIds = [
+    ...new Set(
+      ((placementRows ?? []) as unknown as Array<{ subtopics: { topics: { class_id: string } } }>).map(
+        (row) => row.subtopics.topics.class_id,
+      ),
+    ),
+  ];
 
   const { error } = await supabase.from("videos").delete().eq("id", videoId);
   if (error) return { error: error.message };
@@ -179,6 +197,6 @@ export async function deleteVideoAction(videoId: string): Promise<VideoActionSta
     await deleteVideo(videoRow.cloudflare_uid).catch(() => undefined);
   }
 
-  revalidatePath(`/educator/classes/${classId}`);
+  for (const id of classIds) revalidatePath(`/educator/classes/${id}`);
   return { ok: true };
 }

@@ -2,6 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import type { Resource, Subtopic, Topic, Video } from "@/lib/types/database";
 
 export interface VideoWithProgress extends Video {
+  /** The video_placements row this curriculum entry came from. */
+  placement_id: string;
+  /** Subtopic + order are placement-derived, since a video can be placed in many subtopics. */
+  subtopic_id: string;
+  order_index: number;
   is_completed: boolean;
   last_position: string | null;
 }
@@ -21,7 +26,7 @@ export interface TopicWithChildren extends Topic {
 export async function getCurriculumForClass(classId: string, userId: string): Promise<TopicWithChildren[]> {
   const supabase = await createClient();
 
-  const [{ data: topicsRaw }, { data: subtopicsRaw }, { data: videosRaw }, { data: resourcesRaw }] = await Promise.all([
+  const [{ data: topicsRaw }, { data: subtopicsRaw }, { data: placementsRaw }, { data: resourcesRaw }] = await Promise.all([
     supabase
       .from("topics")
       .select("id, class_id, title, total_duration, status, order_index, created_at, updated_at")
@@ -33,8 +38,8 @@ export async function getCurriculumForClass(classId: string, userId: string): Pr
       .eq("topics.class_id", classId)
       .order("order_index", { ascending: true }),
     supabase
-      .from("videos")
-      .select("id, subtopic_id, title, description, duration, video_url, cloudflare_uid, status, thumbnail_url, order_index, created_at, updated_at, subtopics!inner(topic_id, topics!inner(class_id))")
+      .from("video_placements")
+      .select("id, subtopic_id, order_index, videos!inner(id, owner_id, title, description, duration, video_url, cloudflare_uid, status, thumbnail_url, created_at, updated_at), subtopics!inner(topics!inner(class_id))")
       .eq("subtopics.topics.class_id", classId)
       .order("order_index", { ascending: true }),
     supabase
@@ -44,10 +49,15 @@ export async function getCurriculumForClass(classId: string, userId: string): Pr
 
   const topics = (topicsRaw ?? []) as Topic[];
   const subtopics = ((subtopicsRaw ?? []) as unknown as Subtopic[]);
-  const videos = ((videosRaw ?? []) as unknown as Video[]);
+  const placements = (placementsRaw ?? []) as unknown as Array<{
+    id: string;
+    subtopic_id: string;
+    order_index: number;
+    videos: Video;
+  }>;
   const resources = (resourcesRaw ?? []) as Resource[];
 
-  const videoIds = videos.map((v) => v.id);
+  const videoIds = [...new Set(placements.map((p) => p.videos.id))];
   let progressMap = new Map<string, { is_completed: boolean; last_position: string | null }>();
   if (videoIds.length > 0) {
     const { data: progressRaw } = await supabase
@@ -74,12 +84,15 @@ export async function getCurriculumForClass(classId: string, userId: string): Pr
     const mySubtopics = subtopics
       .filter((s) => s.topic_id === topic.id)
       .map<SubtopicWithChildren>((sub) => {
-        const subVideos = videos
-          .filter((v) => v.subtopic_id === sub.id)
-          .map<VideoWithProgress>((v) => {
-            const progress = progressMap.get(v.id);
+        const subVideos = placements
+          .filter((p) => p.subtopic_id === sub.id)
+          .map<VideoWithProgress>((p) => {
+            const progress = progressMap.get(p.videos.id);
             return {
-              ...v,
+              ...p.videos,
+              placement_id: p.id,
+              subtopic_id: p.subtopic_id,
+              order_index: p.order_index,
               is_completed: progress?.is_completed ?? false,
               last_position: progress?.last_position ?? null,
             };
@@ -105,20 +118,26 @@ export async function getVideoById(videoId: string): Promise<Video | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("videos")
-    .select("id, subtopic_id, title, description, duration, video_url, cloudflare_uid, status, thumbnail_url, order_index, created_at, updated_at")
+    .select("id, owner_id, title, description, duration, video_url, cloudflare_uid, status, thumbnail_url, created_at, updated_at")
     .eq("id", videoId)
     .maybeSingle();
   return (data as Video | null) ?? null;
 }
 
-export async function getClassIdForVideo(videoId: string): Promise<string | null> {
+/**
+ * Every class a video is placed into (via video_placements). A library video
+ * can appear in several classes, so callers (e.g. lesson-page authorization)
+ * must consider the whole set rather than a single owning class.
+ */
+export async function getClassIdsForVideo(videoId: string): Promise<string[]> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("videos")
+    .from("video_placements")
     .select("subtopics!inner(topics!inner(class_id))")
-    .eq("id", videoId)
-    .maybeSingle();
-  if (!data) return null;
-  const sub = (data as unknown as { subtopics: { topics: { class_id: string } } }).subtopics;
-  return sub?.topics?.class_id ?? null;
+    .eq("video_id", videoId);
+  if (!data) return [];
+  const ids = (data as unknown as Array<{ subtopics: { topics: { class_id: string } } }>).map(
+    (row) => row.subtopics.topics.class_id,
+  );
+  return [...new Set(ids)];
 }

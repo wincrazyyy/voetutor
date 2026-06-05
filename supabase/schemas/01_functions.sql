@@ -191,8 +191,6 @@ COMMENT ON FUNCTION internal.protect_forum_post_upvotes() IS 'Hard-rejects direc
 
 CREATE OR REPLACE FUNCTION internal.validate_forum_post_video_class()
 RETURNS TRIGGER AS $$
-DECLARE
-    v_video_class_id UUID;
 BEGIN
     IF NEW.video_id IS NULL THEN
         RETURN NEW;
@@ -205,22 +203,22 @@ BEGIN
         END IF;
     END IF;
 
-    SELECT t.class_id INTO v_video_class_id
-    FROM public.videos v
-    JOIN public.subtopics s ON s.id = v.subtopic_id
-    JOIN public.topics t ON t.id = s.topic_id
-    WHERE v.id = NEW.video_id;
-
-    IF v_video_class_id IS DISTINCT FROM NEW.class_id THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: forum_posts.video_id must reference a video belonging to the same class as the post (post class %, video class %).', NEW.class_id, v_video_class_id;
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.video_placements vp
+        JOIN public.subtopics s ON s.id = vp.subtopic_id
+        JOIN public.topics t ON t.id = s.topic_id
+        WHERE vp.video_id = NEW.video_id AND t.class_id = NEW.class_id
+    ) THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: forum_posts.video_id must reference a video placed in the same class as the post (post class %).', NEW.class_id;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.validate_forum_post_video_class() IS 'Closes the cross-class loophole left open by chk_forum_post_video_context: when a post references a video, that video''s grandparent class must equal the post''s class. CHECK constraints cannot reach across tables, hence the trigger. The UPDATE-path early-exit is wrapped in a nested IF (rather than a single conjoined expression) because PostgreSQL does not guarantee short-circuit evaluation, so OLD must only be referenced inside an explicit TG_OP = ''UPDATE'' branch.';
+COMMENT ON FUNCTION internal.validate_forum_post_video_class() IS 'Closes the cross-class loophole left open by chk_forum_post_video_context under the video-library model: when a post references a video, that video must have a video_placements row in the post''s class. CHECK constraints cannot reach across tables, hence the trigger. The UPDATE-path early-exit is wrapped in a nested IF (rather than a single conjoined expression) because PostgreSQL does not guarantee short-circuit evaluation, so OLD must only be referenced inside an explicit TG_OP = ''UPDATE'' branch.';
 
-CREATE OR REPLACE FUNCTION internal.protect_video_class_lineage()
+CREATE OR REPLACE FUNCTION internal.protect_placement_forum_lineage()
 RETURNS TRIGGER AS $$
 DECLARE
     v_old_class_id UUID;
@@ -239,14 +237,17 @@ BEGIN
     WHERE s.id = NEW.subtopic_id;
 
     IF v_old_class_id IS DISTINCT FROM v_new_class_id
-       AND EXISTS (SELECT 1 FROM public.forum_posts WHERE video_id = NEW.id) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot reparent video % to a subtopic in a different class while forum_posts reference it. Move or delete the dependent video_qa posts first.', NEW.id;
+       AND EXISTS (
+           SELECT 1 FROM public.forum_posts
+           WHERE video_id = NEW.video_id AND class_id = v_old_class_id
+       ) THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move this placement to a different class while forum_posts in the original class reference the video. Move or delete the dependent video_qa posts first.';
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.protect_video_class_lineage() IS 'Prevents a video from being reparented to a subtopic whose grandparent class differs from the original, while forum_posts still reference it. Without this, moving a video could silently invalidate the forum_post -> video class invariant enforced by validate_forum_post_video_class.';
+COMMENT ON FUNCTION internal.protect_placement_forum_lineage() IS 'Library-model successor to protect_video_class_lineage. Fires when a placement is moved (subtopic_id changes) to a subtopic in a different class: blocks the move while forum_posts in the original class still reference the video, preserving the forum_post -> video class invariant enforced by validate_forum_post_video_class. Placement deletes (unplace) are handled by the application; cascade deletes from subtopic/class removal garbage-collect the dependent posts via the videos FK.';
 
 CREATE OR REPLACE FUNCTION internal.protect_subtopic_class_lineage()
 RETURNS TRIGGER AS $$
@@ -265,16 +266,16 @@ BEGIN
        AND EXISTS (
            SELECT 1
            FROM public.forum_posts fp
-           JOIN public.videos v ON v.id = fp.video_id
-           WHERE v.subtopic_id = NEW.id
+           JOIN public.video_placements vp ON vp.video_id = fp.video_id
+           WHERE vp.subtopic_id = NEW.id
        ) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot reparent subtopic % to a topic in a different class while forum_posts reference videos within it. Move or delete the dependent video_qa posts first.', NEW.id;
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot reparent subtopic % to a topic in a different class while forum_posts reference videos placed within it. Move or delete the dependent video_qa posts first.', NEW.id;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.protect_subtopic_class_lineage() IS 'Mirrors protect_video_class_lineage one level up: blocks subtopic reparenting that would alter the class lineage of any video bound to a forum_post.';
+COMMENT ON FUNCTION internal.protect_subtopic_class_lineage() IS 'Mirrors protect_placement_forum_lineage one level up: blocks subtopic reparenting that would alter the class lineage of any video (resolved via video_placements) bound to a forum_post.';
 
 CREATE OR REPLACE FUNCTION internal.protect_topic_class_lineage()
 RETURNS TRIGGER AS $$
@@ -286,17 +287,17 @@ BEGIN
     IF EXISTS (
         SELECT 1
         FROM public.forum_posts fp
-        JOIN public.videos v ON v.id = fp.video_id
-        JOIN public.subtopics s ON s.id = v.subtopic_id
+        JOIN public.video_placements vp ON vp.video_id = fp.video_id
+        JOIN public.subtopics s ON s.id = vp.subtopic_id
         WHERE s.topic_id = NEW.id
     ) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move topic % to a different class while forum_posts reference videos within its subtree. Move or delete the dependent video_qa posts first.', NEW.id;
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move topic % to a different class while forum_posts reference videos placed within its subtree. Move or delete the dependent video_qa posts first.', NEW.id;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.protect_topic_class_lineage() IS 'Top of the class-lineage protection chain: blocks topic reassignment that would alter the class of any video bound to a forum_post.';
+COMMENT ON FUNCTION internal.protect_topic_class_lineage() IS 'Top of the class-lineage protection chain: blocks topic reassignment that would alter the class of any video (resolved via video_placements) bound to a forum_post.';
 
 /* ==========  RLS HELPER FUNCTIONS  ========== */
 

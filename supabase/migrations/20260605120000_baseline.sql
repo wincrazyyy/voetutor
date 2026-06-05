@@ -381,6 +381,41 @@ $$;
 ALTER FUNCTION "internal"."protect_forum_post_upvotes"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "internal"."protect_placement_forum_lineage"() RETURNS "trigger"
+    LANGUAGE "plpgsql" STABLE
+    AS $$
+DECLARE
+    v_old_class_id UUID;
+    v_new_class_id UUID;
+BEGIN
+    IF NEW.subtopic_id IS NOT DISTINCT FROM OLD.subtopic_id THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT t.class_id INTO v_old_class_id
+    FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
+    WHERE s.id = OLD.subtopic_id;
+
+    SELECT t.class_id INTO v_new_class_id
+    FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
+    WHERE s.id = NEW.subtopic_id;
+
+    IF v_old_class_id IS DISTINCT FROM v_new_class_id
+       AND EXISTS (
+           SELECT 1 FROM public.forum_posts
+           WHERE video_id = NEW.video_id AND class_id = v_old_class_id
+       ) THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move this placement to a different class while forum_posts in the original class reference the video. Move or delete the dependent video_qa posts first.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "internal"."protect_placement_forum_lineage"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "internal"."protect_profile_role"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -422,10 +457,10 @@ BEGIN
        AND EXISTS (
            SELECT 1
            FROM public.forum_posts fp
-           JOIN public.videos v ON v.id = fp.video_id
-           WHERE v.subtopic_id = NEW.id
+           JOIN public.video_placements vp ON vp.video_id = fp.video_id
+           WHERE vp.subtopic_id = NEW.id
        ) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot reparent subtopic % to a topic in a different class while forum_posts reference videos within it. Move or delete the dependent video_qa posts first.', NEW.id;
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot reparent subtopic % to a topic in a different class while forum_posts reference videos placed within it. Move or delete the dependent video_qa posts first.', NEW.id;
     END IF;
 
     RETURN NEW;
@@ -447,11 +482,11 @@ BEGIN
     IF EXISTS (
         SELECT 1
         FROM public.forum_posts fp
-        JOIN public.videos v ON v.id = fp.video_id
-        JOIN public.subtopics s ON s.id = v.subtopic_id
+        JOIN public.video_placements vp ON vp.video_id = fp.video_id
+        JOIN public.subtopics s ON s.id = vp.subtopic_id
         WHERE s.topic_id = NEW.id
     ) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move topic % to a different class while forum_posts reference videos within its subtree. Move or delete the dependent video_qa posts first.', NEW.id;
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move topic % to a different class while forum_posts reference videos placed within its subtree. Move or delete the dependent video_qa posts first.', NEW.id;
     END IF;
 
     RETURN NEW;
@@ -460,38 +495,6 @@ $$;
 
 
 ALTER FUNCTION "internal"."protect_topic_class_lineage"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "internal"."protect_video_class_lineage"() RETURNS "trigger"
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_old_class_id UUID;
-    v_new_class_id UUID;
-BEGIN
-    IF NEW.subtopic_id IS NOT DISTINCT FROM OLD.subtopic_id THEN
-        RETURN NEW;
-    END IF;
-
-    SELECT t.class_id INTO v_old_class_id
-    FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
-    WHERE s.id = OLD.subtopic_id;
-
-    SELECT t.class_id INTO v_new_class_id
-    FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
-    WHERE s.id = NEW.subtopic_id;
-
-    IF v_old_class_id IS DISTINCT FROM v_new_class_id
-       AND EXISTS (SELECT 1 FROM public.forum_posts WHERE video_id = NEW.id) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot reparent video % to a subtopic in a different class while forum_posts reference it. Move or delete the dependent video_qa posts first.', NEW.id;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "internal"."protect_video_class_lineage"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "internal"."set_current_timestamp_updated_at"() RETURNS "trigger"
@@ -526,8 +529,6 @@ ALTER FUNCTION "internal"."set_forum_post_updated_at"() OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "internal"."validate_forum_post_video_class"() RETURNS "trigger"
     LANGUAGE "plpgsql" STABLE
     AS $$
-DECLARE
-    v_video_class_id UUID;
 BEGIN
     IF NEW.video_id IS NULL THEN
         RETURN NEW;
@@ -540,14 +541,14 @@ BEGIN
         END IF;
     END IF;
 
-    SELECT t.class_id INTO v_video_class_id
-    FROM public.videos v
-    JOIN public.subtopics s ON s.id = v.subtopic_id
-    JOIN public.topics t ON t.id = s.topic_id
-    WHERE v.id = NEW.video_id;
-
-    IF v_video_class_id IS DISTINCT FROM NEW.class_id THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: forum_posts.video_id must reference a video belonging to the same class as the post (post class %, video class %).', NEW.class_id, v_video_class_id;
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.video_placements vp
+        JOIN public.subtopics s ON s.id = vp.subtopic_id
+        JOIN public.topics t ON t.id = s.topic_id
+        WHERE vp.video_id = NEW.video_id AND t.class_id = NEW.class_id
+    ) THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: forum_posts.video_id must reference a video placed in the same class as the post (post class %).', NEW.class_id;
     END IF;
 
     RETURN NEW;
@@ -884,21 +885,42 @@ CREATE TABLE IF NOT EXISTS "public"."user_video_progress" (
 ALTER TABLE "public"."user_video_progress" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."video_placements" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "video_id" "uuid" NOT NULL,
+    "subtopic_id" "uuid" NOT NULL,
+    "order_index" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "video_placements_order_index_check" CHECK (("order_index" >= 0))
+);
+
+ALTER TABLE ONLY "public"."video_placements" FORCE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."video_placements" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."video_placements" IS 'Join table placing library videos into the curriculum: each row surfaces one video inside one subtopic at a given order_index. The many-to-many design lets a single video appear in multiple subtopics across the owning educator''s classes (overlap). Deleting a subtopic removes the placement only — the underlying library video survives; deleting a video removes all its placements.';
+
+
+
+COMMENT ON COLUMN "public"."video_placements"."order_index" IS 'Position of the video within its subtopic. Not unique; the curriculum sorts by it and the educator reorders via drag-and-drop. The (video_id, subtopic_id) UNIQUE constraint blocks placing the same video into one subtopic twice.';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."videos" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "subtopic_id" "uuid" NOT NULL,
     "title" "text" NOT NULL,
     "description" "text",
     "duration" interval,
     "video_url" "text",
-    "order_index" integer NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "cloudflare_uid" "text",
     "status" "public"."video_status" DEFAULT 'uploading'::"public"."video_status" NOT NULL,
     "thumbnail_url" "text",
+    "owner_id" "uuid" NOT NULL,
     CONSTRAINT "videos_cloudflare_uid_check" CHECK ((("cloudflare_uid" IS NULL) OR ("char_length"("cloudflare_uid") <= 64))),
-    CONSTRAINT "videos_order_index_check" CHECK (("order_index" >= 0)),
     CONSTRAINT "videos_thumbnail_url_check" CHECK ((("thumbnail_url" IS NULL) OR (("char_length"("thumbnail_url") <= 2048) AND ("thumbnail_url" ~* '^https://'::"text")))),
     CONSTRAINT "videos_title_check" CHECK (("char_length"("title") <= 255)),
     CONSTRAINT "videos_video_url_check" CHECK ((("video_url" IS NULL) OR (("char_length"("video_url") <= 2048) AND ("video_url" ~* '^https://'::"text"))))
@@ -906,6 +928,10 @@ CREATE TABLE IF NOT EXISTS "public"."videos" (
 
 
 ALTER TABLE "public"."videos" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."videos" IS 'Educator-owned library of instructional media. A video exists independently of the curriculum and is surfaced inside classes through video_placements (many-to-many), so one video can appear in several subtopics across several of the owning educator''s classes.';
+
 
 
 COMMENT ON COLUMN "public"."videos"."cloudflare_uid" IS 'Cloudflare Stream video identifier. UNIQUE so the Stream webhook can resolve a videos row from an incoming notification; NULL only for legacy or externally-hosted rows that never went through the direct-upload flow.';
@@ -917,6 +943,10 @@ COMMENT ON COLUMN "public"."videos"."status" IS 'Encoding lifecycle for Cloudfla
 
 
 COMMENT ON COLUMN "public"."videos"."thumbnail_url" IS 'Cloudflare-generated poster image, cached on the row so curriculum cards render without an extra Stream API call. Inline CHECK enforces the 2048-char cap and HTTPS-only transport.';
+
+
+
+COMMENT ON COLUMN "public"."videos"."owner_id" IS 'The educator who owns this library video. Edit/delete and placement rights resolve directly from this column rather than through the curriculum hierarchy, since a video may be placed into many classes or none.';
 
 
 
@@ -987,6 +1017,16 @@ ALTER TABLE ONLY "public"."topics"
 
 ALTER TABLE ONLY "public"."user_video_progress"
     ADD CONSTRAINT "user_video_progress_pkey" PRIMARY KEY ("user_id", "video_id");
+
+
+
+ALTER TABLE ONLY "public"."video_placements"
+    ADD CONSTRAINT "video_placements_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."video_placements"
+    ADD CONSTRAINT "video_placements_video_id_subtopic_id_key" UNIQUE ("video_id", "subtopic_id");
 
 
 
@@ -1096,7 +1136,15 @@ CREATE INDEX "idx_user_video_progress_video_id" ON "public"."user_video_progress
 
 
 
-CREATE INDEX "idx_videos_subtopic_id" ON "public"."videos" USING "btree" ("subtopic_id");
+CREATE INDEX "idx_video_placements_subtopic_id" ON "public"."video_placements" USING "btree" ("subtopic_id");
+
+
+
+CREATE INDEX "idx_video_placements_video_id" ON "public"."video_placements" USING "btree" ("video_id");
+
+
+
+CREATE INDEX "idx_videos_owner_id" ON "public"."videos" USING "btree" ("owner_id");
 
 
 
@@ -1152,7 +1200,15 @@ CREATE OR REPLACE TRIGGER "enforce_immutability_topics" BEFORE UPDATE ON "public
 
 
 
+CREATE OR REPLACE TRIGGER "enforce_immutability_video_placements" BEFORE UPDATE ON "public"."video_placements" FOR EACH ROW EXECUTE FUNCTION "internal"."prevent_immutable_modifications"();
+
+
+
 CREATE OR REPLACE TRIGGER "enforce_immutability_videos" BEFORE UPDATE ON "public"."videos" FOR EACH ROW EXECUTE FUNCTION "internal"."prevent_immutable_modifications"();
+
+
+
+CREATE OR REPLACE TRIGGER "enforce_placement_class_lineage" BEFORE UPDATE ON "public"."video_placements" FOR EACH ROW EXECUTE FUNCTION "internal"."protect_placement_forum_lineage"();
 
 
 
@@ -1169,10 +1225,6 @@ CREATE OR REPLACE TRIGGER "enforce_topic_class_lineage" BEFORE UPDATE ON "public
 
 
 CREATE OR REPLACE TRIGGER "enforce_upvote_count_integrity" BEFORE UPDATE ON "public"."forum_posts" FOR EACH ROW EXECUTE FUNCTION "internal"."protect_forum_post_upvotes"();
-
-
-
-CREATE OR REPLACE TRIGGER "enforce_video_class_lineage" BEFORE UPDATE ON "public"."videos" FOR EACH ROW EXECUTE FUNCTION "internal"."protect_video_class_lineage"();
 
 
 
@@ -1361,8 +1413,18 @@ ALTER TABLE ONLY "public"."user_video_progress"
 
 
 
+ALTER TABLE ONLY "public"."video_placements"
+    ADD CONSTRAINT "video_placements_subtopic_id_fkey" FOREIGN KEY ("subtopic_id") REFERENCES "public"."subtopics"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."video_placements"
+    ADD CONSTRAINT "video_placements_video_id_fkey" FOREIGN KEY ("video_id") REFERENCES "public"."videos"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."videos"
-    ADD CONSTRAINT "videos_subtopic_id_fkey" FOREIGN KEY ("subtopic_id") REFERENCES "public"."subtopics"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT "videos_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "public"."profiles"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 
@@ -1547,11 +1609,15 @@ CREATE POLICY "progress_insert_self" ON "public"."user_video_progress" FOR INSER
 
 
 CREATE POLICY "progress_select_authorized" ON "public"."user_video_progress" FOR SELECT TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR ("user_id" = ( SELECT "auth"."uid"() AS "uid")) OR (EXISTS ( SELECT 1
-   FROM ((("public"."videos" "v"
-     JOIN "public"."subtopics" "s" ON (("s"."id" = "v"."subtopic_id")))
+   FROM ((("public"."video_placements" "vp"
+     JOIN "public"."subtopics" "s" ON (("s"."id" = "vp"."subtopic_id")))
      JOIN "public"."topics" "t" ON (("t"."id" = "s"."topic_id")))
      JOIN "public"."classes" "c" ON (("c"."id" = "t"."class_id")))
-  WHERE (("v"."id" = "user_video_progress"."video_id") AND ("c"."educator_id" = ( SELECT "auth"."uid"() AS "uid")))))));
+  WHERE (("vp"."video_id" = "user_video_progress"."video_id") AND ("c"."educator_id" = ( SELECT "auth"."uid"() AS "uid")))))));
+
+
+
+COMMENT ON POLICY "progress_select_authorized" ON "public"."user_video_progress" IS 'Permits students to fetch their own telemetry state, while granting educators visibility over progress for any video placed in a class they own (resolved via video_placements).';
 
 
 
@@ -1614,21 +1680,54 @@ CREATE POLICY "topics_select_authorized" ON "public"."topics" FOR SELECT TO "aut
 ALTER TABLE "public"."user_video_progress" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."videos" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."video_placements" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "videos_modify_educator_or_admin" ON "public"."videos" TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR (EXISTS ( SELECT 1
+CREATE POLICY "video_placements_modify_educator_or_admin" ON "public"."video_placements" TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR ((EXISTS ( SELECT 1
    FROM (("public"."subtopics" "s"
      JOIN "public"."topics" "t" ON (("t"."id" = "s"."topic_id")))
      JOIN "public"."classes" "c" ON (("c"."id" = "t"."class_id")))
-  WHERE (("s"."id" = "videos"."subtopic_id") AND ("c"."educator_id" = ( SELECT "auth"."uid"() AS "uid")))))));
+  WHERE (("s"."id" = "video_placements"."subtopic_id") AND ("c"."educator_id" = ( SELECT "auth"."uid"() AS "uid"))))) AND (EXISTS ( SELECT 1
+   FROM "public"."videos" "v"
+  WHERE (("v"."id" = "video_placements"."video_id") AND ("v"."owner_id" = ( SELECT "auth"."uid"() AS "uid"))))))));
 
 
 
-CREATE POLICY "videos_select_authorized" ON "public"."videos" FOR SELECT TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR (EXISTS ( SELECT 1
+COMMENT ON POLICY "video_placements_modify_educator_or_admin" ON "public"."video_placements" IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints.';
+
+
+
+CREATE POLICY "video_placements_select_authorized" ON "public"."video_placements" FOR SELECT TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR (EXISTS ( SELECT 1
    FROM ("public"."subtopics" "s"
      JOIN "public"."topics" "t" ON (("t"."id" = "s"."topic_id")))
-  WHERE (("s"."id" = "videos"."subtopic_id") AND ("t"."class_id" IN ( SELECT "internal"."get_user_class_ids"() AS "get_user_class_ids")))))));
+  WHERE (("s"."id" = "video_placements"."subtopic_id") AND ("t"."class_id" IN ( SELECT "internal"."get_user_class_ids"() AS "get_user_class_ids")))))));
+
+
+
+COMMENT ON POLICY "video_placements_select_authorized" ON "public"."video_placements" IS 'A placement is visible to anyone who can see its subtopic — i.e. users enrolled in or teaching the placement''s class. Drives curriculum rendering for students and educators.';
+
+
+
+ALTER TABLE "public"."videos" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "videos_modify_educator_or_admin" ON "public"."videos" TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR ("owner_id" = ( SELECT "auth"."uid"() AS "uid"))));
+
+
+
+COMMENT ON POLICY "videos_modify_educator_or_admin" ON "public"."videos" IS 'Library videos are managed (Insert/Update/Delete) by their owning educator or an admin. Ownership resolves directly from owner_id. FOR ALL with USING only (matching the curriculum-modify convention): Postgres applies USING to both the existing and the new row, so an INSERT must set owner_id to the caller and an UPDATE cannot reassign ownership.';
+
+
+
+CREATE POLICY "videos_select_authorized" ON "public"."videos" FOR SELECT TO "authenticated" USING ((( SELECT "internal"."is_admin"() AS "is_admin") OR ("owner_id" = ( SELECT "auth"."uid"() AS "uid")) OR (EXISTS ( SELECT 1
+   FROM (("public"."video_placements" "vp"
+     JOIN "public"."subtopics" "s" ON (("s"."id" = "vp"."subtopic_id")))
+     JOIN "public"."topics" "t" ON (("t"."id" = "s"."topic_id")))
+  WHERE (("vp"."video_id" = "videos"."id") AND ("t"."class_id" IN ( SELECT "internal"."get_user_class_ids"() AS "get_user_class_ids")))))));
+
+
+
+COMMENT ON POLICY "videos_select_authorized" ON "public"."videos" IS 'Library videos are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the video is placed into via video_placements.';
 
 
 
@@ -1919,6 +2018,12 @@ GRANT ALL ON TABLE "public"."topics" TO "service_role";
 GRANT ALL ON TABLE "public"."user_video_progress" TO "anon";
 GRANT ALL ON TABLE "public"."user_video_progress" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_video_progress" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."video_placements" TO "anon";
+GRANT ALL ON TABLE "public"."video_placements" TO "authenticated";
+GRANT ALL ON TABLE "public"."video_placements" TO "service_role";
 
 
 

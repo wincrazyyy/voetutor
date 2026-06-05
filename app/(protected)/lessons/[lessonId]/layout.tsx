@@ -4,31 +4,31 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { getClassById } from "@/lib/queries/classes";
-import { getClassIdForVideo, getVideoById } from "@/lib/queries/curriculum";
 import { createClient } from "@/lib/supabase/server";
 
 async function getLessonContext(lessonId: string) {
-  const video = await getVideoById(lessonId);
-  if (!video) return null;
-  const classId = await getClassIdForVideo(lessonId);
-  if (!classId) return null;
-
   const supabase = await createClient();
+  /* One query resolves the breadcrumb from the video's placement. RLS filters
+     to placements the viewer can see, so limit(1) lands on a class they belong
+     to (the single placement in the common case). */
   const { data } = await supabase
-    .from("subtopics")
-    .select("title, topics(title)")
-    .eq("id", video.subtopic_id)
+    .from("video_placements")
+    .select("subtopics!inner(title, topics!inner(title, class_id, classes!inner(code)))")
+    .eq("video_id", lessonId)
+    .order("order_index", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
-  const cls = await getClassById(classId);
-  const subtopicRow = data as unknown as { title: string; topics: { title: string } } | null;
+  if (!data) return null;
+  const row = data as unknown as {
+    subtopics: { title: string; topics: { title: string; class_id: string; classes: { code: string } } };
+  };
 
   return {
-    classId,
-    classCode: cls?.code ?? null,
-    topicTitle: subtopicRow?.topics?.title ?? null,
-    subtopicTitle: subtopicRow?.title ?? null,
+    classId: row.subtopics.topics.class_id,
+    classCode: row.subtopics.topics.classes.code,
+    topicTitle: row.subtopics.topics.title,
+    subtopicTitle: row.subtopics.title,
   };
 }
 

@@ -1,114 +1,76 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import * as tus from "tus-js-client";
+import { useState } from "react";
 import { Plus, UploadCloud, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { createVideoUploadAction, deleteVideoAction } from "@/app/actions/videos";
-
-/** tus chunk size — Cloudflare requires a multiple of 256 KiB; 50 MB works. */
-const CHUNK_SIZE = 50 * 1024 * 1024;
+import { useUploadActions } from "@/components/educator/upload-manager";
 
 interface VideoUploadDialogProps {
   subtopicId: string;
+  classId: string;
+  subtopicLabel?: string;
 }
 
-export function VideoUploadDialog({ subtopicId }: VideoUploadDialogProps) {
-  const router = useRouter();
+function stripExtension(name: string): string {
+  return name.replace(/\.[^/.]+$/, "");
+}
+
+export function VideoUploadDialog({ subtopicId, classId, subtopicLabel }: VideoUploadDialogProps) {
+  const { enqueue } = useUploadActions();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [titles, setTitles] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [pending, startTransition] = useTransition();
 
-  const uploadRef = useRef<tus.Upload | null>(null);
-  const videoIdRef = useRef<string | null>(null);
-
-  const busy = pending || uploading;
-
-  const resetForm = () => {
-    setTitle("");
+  const reset = () => {
+    setFiles([]);
+    setTitles([]);
     setDescription("");
-    setFile(null);
     setError(null);
-    setProgress(0);
   };
 
-  const closeDialog = () => {
-    if (busy) return;
+  const close = () => {
     setOpen(false);
-    resetForm();
+    reset();
   };
 
-  const startUpload = (uploadUrl: string, selectedFile: File) => {
-    setUploading(true);
-    setProgress(0);
-    const upload = new tus.Upload(selectedFile, {
-      uploadUrl,
-      chunkSize: CHUNK_SIZE,
-      metadata: { name: selectedFile.name, filetype: selectedFile.type },
-      onProgress: (sent, total) => {
-        setProgress(total > 0 ? Math.round((sent / total) * 100) : 0);
-      },
-      onError: () => {
-        setUploading(false);
-        setError("The upload failed. Please try again.");
-        const videoId = videoIdRef.current;
-        videoIdRef.current = null;
-        if (videoId) void deleteVideoAction(videoId);
-      },
-      onSuccess: () => {
-        setUploading(false);
-        setOpen(false);
-        resetForm();
-        videoIdRef.current = null;
-        router.refresh();
-      },
-    });
-    uploadRef.current = upload;
-    upload.start();
+  const handleFiles = (list: FileList | null) => {
+    const picked = list ? Array.from(list) : [];
+    setFiles(picked);
+    setTitles(picked.map((file) => stripExtension(file.name)));
+    setError(null);
+  };
+
+  const setTitleAt = (index: number, value: string) => {
+    setTitles((prev) => prev.map((title, i) => (i === index ? value : title)));
   };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    const selectedFile = file;
-    if (!selectedFile) {
-      setError("Choose a video file to upload.");
+    if (files.length === 0) {
+      setError("Choose at least one video file.");
       return;
     }
-    startTransition(async () => {
-      const result = await createVideoUploadAction({
+    if (titles.some((title) => !title.trim())) {
+      setError("Every video needs a title.");
+      return;
+    }
+    enqueue(
+      files.map((file, index) => ({
+        file,
+        title: (titles[index] ?? "").trim(),
+        description: description.trim(),
         subtopicId,
-        title,
-        description,
-        fileSizeBytes: selectedFile.size,
-      });
-      if (result.error || !result.uploadUrl || !result.videoId) {
-        setError(result.error ?? "Could not start the upload.");
-        return;
-      }
-      videoIdRef.current = result.videoId;
-      startUpload(result.uploadUrl, selectedFile);
-    });
-  };
-
-  const handleCancelUpload = () => {
-    void uploadRef.current?.abort(true);
-    uploadRef.current = null;
-    setUploading(false);
-    setProgress(0);
-    const videoId = videoIdRef.current;
-    videoIdRef.current = null;
-    if (videoId) void deleteVideoAction(videoId);
+        classId,
+        subtopicLabel: subtopicLabel ?? null,
+      })),
+    );
+    close();
   };
 
   if (!open) {
@@ -120,90 +82,104 @@ export function VideoUploadDialog({ subtopicId }: VideoUploadDialogProps) {
     );
   }
 
+  const multiple = files.length > 1;
+  const canSubmit = files.length > 0 && titles.every((title) => title.trim());
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card shadow-lg p-6">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-6">
         <div className="flex items-start justify-between mb-4">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-primary" />
-            Upload video
+            Upload video{multiple ? "s" : ""}
           </h2>
           <button
             type="button"
-            onClick={closeDialog}
-            className="text-muted-foreground hover:text-foreground disabled:opacity-40"
+            onClick={close}
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
-            disabled={busy}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {uploading ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Uploading <span className="font-semibold text-foreground">{title || file?.name}</span>. Keep this dialog open until it finishes.
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="video-file">Video file(s)</Label>
+            <Input
+              id="video-file"
+              type="file"
+              accept="video/*"
+              multiple
+              autoFocus
+              onChange={(event) => handleFiles(event.target.files)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Select one or more videos — they upload in the background, so you can keep working.
             </p>
-            <Progress value={progress} />
-            <p className="text-xs text-muted-foreground text-center">{progress}%</p>
-            <div className="flex justify-end">
-              <Button type="button" variant="ghost" onClick={handleCancelUpload}>
-                Cancel upload
-              </Button>
-            </div>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          {files.length === 1 && (
             <div className="grid gap-2">
-              <Label htmlFor="video-title">Video title</Label>
+              <Label htmlFor="video-title">Title</Label>
               <Input
                 id="video-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                value={titles[0] ?? ""}
+                onChange={(event) => setTitleAt(0, event.target.value)}
                 maxLength={255}
-                autoFocus
-                disabled={pending}
               />
             </div>
+          )}
 
+          {multiple && (
             <div className="grid gap-2">
-              <Label htmlFor="video-description">
-                Description <span className="font-normal text-muted-foreground">(optional)</span>
-              </Label>
-              <textarea
-                id="video-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={3}
-                maxLength={5000}
-                disabled={pending}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y disabled:cursor-not-allowed disabled:opacity-50"
-              />
+              <Label>Titles ({files.length} videos)</Label>
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                {files.map((file, index) => (
+                  <div
+                    key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                    className="grid gap-1"
+                  >
+                    <Input
+                      value={titles[index] ?? ""}
+                      onChange={(event) => setTitleAt(index, event.target.value)}
+                      maxLength={255}
+                    />
+                    <span className="text-[10px] text-muted-foreground truncate">{file.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
 
-            <div className="grid gap-2">
-              <Label htmlFor="video-file">Video file</Label>
-              <Input
-                id="video-file"
-                type="file"
-                accept="video/*"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                disabled={pending}
-              />
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="video-description">
+              Description{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional{multiple ? ", applies to all" : ""})
+              </span>
+            </Label>
+            <textarea
+              id="video-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              maxLength={5000}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+            />
+          </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={closeDialog} disabled={pending}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={pending || !title.trim() || !file}>
-                {pending ? "Starting..." : "Upload"}
-              </Button>
-            </div>
-          </form>
-        )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={close}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
+              {multiple ? `Upload ${files.length} videos` : "Upload"}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );

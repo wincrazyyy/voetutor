@@ -13,6 +13,7 @@ ALTER TABLE class_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subtopics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE video_placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
@@ -28,6 +29,7 @@ ALTER TABLE class_reports FORCE ROW LEVEL SECURITY;
 ALTER TABLE topics FORCE ROW LEVEL SECURITY;
 ALTER TABLE subtopics FORCE ROW LEVEL SECURITY;
 ALTER TABLE videos FORCE ROW LEVEL SECURITY;
+ALTER TABLE video_placements FORCE ROW LEVEL SECURITY;
 ALTER TABLE resources FORCE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress FORCE ROW LEVEL SECURITY;
 ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
@@ -187,26 +189,52 @@ CREATE POLICY videos_select_authorized ON videos
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
+        OR owner_id = (SELECT auth.uid())
         OR EXISTS (
-            SELECT 1 FROM public.subtopics s
+            SELECT 1 FROM public.video_placements vp
+            JOIN public.subtopics s ON s.id = vp.subtopic_id
             JOIN public.topics t ON t.id = s.topic_id
-            WHERE s.id = videos.subtopic_id AND t.class_id IN (SELECT internal.get_user_class_ids())
+            WHERE vp.video_id = videos.id AND t.class_id IN (SELECT internal.get_user_class_ids())
         )
     );
-COMMENT ON POLICY videos_select_authorized ON videos IS 'Inherits visibility boundaries from the parent curriculum structure.';
+COMMENT ON POLICY videos_select_authorized ON videos IS 'Library videos are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the video is placed into via video_placements.';
 
 CREATE POLICY videos_modify_educator_or_admin ON videos
     FOR ALL TO authenticated
+    USING ((SELECT internal.is_admin()) OR owner_id = (SELECT auth.uid()));
+COMMENT ON POLICY videos_modify_educator_or_admin ON videos IS 'Library videos are managed (Insert/Update/Delete) by their owning educator or an admin. Ownership resolves directly from owner_id. FOR ALL with USING only (matching the curriculum-modify convention): Postgres applies USING to both the existing and the new row, so an INSERT must set owner_id to the caller and an UPDATE cannot reassign ownership.';
+
+/* VIDEO PLACEMENTS */
+CREATE POLICY video_placements_select_authorized ON video_placements
+    FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
         OR EXISTS (
             SELECT 1 FROM public.subtopics s
             JOIN public.topics t ON t.id = s.topic_id
-            JOIN public.classes c ON c.id = t.class_id
-            WHERE s.id = videos.subtopic_id AND c.educator_id = (SELECT auth.uid())
+            WHERE s.id = video_placements.subtopic_id AND t.class_id IN (SELECT internal.get_user_class_ids())
         )
     );
-COMMENT ON POLICY videos_modify_educator_or_admin ON videos IS 'Delegates video asset management (Insert/Update/Delete) to the parent class educator via hierarchical resolution.';
+COMMENT ON POLICY video_placements_select_authorized ON video_placements IS 'A placement is visible to anyone who can see its subtopic — i.e. users enrolled in or teaching the placement''s class. Drives curriculum rendering for students and educators.';
+
+CREATE POLICY video_placements_modify_educator_or_admin ON video_placements
+    FOR ALL TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (
+            EXISTS (
+                SELECT 1 FROM public.subtopics s
+                JOIN public.topics t ON t.id = s.topic_id
+                JOIN public.classes c ON c.id = t.class_id
+                WHERE s.id = video_placements.subtopic_id AND c.educator_id = (SELECT auth.uid())
+            )
+            AND EXISTS (
+                SELECT 1 FROM public.videos v
+                WHERE v.id = video_placements.video_id AND v.owner_id = (SELECT auth.uid())
+            )
+        )
+    );
+COMMENT ON POLICY video_placements_modify_educator_or_admin ON video_placements IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints.';
 
 /* RESOURCES */
 CREATE POLICY resources_select_authorized ON resources
@@ -247,14 +275,14 @@ CREATE POLICY progress_select_authorized ON user_video_progress
         (SELECT internal.is_admin())
         OR user_id = (SELECT auth.uid())
         OR EXISTS (
-            SELECT 1 FROM public.videos v
-            JOIN public.subtopics s ON s.id = v.subtopic_id
+            SELECT 1 FROM public.video_placements vp
+            JOIN public.subtopics s ON s.id = vp.subtopic_id
             JOIN public.topics t ON t.id = s.topic_id
             JOIN public.classes c ON c.id = t.class_id
-            WHERE v.id = user_video_progress.video_id AND c.educator_id = (SELECT auth.uid())
+            WHERE vp.video_id = user_video_progress.video_id AND c.educator_id = (SELECT auth.uid())
         )
     );
-COMMENT ON POLICY progress_select_authorized ON user_video_progress IS 'Permits students to fetch their own telemetry state, while granting educators visibility over analytics for their owned classes.';
+COMMENT ON POLICY progress_select_authorized ON user_video_progress IS 'Permits students to fetch their own telemetry state, while granting educators visibility over progress for any video placed in a class they own (resolved via video_placements).';
 
 CREATE POLICY progress_insert_self ON user_video_progress
     FOR INSERT TO authenticated

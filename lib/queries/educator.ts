@@ -28,7 +28,7 @@ export async function getClassesForEducator(educatorId: string): Promise<Educato
         supabase.from("class_enrollments").select("user_id", { count: "exact", head: true }).eq("class_id", c.id),
         supabase.from("topics").select("id", { count: "exact", head: true }).eq("class_id", c.id),
         supabase
-          .from("videos")
+          .from("video_placements")
           .select("id, subtopics!inner(topics!inner(class_id))", { count: "exact", head: true })
           .eq("subtopics.topics.class_id", c.id),
         supabase
@@ -60,11 +60,11 @@ export interface EducatorClassStats {
 export async function getEducatorClassStats(classId: string): Promise<EducatorClassStats> {
   const supabase = await createClient();
 
-  const [{ count: studentCount }, videoRowsRes, postRes] = await Promise.all([
-    supabase.from("class_enrollments").select("user_id", { count: "exact", head: true }).eq("class_id", classId),
+  const [enrollRes, placementRes, postRes] = await Promise.all([
+    supabase.from("class_enrollments").select("user_id").eq("class_id", classId),
     supabase
-      .from("videos")
-      .select("id, subtopics!inner(topics!inner(class_id))")
+      .from("video_placements")
+      .select("video_id, subtopics!inner(topics!inner(class_id))")
       .eq("subtopics.topics.class_id", classId),
     supabase
       .from("forum_posts")
@@ -73,26 +73,33 @@ export async function getEducatorClassStats(classId: string): Promise<EducatorCl
       .eq("is_resolved", false),
   ]);
 
-  const videoIds = ((videoRowsRes.data ?? []) as Array<{ id: string }>).map((v) => v.id);
+  const rosterIds = ((enrollRes.data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
+  const studentCount = rosterIds.length;
+  const videoIds = [
+    ...new Set(((placementRes.data ?? []) as Array<{ video_id: string }>).map((r) => r.video_id)),
+  ];
   const totalVideos = videoIds.length;
 
   let completions = 0;
   let watchSeconds = 0;
-  if (videoIds.length > 0) {
+  /* Roster attribution: only this class's enrolled students count, so a shared
+     video's watches in another class never leak into these numbers. */
+  if (videoIds.length > 0 && rosterIds.length > 0) {
     const { data: progress } = await supabase
       .from("user_video_progress")
       .select("is_completed, total_watch_time")
-      .in("video_id", videoIds);
+      .in("video_id", videoIds)
+      .in("user_id", rosterIds);
     const rows = (progress ?? []) as Array<{ is_completed: boolean; total_watch_time: string }>;
     completions = rows.filter((r) => r.is_completed).length;
     watchSeconds = rows.reduce((acc, r) => acc + intervalToSeconds(r.total_watch_time), 0);
   }
 
-  const denominator = (studentCount ?? 0) * totalVideos;
+  const denominator = studentCount * totalVideos;
   const average = denominator === 0 ? 0 : Math.round((completions / denominator) * 100);
 
   return {
-    total_students: studentCount ?? 0,
+    total_students: studentCount,
     total_videos: totalVideos,
     total_completions: completions,
     average_completion_rate: average,
@@ -133,20 +140,28 @@ export interface StudentRosterProgress {
 export async function getStudentRosterProgress(classId: string): Promise<StudentRosterProgress> {
   const supabase = await createClient();
 
-  const [enrollRes, videoRes] = await Promise.all([
+  const [enrollRes, placementRes] = await Promise.all([
     supabase.from("class_enrollments").select("user_id").eq("class_id", classId),
     supabase
-      .from("videos")
-      .select("id, title, order_index, subtopics!inner(topics!inner(class_id))")
+      .from("video_placements")
+      .select("order_index, videos!inner(id, title), subtopics!inner(topics!inner(class_id))")
       .eq("subtopics.topics.class_id", classId)
       .order("order_index", { ascending: true }),
   ]);
 
   const userIds = ((enrollRes.data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
-  const videos = ((videoRes.data ?? []) as unknown as Array<{ id: string; title: string }>).map((v) => ({
-    id: v.id,
-    title: v.title,
-  }));
+  const placementRows = (placementRes.data ?? []) as unknown as Array<{
+    videos: { id: string; title: string };
+  }>;
+  /* A shared video could be placed more than once in a class; show it once. */
+  const seenVideo = new Set<string>();
+  const videos: Array<{ id: string; title: string }> = [];
+  for (const row of placementRows) {
+    if (!seenVideo.has(row.videos.id)) {
+      seenVideo.add(row.videos.id);
+      videos.push({ id: row.videos.id, title: row.videos.title });
+    }
+  }
 
   if (userIds.length === 0) return { students: [] };
 

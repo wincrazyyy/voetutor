@@ -21,7 +21,7 @@ export async function getContinueWatching(userId: string, limit = 1): Promise<Co
   const { data } = await supabase
     .from("user_video_progress")
     .select(
-      "video_id, last_position, total_watch_time, updated_at, is_completed, videos!inner(id, title, duration, subtopics!inner(id, title, topics!inner(id, title, classes!inner(id, code, title))))",
+      "video_id, last_position, total_watch_time, updated_at, is_completed, videos!inner(id, title, duration, video_placements!inner(subtopics!inner(id, title, topics!inner(id, title, classes!inner(id, code, title)))))",
     )
     .eq("user_id", userId)
     .eq("is_completed", false)
@@ -30,44 +30,53 @@ export async function getContinueWatching(userId: string, limit = 1): Promise<Co
 
   if (!data) return [];
 
-  return data.map((row) => {
-    const r = row as unknown as {
-      video_id: string;
-      last_position: string;
-      total_watch_time: string;
-      updated_at: string;
-      videos: {
-        id: string;
-        title: string;
-        duration: string | null;
-        subtopics: {
+  return data
+    .map((row): ContinueWatchingItem | null => {
+      const r = row as unknown as {
+        video_id: string;
+        last_position: string;
+        total_watch_time: string;
+        updated_at: string;
+        videos: {
           id: string;
           title: string;
-          topics: {
-            id: string;
-            title: string;
-            classes: { id: string; code: string; title: string };
-          };
+          duration: string | null;
+          video_placements: Array<{
+            subtopics: {
+              id: string;
+              title: string;
+              topics: {
+                id: string;
+                title: string;
+                classes: { id: string; code: string; title: string };
+              };
+            };
+          }>;
         };
       };
-    };
-    const positionSec = intervalToSeconds(r.last_position);
-    const durationSec = intervalToSeconds(r.videos.duration);
-    return {
-      video_id: r.video_id,
-      video_title: r.videos.title,
-      subtopic_title: r.videos.subtopics.title,
-      topic_title: r.videos.subtopics.topics.title,
-      class_id: r.videos.subtopics.topics.classes.id,
-      class_code: r.videos.subtopics.topics.classes.code,
-      class_title: r.videos.subtopics.topics.classes.title,
-      duration: r.videos.duration,
-      last_position: r.last_position,
-      total_watch_time: r.total_watch_time,
-      remaining_seconds: Math.max(0, durationSec - positionSec),
-      updated_at: r.updated_at,
-    };
-  });
+      /* RLS filters the embedded placements to classes the user can see, so the
+         first one is a class they belong to. A row with no visible placement
+         (e.g. the video was unplaced after watching) is dropped. */
+      const placement = r.videos.video_placements?.[0];
+      if (!placement) return null;
+      const positionSec = intervalToSeconds(r.last_position);
+      const durationSec = intervalToSeconds(r.videos.duration);
+      return {
+        video_id: r.video_id,
+        video_title: r.videos.title,
+        subtopic_title: placement.subtopics.title,
+        topic_title: placement.subtopics.topics.title,
+        class_id: placement.subtopics.topics.classes.id,
+        class_code: placement.subtopics.topics.classes.code,
+        class_title: placement.subtopics.topics.classes.title,
+        duration: r.videos.duration,
+        last_position: r.last_position,
+        total_watch_time: r.total_watch_time,
+        remaining_seconds: Math.max(0, durationSec - positionSec),
+        updated_at: r.updated_at,
+      };
+    })
+    .filter((item): item is ContinueWatchingItem => item !== null);
 }
 
 export interface DashboardStats {
@@ -89,7 +98,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
   let videosTotal = 0;
   if (classIds.length > 0) {
     const { count } = await supabase
-      .from("videos")
+      .from("video_placements")
       .select("id, subtopics!inner(topics!inner(class_id))", { count: "exact", head: true })
       .in("subtopics.topics.class_id", classIds);
     videosTotal = count ?? 0;

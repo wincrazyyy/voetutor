@@ -53,12 +53,33 @@ async function ownsClass(
 }
 
 /**
- * Best-effort deletion of Cloudflare videos. A Postgres ON DELETE CASCADE
- * removes the videos rows but never reaches Cloudflare, so descendant Stream
- * videos must be reaped explicitly when a topic or subtopic is deleted.
+ * Garbage-collects library videos that no longer appear in any subtopic. Given
+ * the videos that *were* placed under a just-deleted topic/subtopic, it deletes
+ * the rows whose placements have all cascaded away (and best-effort reaps their
+ * Cloudflare counterparts, which the Postgres cascade never reaches). Videos
+ * still placed elsewhere — shared across classes — are left untouched.
  */
-async function reapCloudflareVideos(rows: unknown): Promise<void> {
-  const uids = ((rows ?? []) as Array<{ cloudflare_uid: string | null }>)
+async function gcOrphanedVideos(
+  supabase: SupabaseServerClient,
+  candidateIds: string[],
+): Promise<void> {
+  if (candidateIds.length === 0) return;
+  const { data: remaining } = await supabase
+    .from("video_placements")
+    .select("video_id")
+    .in("video_id", candidateIds);
+  const stillPlaced = new Set(
+    ((remaining ?? []) as Array<{ video_id: string }>).map((row) => row.video_id),
+  );
+  const orphanIds = candidateIds.filter((id) => !stillPlaced.has(id));
+  if (orphanIds.length === 0) return;
+
+  const { data: orphanRows } = await supabase
+    .from("videos")
+    .select("cloudflare_uid")
+    .in("id", orphanIds);
+  await supabase.from("videos").delete().in("id", orphanIds);
+  const uids = ((orphanRows ?? []) as Array<{ cloudflare_uid: string | null }>)
     .map((row) => row.cloudflare_uid)
     .filter((uid): uid is string => Boolean(uid));
   await Promise.all(uids.map((uid) => deleteVideo(uid).catch(() => undefined)));
@@ -132,15 +153,18 @@ export async function deleteTopicAction(
     return { error: "You don't have permission to edit this class." };
   }
 
-  const { data: videoRows } = await supabase
-    .from("videos")
-    .select("cloudflare_uid, subtopics!inner(topic_id)")
+  const { data: candidates } = await supabase
+    .from("video_placements")
+    .select("video_id, subtopics!inner(topic_id)")
     .eq("subtopics.topic_id", topicId);
+  const candidateIds = [
+    ...new Set(((candidates ?? []) as Array<{ video_id: string }>).map((row) => row.video_id)),
+  ];
 
   const { error } = await supabase.from("topics").delete().eq("id", topicId);
   if (error) return { error: error.message };
 
-  await reapCloudflareVideos(videoRows);
+  await gcOrphanedVideos(supabase, candidateIds);
 
   revalidatePath(`/educator/classes/${classId}`);
   return { ok: true };
@@ -218,15 +242,18 @@ export async function deleteSubtopicAction(
     return { error: "You don't have permission to edit this class." };
   }
 
-  const { data: videoRows } = await supabase
-    .from("videos")
-    .select("cloudflare_uid")
+  const { data: candidates } = await supabase
+    .from("video_placements")
+    .select("video_id")
     .eq("subtopic_id", subtopicId);
+  const candidateIds = [
+    ...new Set(((candidates ?? []) as Array<{ video_id: string }>).map((row) => row.video_id)),
+  ];
 
   const { error } = await supabase.from("subtopics").delete().eq("id", subtopicId);
   if (error) return { error: error.message };
 
-  await reapCloudflareVideos(videoRows);
+  await gcOrphanedVideos(supabase, candidateIds);
 
   revalidatePath(`/educator/classes/${classId}`);
   return { ok: true };
@@ -266,9 +293,26 @@ export async function reorderSubtopicVideosAction(
     return { error: "Subtopic not found in this class." };
   }
 
+  /* Phase A contract: the curriculum board passes VIDEO ids, and every video
+     has exactly one placement (no sharing UI yet), so a video maps to a single
+     placement in this class. We scope the repoint to placements already inside
+     this class. When sharing lands, the board switches to placement ids and
+     this action takes placement ids directly; the UNIQUE(video_id, subtopic_id)
+     constraint is the integrity backstop in the interim. */
+  const { data: classSubs } = await supabase
+    .from("subtopics")
+    .select("id, topics!inner(class_id)")
+    .eq("topics.class_id", classId);
+  const classSubtopicIds = ((classSubs ?? []) as Array<{ id: string }>).map((row) => row.id);
+  if (classSubtopicIds.length === 0) return { ok: true };
+
   const results = await Promise.all(
     orderedVideoIds.map((id, index) =>
-      supabase.from("videos").update({ subtopic_id: subtopicId, order_index: index }).eq("id", id),
+      supabase
+        .from("video_placements")
+        .update({ subtopic_id: subtopicId, order_index: index })
+        .eq("video_id", id)
+        .in("subtopic_id", classSubtopicIds),
     ),
   );
   const failed = results.find((result) => result.error);
@@ -290,18 +334,16 @@ export async function renameVideoAction(
   if (typeof parsed !== "string") return parsed;
 
   const supabase = await createClient();
-  if (!(await ownsClass(supabase, classId, auth.profile))) {
-    return { error: "You don't have permission to edit this class." };
-  }
 
   const { data: video } = await supabase
     .from("videos")
-    .select("subtopics!inner(topics!inner(class_id))")
+    .select("owner_id")
     .eq("id", videoId)
     .maybeSingle();
-  const videoRow = video as { subtopics: { topics: { class_id: string } } } | null;
-  if (!videoRow || videoRow.subtopics.topics.class_id !== classId) {
-    return { error: "Video not found in this class." };
+  const videoRow = video as { owner_id: string } | null;
+  if (!videoRow) return { error: "Video not found." };
+  if (auth.profile.role !== "admin" && videoRow.owner_id !== auth.profile.id) {
+    return { error: "You don't have permission to edit this video." };
   }
 
   const { error } = await supabase.from("videos").update({ title: parsed }).eq("id", videoId);

@@ -368,7 +368,11 @@ function TopicSection({ topic, classId }: { topic: TopicWithChildren; classId: s
                   {subtopic.title}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <VideoUploadDialog subtopicId={subtopic.id} />
+                  <VideoUploadDialog
+                    subtopicId={subtopic.id}
+                    classId={classId}
+                    subtopicLabel={`${topic.title} / ${subtopic.title}`}
+                  />
                   <SubtopicFormDialog
                     topicId={topic.id}
                     classId={classId}

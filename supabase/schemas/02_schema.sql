@@ -200,7 +200,7 @@ CREATE TRIGGER set_subtopics_updated_at
 
 CREATE TABLE videos (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    subtopic_id UUID NOT NULL REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    owner_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
     title TEXT NOT NULL CHECK (char_length(title) <= 255),
     description TEXT,
     duration INTERVAL,
@@ -208,21 +208,37 @@ CREATE TABLE videos (
     cloudflare_uid TEXT UNIQUE CHECK (cloudflare_uid IS NULL OR char_length(cloudflare_uid) <= 64),
     status video_status DEFAULT 'uploading'::video_status NOT NULL,
     thumbnail_url TEXT CHECK (thumbnail_url IS NULL OR (char_length(thumbnail_url) <= 2048 AND thumbnail_url ~* '^https://')),
-    order_index INTEGER NOT NULL CHECK (order_index >= 0),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-COMMENT ON TABLE videos IS 'Primary instructional media nodes tied strictly to subtopics.';
+COMMENT ON TABLE videos IS 'Educator-owned library of instructional media. A video exists independently of the curriculum and is surfaced inside classes through video_placements (many-to-many), so one video can appear in several subtopics across several of the owning educator''s classes.';
+COMMENT ON COLUMN videos.owner_id IS 'The educator who owns this library video. Edit/delete and placement rights resolve directly from this column rather than through the curriculum hierarchy, since a video may be placed into many classes or none.';
 COMMENT ON COLUMN videos.video_url IS 'Constrained to 2048 characters matching the maximum safe limit for standardised web URLs, and required to use HTTPS transport.';
 COMMENT ON COLUMN videos.cloudflare_uid IS 'Cloudflare Stream video identifier. UNIQUE so the Stream webhook can resolve a videos row from an incoming notification; NULL only for legacy or externally-hosted rows that never went through the direct-upload flow.';
 COMMENT ON COLUMN videos.status IS 'Encoding lifecycle for Cloudflare Stream videos: uploading (row created, bytes in flight), then queued/processing (Cloudflare encoding), then ready (playable) or errored. The webhook is the source of truth after upload; only a ready video mints a playback token.';
 COMMENT ON COLUMN videos.thumbnail_url IS 'Cloudflare-generated poster image, cached on the row so curriculum cards render without an extra Stream API call. Inline CHECK enforces the 2048-char cap and HTTPS-only transport.';
 
-CREATE INDEX idx_videos_subtopic_id ON videos(subtopic_id);
+CREATE INDEX idx_videos_owner_id ON videos(owner_id);
 
 CREATE TRIGGER set_videos_updated_at
     BEFORE UPDATE ON videos
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+/* ----------------------------------------- */
+
+CREATE TABLE video_placements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subtopic_id UUID NOT NULL REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    order_index INTEGER NOT NULL CHECK (order_index >= 0),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    UNIQUE (video_id, subtopic_id)
+);
+COMMENT ON TABLE video_placements IS 'Join table placing library videos into the curriculum: each row surfaces one video inside one subtopic at a given order_index. The many-to-many design lets a single video appear in multiple subtopics across the owning educator''s classes (overlap). Deleting a subtopic removes the placement only — the underlying library video survives; deleting a video removes all its placements.';
+COMMENT ON COLUMN video_placements.order_index IS 'Position of the video within its subtopic. Not unique; the curriculum sorts by it and the educator reorders via drag-and-drop. The (video_id, subtopic_id) UNIQUE constraint blocks placing the same video into one subtopic twice.';
+
+CREATE INDEX idx_video_placements_subtopic_id ON video_placements(subtopic_id);
+CREATE INDEX idx_video_placements_video_id ON video_placements(video_id);
 
 /* ----------------------------------------- */
 
@@ -392,11 +408,12 @@ CREATE TRIGGER enforce_immutability_announcements BEFORE UPDATE ON announcements
 CREATE TRIGGER enforce_immutability_forum_posts BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_forum_replies BEFORE UPDATE ON forum_replies FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_educator_profiles BEFORE UPDATE ON educator_profiles FOR EACH ROW EXECUTE PROCEDURE internal.prevent_educator_profile_modifications();
+CREATE TRIGGER enforce_immutability_video_placements BEFORE UPDATE ON video_placements FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 
 CREATE TRIGGER enforce_role_security BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE internal.protect_profile_role();
 CREATE TRIGGER enforce_forum_post_security BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_post_ownership();
 CREATE TRIGGER enforce_upvote_count_integrity BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_post_upvotes();
 CREATE TRIGGER enforce_forum_post_video_class BEFORE INSERT OR UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.validate_forum_post_video_class();
-CREATE TRIGGER enforce_video_class_lineage BEFORE UPDATE ON videos FOR EACH ROW EXECUTE PROCEDURE internal.protect_video_class_lineage();
+CREATE TRIGGER enforce_placement_class_lineage BEFORE UPDATE ON video_placements FOR EACH ROW EXECUTE PROCEDURE internal.protect_placement_forum_lineage();
 CREATE TRIGGER enforce_subtopic_class_lineage BEFORE UPDATE ON subtopics FOR EACH ROW EXECUTE PROCEDURE internal.protect_subtopic_class_lineage();
 CREATE TRIGGER enforce_topic_class_lineage BEFORE UPDATE ON topics FOR EACH ROW EXECUTE PROCEDURE internal.protect_topic_class_lineage();

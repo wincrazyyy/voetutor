@@ -19,32 +19,51 @@ export interface VideoAnalytics {
 export async function getVideoAnalyticsForClass(classId: string): Promise<VideoAnalytics[]> {
   const supabase = await createClient();
 
-  const { data: videoRows } = await supabase
-    .from("videos")
-    .select("id, title, order_index, subtopics!inner(topics!inner(class_id))")
-    .eq("subtopics.topics.class_id", classId)
-    .order("order_index", { ascending: true });
+  const [placementRes, enrollRes] = await Promise.all([
+    supabase
+      .from("video_placements")
+      .select("order_index, videos!inner(id, title), subtopics!inner(topics!inner(class_id))")
+      .eq("subtopics.topics.class_id", classId)
+      .order("order_index", { ascending: true }),
+    supabase.from("class_enrollments").select("user_id").eq("class_id", classId),
+  ]);
 
-  const videos = ((videoRows ?? []) as unknown as Array<{ id: string; title: string }>).map((v) => ({
-    id: v.id,
-    title: v.title,
-  }));
+  const placementRows = (placementRes.data ?? []) as unknown as Array<{
+    videos: { id: string; title: string };
+  }>;
+  const seen = new Set<string>();
+  const videos: Array<{ id: string; title: string }> = [];
+  for (const row of placementRows) {
+    if (!seen.has(row.videos.id)) {
+      seen.add(row.videos.id);
+      videos.push({ id: row.videos.id, title: row.videos.title });
+    }
+  }
   if (videos.length === 0) return [];
 
+  const rosterIds = ((enrollRes.data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
   const videoIds = videos.map((video) => video.id);
 
-  const { data: progressRows } = await supabase
-    .from("user_video_progress")
-    .select("video_id, is_completed, total_watch_time")
-    .in("video_id", videoIds);
+  /* Roster attribution: progress is shared across classes for a shared video,
+     so we restrict the rollup to this class's enrolled students. A viewer in
+     another class never inflates these per-class numbers. */
+  let progressRows: Array<{ video_id: string; is_completed: boolean; total_watch_time: string | null }> = [];
+  if (rosterIds.length > 0) {
+    const { data } = await supabase
+      .from("user_video_progress")
+      .select("video_id, is_completed, total_watch_time")
+      .in("video_id", videoIds)
+      .in("user_id", rosterIds);
+    progressRows = (data ?? []) as Array<{
+      video_id: string;
+      is_completed: boolean;
+      total_watch_time: string | null;
+    }>;
+  }
 
   const watchSecondsByVideo = new Map<string, number>();
   const completionsByVideo = new Map<string, number>();
-  for (const row of (progressRows ?? []) as Array<{
-    video_id: string;
-    is_completed: boolean;
-    total_watch_time: string | null;
-  }>) {
+  for (const row of progressRows) {
     watchSecondsByVideo.set(
       row.video_id,
       (watchSecondsByVideo.get(row.video_id) ?? 0) + intervalToSeconds(row.total_watch_time),

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
-import { getClassIdForVideo, getCurriculumForClass, getVideoById } from "@/lib/queries/curriculum";
+import { getClassIdsForVideo, getCurriculumForClass, getVideoById } from "@/lib/queries/curriculum";
 import { getQAThreadsForVideo } from "@/lib/queries/forum";
 import { getVideoProgress } from "@/lib/queries/video-progress";
 import { createClient } from "@/lib/supabase/server";
@@ -18,25 +18,32 @@ export default async function LessonPlayerPage({ params }: { params: Promise<{ l
   const video = await getVideoById(lessonId);
   if (!video) notFound();
 
-  const classId = await getClassIdForVideo(lessonId);
-  if (!classId) notFound();
+  /* A library video can be placed in several classes; the viewer needs access
+     to at least one of them. A signed token is a real capability grant, so
+     access is verified explicitly here rather than relying solely on the RLS
+     that gated getVideoById. The resolved classId scopes the curriculum
+     sidebar, Q&A, and back link to a class the viewer actually belongs to. */
+  const classIds = await getClassIdsForVideo(lessonId);
+  if (classIds.length === 0) notFound();
 
-  /* Explicit membership check before minting a playback token. A signed
-     token is a real capability grant, so access is verified locally here
-     rather than relying solely on the RLS that gated getVideoById. */
   const supabase = await createClient();
-  const [{ data: classRow }, { data: enrollment }] = await Promise.all([
-    supabase.from("classes").select("educator_id").eq("id", classId).maybeSingle(),
+  const [{ data: enrollRows }, { data: ownedRows }] = await Promise.all([
     supabase
       .from("class_enrollments")
-      .select("user_id")
-      .eq("class_id", classId)
+      .select("class_id")
       .eq("user_id", profile.id)
-      .maybeSingle(),
+      .in("class_id", classIds),
+    supabase.from("classes").select("id").in("id", classIds).eq("educator_id", profile.id),
   ]);
-  const isEducator = (classRow as { educator_id: string | null } | null)?.educator_id === profile.id;
-  const hasAccess = profile.role === "admin" || isEducator || Boolean(enrollment);
-  if (!hasAccess) notFound();
+  const accessibleIds = new Set<string>([
+    ...((enrollRows ?? []) as Array<{ class_id: string }>).map((r) => r.class_id),
+    ...((ownedRows ?? []) as Array<{ id: string }>).map((r) => r.id),
+  ]);
+  const isOwner = video.owner_id === profile.id;
+  const classId =
+    classIds.find((id) => accessibleIds.has(id)) ??
+    (profile.role === "admin" || isOwner ? classIds[0] : null);
+  if (!classId) notFound();
 
   const [curriculum, qaThreads, progress] = await Promise.all([
     getCurriculumForClass(classId, profile.id),

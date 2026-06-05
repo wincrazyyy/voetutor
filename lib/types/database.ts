@@ -96,7 +96,7 @@ export interface Subtopic {
 
 export interface Video {
   id: string;
-  subtopic_id: string;
+  owner_id: string;
   title: string;
   description: string | null;
   duration: string | null;
@@ -104,9 +104,16 @@ export interface Video {
   cloudflare_uid: string | null;
   status: VideoStatus;
   thumbnail_url: string | null;
-  order_index: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface VideoPlacement {
+  id: string;
+  video_id: string;
+  subtopic_id: string;
+  order_index: number;
+  created_at: string;
 }
 
 export interface Resource {

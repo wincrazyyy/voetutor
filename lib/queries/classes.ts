@@ -82,12 +82,14 @@ export async function getClassVideoTotals(
 ): Promise<{ total_videos: number; watched_videos: number; progress_percent: number }> {
   const supabase = await createClient();
 
-  const { data: videoRows } = await supabase
-    .from("videos")
-    .select("id, subtopics!inner(topic_id, topics!inner(class_id))")
+  const { data: placementRows } = await supabase
+    .from("video_placements")
+    .select("video_id, subtopics!inner(topics!inner(class_id))")
     .eq("subtopics.topics.class_id", classId);
 
-  const videoIds = (videoRows ?? []).map((row) => (row as { id: string }).id);
+  const videoIds = [
+    ...new Set((placementRows ?? []).map((row) => (row as { video_id: string }).video_id)),
+  ];
   const total = videoIds.length;
 
   if (total === 0) {
