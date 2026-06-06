@@ -9,8 +9,15 @@ import { generateStreamToken } from "@/lib/cloudflare/token";
 import { intervalToSeconds } from "@/lib/utils/format";
 import { LessonPlayerClient } from "@/components/lessons/lesson-player-client";
 
-export default async function LessonPlayerPage({ params }: { params: Promise<{ lessonId: string }> }) {
+export default async function LessonPlayerPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ lessonId: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { lessonId } = await params;
+  const { from } = await searchParams;
 
   const profile = await getCurrentProfile();
   if (!profile) redirect("/auth/login");
@@ -40,14 +47,21 @@ export default async function LessonPlayerPage({ params }: { params: Promise<{ l
     ...((ownedRows ?? []) as Array<{ id: string }>).map((r) => r.id),
   ]);
   const isOwner = video.owner_id === profile.id;
+  const canAccess = (id: string) =>
+    accessibleIds.has(id) || profile.role === "admin" || isOwner;
+  /* Honour ?from=<classId> when the viewer can actually access that class and
+     the video is placed there; otherwise fall back to any accessible class. The
+     `from` value is validated, never trusted. */
+  const fromClassId = from && classIds.includes(from) && canAccess(from) ? from : null;
   const classId =
+    fromClassId ??
     classIds.find((id) => accessibleIds.has(id)) ??
     (profile.role === "admin" || isOwner ? classIds[0] : null);
   if (!classId) notFound();
 
   const [curriculum, qaThreads, progress] = await Promise.all([
     getCurriculumForClass(classId, profile.id),
-    getQAThreadsForVideo(lessonId),
+    getQAThreadsForVideo(lessonId, classId),
     getVideoProgress(profile.id, lessonId),
   ]);
 

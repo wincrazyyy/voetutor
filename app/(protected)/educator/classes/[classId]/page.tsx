@@ -16,6 +16,7 @@ import { getCurrentProfile } from "@/lib/queries/profile";
 import { getClassById } from "@/lib/queries/classes";
 import { getCurriculumForClass } from "@/lib/queries/curriculum";
 import { getEducatorClassStats } from "@/lib/queries/educator";
+import { getVideoLibrary } from "@/lib/queries/video-library";
 import { getAnnouncementsForClass } from "@/lib/queries/announcements";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,10 +40,11 @@ export default async function EducatorClassPage({
     redirect("/educator");
   }
 
-  const [curriculum, stats, announcements] = await Promise.all([
+  const [curriculum, stats, announcements, libraryVideos] = await Promise.all([
     getCurriculumForClass(classId, profile.id),
     getEducatorClassStats(classId),
     getAnnouncementsForClass(classId, 5),
+    getVideoLibrary(profile.id),
   ]);
 
   const totalWatchHours = (stats.total_watch_seconds / 3600).toFixed(1);
@@ -123,7 +125,11 @@ export default async function EducatorClassPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
         <div className="xl:col-span-8 space-y-6">
-          <EducatorCurriculumOverview classId={classId} curriculum={curriculum} />
+          <EducatorCurriculumOverview
+            classId={classId}
+            curriculum={curriculum}
+            libraryVideos={libraryVideos}
+          />
         </div>
 
         <div className="xl:col-span-4 space-y-6 sticky top-24">

@@ -52,18 +52,21 @@ import type {
   TopicWithChildren,
   VideoWithProgress,
 } from "@/lib/queries/curriculum";
+import type { LibraryVideo } from "@/lib/queries/video-library";
 import type { VideoStatus } from "@/lib/types/database";
 import { formatBytes, formatShortDuration } from "@/lib/utils/format";
 import { reorderSubtopicVideosAction } from "@/app/actions/curriculum";
 import { TopicFormDialog } from "@/components/educator/topic-form-dialog";
 import { SubtopicFormDialog } from "@/components/educator/subtopic-form-dialog";
 import { DeleteCurriculumItemButton } from "@/components/educator/delete-curriculum-item-button";
-import { VideoUploadDialog } from "@/components/educator/video-upload-dialog";
+import { AddVideosToSubtopicDialog } from "@/components/educator/add-videos-to-subtopic-dialog";
+import { UnplaceVideoButton } from "@/components/educator/unplace-video-button";
 import { VideoRenameDialog } from "@/components/educator/video-rename-dialog";
 
 interface EducatorCurriculumOverviewProps {
   classId: string;
   curriculum: TopicWithChildren[];
+  libraryVideos: LibraryVideo[];
 }
 
 function videoStatusLabel(status: VideoStatus): string | null {
@@ -78,24 +81,32 @@ function pluralise(count: number, noun: string): string {
 
 /**
  * Droppable ids are namespaced so a single DndContext can host three kinds of
- * targets: a video item is a raw UUID (no colon), a subtopic container is
+ * targets: a placement row is a raw UUID (no colon), a subtopic container is
  * "sub:<id>", and a topic header is "topic:<id>". Prefer the innermost hit — a
- * video over its container over its topic — so insertion is precise.
+ * row over its container over its topic — so insertion is precise.
  */
 const detectCollisions: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
   const candidates = pointerHits.length > 0 ? pointerHits : rectIntersection(args);
-  const video = candidates.find((c) => !String(c.id).includes(":"));
-  if (video) return [video];
+  const row = candidates.find((c) => !String(c.id).includes(":"));
+  if (row) return [row];
   const subtopic = candidates.find((c) => String(c.id).startsWith("sub:"));
   if (subtopic) return [subtopic];
   return candidates.length > 0 ? [candidates[0]] : [];
 };
 
-function findVideo(topics: TopicWithChildren[], videoId: string): VideoWithProgress | null {
+/**
+ * The board keys on PLACEMENT ids, not video ids: a shared video can appear in
+ * more than one subtopic of the same class, so the video id is no longer unique
+ * across the board. Each draggable row is one placement.
+ */
+function findByPlacement(
+  topics: TopicWithChildren[],
+  placementId: string,
+): VideoWithProgress | null {
   for (const topic of topics) {
     for (const subtopic of topic.subtopics) {
-      const found = subtopic.videos.find((video) => video.id === videoId);
+      const found = subtopic.videos.find((video) => video.placement_id === placementId);
       if (found) return found;
     }
   }
@@ -104,23 +115,23 @@ function findVideo(topics: TopicWithChildren[], videoId: string): VideoWithProgr
 
 interface ReorderResult {
   nextTopics: TopicWithChildren[];
-  targetOrderedIds: string[];
+  targetOrderedPlacementIds: string[];
 }
 
 /**
- * Pure helper: produces the optimistic topic tree after dropping `activeId` into
- * `targetSubtopicId` (before `overVideoId`, or at the end when null), plus the
- * destination subtopic's resulting ordered id list for persistence. Returns null
- * when the drop is a no-op.
+ * Pure helper: produces the optimistic topic tree after dropping `activeId`
+ * (a placement id) into `targetSubtopicId` (before `overPlacementId`, or at the
+ * end when null), plus the destination subtopic's resulting ordered placement-id
+ * list for persistence. Returns null when the drop is a no-op.
  */
 function computeReorder(
   topics: TopicWithChildren[],
   activeId: string,
   sourceSubtopicId: string,
   targetSubtopicId: string,
-  overVideoId: string | null,
+  overPlacementId: string | null,
 ): ReorderResult | null {
-  const activeVideo = findVideo(topics, activeId);
+  const activeVideo = findByPlacement(topics, activeId);
   if (!activeVideo) return null;
 
   const nextTopics = topics.map((topic) => ({
@@ -136,47 +147,49 @@ function computeReorder(
   const target = allSubtopics.find((subtopic) => subtopic.id === targetSubtopicId);
   if (!source || !target) return null;
 
-  const removeIndex = source.videos.findIndex((video) => video.id === activeId);
+  const removeIndex = source.videos.findIndex((video) => video.placement_id === activeId);
   if (removeIndex === -1) return null;
   source.videos.splice(removeIndex, 1);
 
   let insertIndex = target.videos.length;
-  if (overVideoId) {
-    const overIndex = target.videos.findIndex((video) => video.id === overVideoId);
+  if (overPlacementId) {
+    const overIndex = target.videos.findIndex((video) => video.placement_id === overPlacementId);
     if (overIndex !== -1) insertIndex = overIndex;
   }
   target.videos.splice(insertIndex, 0, activeVideo);
 
-  const targetOrderedIds = target.videos.map((video) => video.id);
+  const targetOrderedPlacementIds = target.videos.map((video) => video.placement_id);
 
   if (sourceSubtopicId === targetSubtopicId) {
     const original =
       topics
         .flatMap((topic) => topic.subtopics)
         .find((subtopic) => subtopic.id === sourceSubtopicId)
-        ?.videos.map((video) => video.id) ?? [];
+        ?.videos.map((video) => video.placement_id) ?? [];
     if (
-      original.length === targetOrderedIds.length &&
-      original.every((id, index) => id === targetOrderedIds[index])
+      original.length === targetOrderedPlacementIds.length &&
+      original.every((id, index) => id === targetOrderedPlacementIds[index])
     ) {
       return null;
     }
   }
 
-  return { nextTopics, targetOrderedIds };
+  return { nextTopics, targetOrderedPlacementIds };
 }
 
 function SortableVideoRow({
   video,
   classId,
   subtopicId,
+  onError,
 }: {
   video: VideoWithProgress;
   classId: string;
   subtopicId: string;
+  onError: (message: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: video.id,
+    id: video.placement_id,
     data: { type: "video", subtopicId },
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -199,7 +212,10 @@ function SortableVideoRow({
       >
         <GripVertical className="w-4 h-4" />
       </button>
-      <Link href={`/lessons/${video.id}`} className="flex items-center gap-3 py-3 flex-1 min-w-0">
+      <Link
+        href={`/lessons/${video.id}?from=${classId}`}
+        className="flex items-center gap-3 py-3 flex-1 min-w-0"
+      >
         <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
         <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
           {video.title}
@@ -222,6 +238,7 @@ function SortableVideoRow({
           {formatShortDuration(video.duration)}
         </span>
         <VideoRenameDialog videoId={video.id} classId={classId} initialTitle={video.title} />
+        <UnplaceVideoButton placementId={video.placement_id} onError={onError} />
       </div>
     </div>
   );
@@ -230,25 +247,28 @@ function SortableVideoRow({
 function SubtopicVideoList({
   subtopic,
   classId,
+  onError,
 }: {
   subtopic: SubtopicWithChildren;
   classId: string;
+  onError: (message: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `sub:${subtopic.id}`,
     data: { type: "subtopic", subtopicId: subtopic.id },
   });
-  const videoIds = subtopic.videos.map((video) => video.id);
+  const placementIds = subtopic.videos.map((video) => video.placement_id);
 
   return (
     <div ref={setNodeRef} className={isOver ? "bg-primary/5" : ""}>
-      <SortableContext items={videoIds} strategy={verticalListSortingStrategy}>
+      <SortableContext items={placementIds} strategy={verticalListSortingStrategy}>
         {subtopic.videos.map((video) => (
           <SortableVideoRow
-            key={video.id}
+            key={video.placement_id}
             video={video}
             classId={classId}
             subtopicId={subtopic.id}
+            onError={onError}
           />
         ))}
       </SortableContext>
@@ -260,14 +280,24 @@ function SubtopicVideoList({
               : "border-border/50 text-muted-foreground"
           }`}
         >
-          Drop a video here, or use Add Video above.
+          Drop a video here, or use Add videos above.
         </div>
       )}
     </div>
   );
 }
 
-function TopicSection({ topic, classId }: { topic: TopicWithChildren; classId: string }) {
+function TopicSection({
+  topic,
+  classId,
+  libraryVideos,
+  onError,
+}: {
+  topic: TopicWithChildren;
+  classId: string;
+  libraryVideos: LibraryVideo[];
+  onError: (message: string) => void;
+}) {
   const { setNodeRef } = useDroppable({
     id: `topic:${topic.id}`,
     data: { type: "topic", topicId: topic.id },
@@ -368,10 +398,12 @@ function TopicSection({ topic, classId }: { topic: TopicWithChildren; classId: s
                   {subtopic.title}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <VideoUploadDialog
-                    subtopicId={subtopic.id}
+                  <AddVideosToSubtopicDialog
                     classId={classId}
+                    subtopicId={subtopic.id}
                     subtopicLabel={`${topic.title} / ${subtopic.title}`}
+                    libraryVideos={libraryVideos}
+                    placedVideoIds={subtopic.videos.map((video) => video.id)}
                   />
                   <SubtopicFormDialog
                     topicId={topic.id}
@@ -405,7 +437,7 @@ function TopicSection({ topic, classId }: { topic: TopicWithChildren; classId: s
                 </div>
               ))}
 
-              <SubtopicVideoList subtopic={subtopic} classId={classId} />
+              <SubtopicVideoList subtopic={subtopic} classId={classId} onError={onError} />
             </div>
           ))}
         </div>
@@ -414,7 +446,11 @@ function TopicSection({ topic, classId }: { topic: TopicWithChildren; classId: s
   );
 }
 
-export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurriculumOverviewProps) {
+export function EducatorCurriculumOverview({
+  classId,
+  curriculum,
+  libraryVideos,
+}: EducatorCurriculumOverviewProps) {
   const router = useRouter();
   const [topics, setTopics] = useState<TopicWithChildren[]>(curriculum);
   const [openTopics, setOpenTopics] = useState<string[]>([]);
@@ -433,7 +469,7 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
 
   const handleDragStart = (event: DragStartEvent) => {
     setError(null);
-    setActiveVideo(findVideo(topics, String(event.active.id)));
+    setActiveVideo(findByPlacement(topics, String(event.active.id)));
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -455,19 +491,45 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
     if (!sourceSubtopicId) return;
 
     let targetSubtopicId: string;
-    let overVideoId: string | null = null;
+    let overPlacementId: string | null = null;
     if (overId.startsWith("sub:")) {
       targetSubtopicId = overId.slice("sub:".length);
     } else if (overId.startsWith("topic:")) {
       return;
     } else {
       if (overId === activeId) return;
-      overVideoId = overId;
+      overPlacementId = overId;
       targetSubtopicId = (over.data.current?.subtopicId as string | undefined) ?? "";
     }
     if (!targetSubtopicId) return;
 
-    const result = computeReorder(topics, activeId, sourceSubtopicId, targetSubtopicId, overVideoId);
+    /* A video can be placed in many subtopics, but only once per subtopic
+       (UNIQUE(video_id, subtopic_id)). Reject a cross-subtopic drop onto a
+       subtopic that already holds this video up front — no optimistic churn,
+       no doomed round-trip. */
+    if (sourceSubtopicId !== targetSubtopicId) {
+      const draggedVideo = findByPlacement(topics, activeId);
+      const targetSubtopic = topics
+        .flatMap((topic) => topic.subtopics)
+        .find((subtopic) => subtopic.id === targetSubtopicId);
+      if (
+        draggedVideo &&
+        targetSubtopic?.videos.some(
+          (video) => video.id === draggedVideo.id && video.placement_id !== activeId,
+        )
+      ) {
+        setError("That video is already in the destination subtopic.");
+        return;
+      }
+    }
+
+    const result = computeReorder(
+      topics,
+      activeId,
+      sourceSubtopicId,
+      targetSubtopicId,
+      overPlacementId,
+    );
     if (!result) return;
 
     setTopics(result.nextTopics);
@@ -475,7 +537,7 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
       const response = await reorderSubtopicVideosAction(
         classId,
         targetSubtopicId,
-        result.targetOrderedIds,
+        result.targetOrderedPlacementIds,
       );
       if (response?.error) {
         /* Revert to the last server-confirmed tree rather than a possibly-stale
@@ -539,7 +601,13 @@ export function EducatorCurriculumOverview({ classId, curriculum }: EducatorCurr
             className="w-full flex flex-col gap-4"
           >
             {topics.map((topic) => (
-              <TopicSection key={topic.id} topic={topic} classId={classId} />
+              <TopicSection
+                key={topic.id}
+                topic={topic}
+                classId={classId}
+                libraryVideos={libraryVideos}
+                onError={setError}
+              />
             ))}
           </Accordion>
           <DragOverlay>

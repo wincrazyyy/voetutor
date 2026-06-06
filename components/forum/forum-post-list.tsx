@@ -73,7 +73,7 @@ export function ForumPostList({ posts }: ForumPostListProps) {
                     <span>{relativeTime(post.created_at)}</span>
                   </div>
                   {post.type === "video_qa" && post.video_id ? (
-                    <Link href={`/lessons/${post.video_id}`}>
+                    <Link href={`/lessons/${post.video_id}?from=${post.class_id}`}>
                       <Badge
                         variant="outline"
                         className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors gap-1.5 text-[10px] cursor-pointer"

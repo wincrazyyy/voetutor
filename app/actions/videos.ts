@@ -333,6 +333,88 @@ export async function setVideoPlacementsAction(
 }
 
 /**
+ * Adds existing library videos into one subtopic — the curriculum board's "Add
+ * videos" picker. Additive (unlike setVideoPlacementsAction, which reconciles a
+ * single video's whole placement set): each selected video gets a new placement
+ * in this subtopic, appended after the current contents, while its placements
+ * elsewhere are untouched. Videos already in the subtopic are skipped (the
+ * UNIQUE(video_id, subtopic_id) constraint is the backstop). Every video must be
+ * owned by the caller and the subtopic must belong to a class they own.
+ */
+export async function addVideosToSubtopicAction(
+  classId: string,
+  subtopicId: string,
+  videoIds: string[],
+): Promise<VideoActionState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Sign in required." };
+  if (profile.role !== "educator" && profile.role !== "admin") {
+    return { error: "Only educators can manage video placements." };
+  }
+  if (profile.role === "educator" && !profile.is_approved) {
+    return { error: "Educator account is awaiting approval." };
+  }
+
+  const ids = [...new Set(videoIds.filter(Boolean))];
+  if (ids.length === 0) return { ok: true };
+
+  const supabase = await createClient();
+
+  const { data: subtopic } = await supabase
+    .from("subtopics")
+    .select("id, topics!inner(class_id, classes!inner(educator_id))")
+    .eq("id", subtopicId)
+    .maybeSingle();
+  const subtopicRow = subtopic as
+    | { topics: { class_id: string; classes: { educator_id: string | null } } }
+    | null;
+  if (!subtopicRow || subtopicRow.topics.class_id !== classId) {
+    return { error: "Subtopic not found in this class." };
+  }
+  const ownsClass =
+    profile.role === "admin" || subtopicRow.topics.classes.educator_id === profile.id;
+  if (!ownsClass) return { error: "You don't have permission to edit this class." };
+
+  const { data: owned } = await supabase.from("videos").select("id, owner_id").in("id", ids);
+  const ownedRows = (owned ?? []) as Array<{ id: string; owner_id: string }>;
+  const ownedIds = new Set(
+    ownedRows
+      .filter((row) => profile.role === "admin" || row.owner_id === profile.id)
+      .map((row) => row.id),
+  );
+  if (ids.some((id) => !ownedIds.has(id))) {
+    return { error: "You can only add videos from your own library." };
+  }
+
+  const { data: existing } = await supabase
+    .from("video_placements")
+    .select("video_id, order_index")
+    .eq("subtopic_id", subtopicId);
+  const existingRows = (existing ?? []) as Array<{ video_id: string; order_index: number }>;
+  const alreadyPlaced = new Set(existingRows.map((row) => row.video_id));
+  let nextOrder = existingRows.reduce((max, row) => Math.max(max, row.order_index), -1) + 1;
+
+  const toInsert = ids
+    .filter((id) => !alreadyPlaced.has(id))
+    .map((id) => ({ video_id: id, subtopic_id: subtopicId, order_index: nextOrder++ }));
+  if (toInsert.length === 0) return { ok: true };
+
+  const { error } = await supabase.from("video_placements").insert(toInsert);
+  if (error) {
+    /* A concurrent add can race past the already-placed filter into the
+       UNIQUE(video_id, subtopic_id) backstop; surface it cleanly. */
+    if (error.code === "23505") {
+      return { error: "One or more of those videos are already in this subtopic." };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath("/educator/videos");
+  return { ok: true };
+}
+
+/**
  * Removes one placement — "remove this video from this subtopic" — without
  * deleting the underlying library video. If the placement is the video's last
  * one in its class, the class's dependent video_qa posts are deleted first so

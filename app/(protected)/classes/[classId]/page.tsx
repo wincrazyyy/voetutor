@@ -58,7 +58,7 @@ export default async function ClassCurriculumPage({
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
       <ClassHeader title={cls.title} progress={totals.progress_percent} />
 
-      <UpNextHero video={nextVideo} />
+      <UpNextHero video={nextVideo} classId={classId} />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
         <ClassUpdatesFeed
@@ -68,7 +68,7 @@ export default async function ClassCurriculumPage({
 
         <div className="xl:col-span-5 space-y-8 sticky top-24">
           <CommunityBanner classId={classId} memberCount={memberCount} />
-          <CurriculumAccordion curriculum={curriculum} />
+          <CurriculumAccordion curriculum={curriculum} classId={classId} />
         </div>
       </div>
     </div>

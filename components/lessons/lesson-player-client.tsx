@@ -137,7 +137,7 @@ export function LessonPlayerClient({
         <div className="flex items-center justify-between mt-6 shrink-0">
           {previousVideo ? (
             <Button asChild variant="outline" className="rounded-full gap-2 group">
-              <Link href={`/lessons/${previousVideo}`}>
+              <Link href={`/lessons/${previousVideo}?from=${classId}`}>
                 <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 <span className="hidden sm:inline">Previous</span>
               </Link>
@@ -162,7 +162,7 @@ export function LessonPlayerClient({
 
           {nextVideo ? (
             <Button asChild variant="outline" className="rounded-full gap-2 group">
-              <Link href={`/lessons/${nextVideo}`}>
+              <Link href={`/lessons/${nextVideo}?from=${classId}`}>
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -261,7 +261,7 @@ export function LessonPlayerClient({
                         return (
                           <Link
                             key={v.id}
-                            href={`/lessons/${v.id}`}
+                            href={`/lessons/${v.id}?from=${classId}`}
                             className={`flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 ${
                               isActive ? "bg-primary/5 border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
                             }`}

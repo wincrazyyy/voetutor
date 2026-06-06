@@ -13,9 +13,10 @@ interface UpNextHeroVideo {
 
 interface UpNextHeroProps {
   video: UpNextHeroVideo | null;
+  classId: string;
 }
 
-export function UpNextHero({ video }: UpNextHeroProps) {
+export function UpNextHero({ video, classId }: UpNextHeroProps) {
   if (!video) {
     return (
       <Card className="w-full relative overflow-hidden border-2 border-dashed border-border bg-card/50">
@@ -51,7 +52,7 @@ export function UpNextHero({ video }: UpNextHeroProps) {
             </p>
           </div>
         </div>
-        <Link href={`/lessons/${video.id}`} className="w-full md:w-auto shrink-0">
+        <Link href={`/lessons/${video.id}?from=${classId}`} className="w-full md:w-auto shrink-0">
           <Button size="lg" className="w-full rounded-full text-md h-12 px-8 shadow-md">
             Resume Lesson
           </Button>

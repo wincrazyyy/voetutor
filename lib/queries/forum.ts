@@ -36,15 +36,21 @@ export async function getForumPostsForClass(classId: string): Promise<ForumPostL
   });
 }
 
-export async function getForumPostsForVideo(videoId: string): Promise<ForumPostListItem[]> {
+export async function getForumPostsForVideo(
+  videoId: string,
+  classId?: string,
+): Promise<ForumPostListItem[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  /* A shared video can carry Q&A in several classes; scope to one class when
+     given so a lesson opened from class A never shows class B's questions. */
+  let query = supabase
     .from("forum_posts")
     .select(
       "id, class_id, author_id, type, video_id, title, content, upvotes, is_resolved, created_at, updated_at, author:profiles_public!forum_posts_author_id_fkey(id, first_name, last_name, display_name, role, is_approved), videos(id, title)",
     )
-    .eq("video_id", videoId)
-    .order("created_at", { ascending: false });
+    .eq("video_id", videoId);
+  if (classId) query = query.eq("class_id", classId);
+  const { data } = await query.order("created_at", { ascending: false });
 
   if (!data) return [];
 
@@ -99,8 +105,11 @@ export async function getRepliesForPost(postId: string): Promise<ForumReplyWithA
   });
 }
 
-export async function getQAThreadsForVideo(videoId: string): Promise<Array<ForumPostListItem & { replies: ForumReplyWithAuthor[] }>> {
-  const posts = await getForumPostsForVideo(videoId);
+export async function getQAThreadsForVideo(
+  videoId: string,
+  classId?: string,
+): Promise<Array<ForumPostListItem & { replies: ForumReplyWithAuthor[] }>> {
+  const posts = await getForumPostsForVideo(videoId, classId);
   const withReplies = await Promise.all(
     posts.map(async (post) => ({
       ...post,

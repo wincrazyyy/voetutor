@@ -261,19 +261,22 @@ export async function deleteSubtopicAction(
 
 /**
  * Persists the canonical ordered membership of a subtopic. Every id in
- * orderedVideoIds is written as (subtopic_id = subtopicId, order_index = its
- * position), so this single action covers BOTH in-place reordering and
- * cross-subtopic moves. A video already in the subtopic only has its order_index
- * touched (subtopic_id is unchanged, so internal.protect_video_class_lineage
- * early-exits); a dragged-in video is reparented within the same class, which
- * passes videos_modify_educator_or_admin for both its old and new subtopic and
- * skips the lineage guard (class never changes). order_index has no unique
- * constraint, so the concurrent writes settle to a clean 0..n-1 sequence.
+ * orderedPlacementIds is a video_placements row, written as (subtopic_id =
+ * subtopicId, order_index = its position), so this single action covers BOTH
+ * in-place reordering and cross-subtopic moves. The board keys on PLACEMENT ids
+ * (not video ids) because a shared video can appear in more than one subtopic of
+ * the same class, so a video id is no longer unique on the board. Moves stay
+ * within one class, so the UPDATE never changes a placement's class and
+ * internal.protect_placement_forum_lineage early-exits. Updates are scoped to
+ * placements already inside this class. order_index has no unique constraint, so
+ * concurrent writes settle to a clean 0..n-1 sequence; the UNIQUE(video_id,
+ * subtopic_id) constraint is the backstop if a video is dragged onto a subtopic
+ * it already lives in.
  */
 export async function reorderSubtopicVideosAction(
   classId: string,
   subtopicId: string,
-  orderedVideoIds: string[],
+  orderedPlacementIds: string[],
 ): Promise<CurriculumActionState> {
   const auth = await requireEducator();
   if ("error" in auth) return { error: auth.error };
@@ -293,12 +296,6 @@ export async function reorderSubtopicVideosAction(
     return { error: "Subtopic not found in this class." };
   }
 
-  /* Phase A contract: the curriculum board passes VIDEO ids, and every video
-     has exactly one placement (no sharing UI yet), so a video maps to a single
-     placement in this class. We scope the repoint to placements already inside
-     this class. When sharing lands, the board switches to placement ids and
-     this action takes placement ids directly; the UNIQUE(video_id, subtopic_id)
-     constraint is the integrity backstop in the interim. */
   const { data: classSubs } = await supabase
     .from("subtopics")
     .select("id, topics!inner(class_id)")
@@ -307,16 +304,23 @@ export async function reorderSubtopicVideosAction(
   if (classSubtopicIds.length === 0) return { ok: true };
 
   const results = await Promise.all(
-    orderedVideoIds.map((id, index) =>
+    orderedPlacementIds.map((placementId, index) =>
       supabase
         .from("video_placements")
         .update({ subtopic_id: subtopicId, order_index: index })
-        .eq("video_id", id)
+        .eq("id", placementId)
         .in("subtopic_id", classSubtopicIds),
     ),
   );
   const failed = results.find((result) => result.error);
-  if (failed?.error) return { error: failed.error.message };
+  if (failed?.error) {
+    /* Dragging a video onto a subtopic it already appears in trips the
+       UNIQUE(video_id, subtopic_id) backstop; surface it as a clean message. */
+    if (failed.error.code === "23505") {
+      return { error: "That video is already in the destination subtopic." };
+    }
+    return { error: failed.error.message };
+  }
 
   revalidatePath(`/educator/classes/${classId}`);
   return { ok: true };

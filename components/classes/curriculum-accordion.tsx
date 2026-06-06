@@ -11,9 +11,10 @@ import { formatBytes, formatShortDuration } from "@/lib/utils/format";
 
 interface CurriculumAccordionProps {
   curriculum: TopicWithChildren[];
+  classId: string;
 }
 
-export function CurriculumAccordion({ curriculum }: CurriculumAccordionProps) {
+export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordionProps) {
   if (curriculum.length === 0) {
     return (
       <div className="flex flex-col gap-4">
@@ -128,7 +129,7 @@ export function CurriculumAccordion({ curriculum }: CurriculumAccordionProps) {
                         {subtopic.videos.map((video) => (
                           <Link
                             key={video.id}
-                            href={`/lessons/${video.id}`}
+                            href={`/lessons/${video.id}?from=${classId}`}
                             className="flex flex-col gap-1.5 p-4 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
                           >
                             <div className="flex items-start gap-3">
