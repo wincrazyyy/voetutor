@@ -11,7 +11,7 @@ import { renameVideoAction } from "@/app/actions/curriculum";
 
 interface VideoRenameDialogProps {
   videoId: string;
-  classId: string;
+  classId: string | null;
   initialTitle: string;
 }
 

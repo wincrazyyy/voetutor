@@ -15,6 +15,7 @@ import {
   UserCheck,
   Hourglass,
   Lock,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/database";
@@ -48,6 +49,7 @@ export function SidebarNav({
 
   const educatorLinks = [
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
+    { name: "Videos", href: "/educator/videos", icon: Video, lockable: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
@@ -55,6 +57,7 @@ export function SidebarNav({
   const pendingEducatorLinks = [
     { name: "Pending Status", href: "/pending", icon: Hourglass, lockable: false },
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
+    { name: "Videos", href: "/educator/videos", icon: Video, lockable: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
@@ -77,6 +80,7 @@ export function SidebarNav({
     },
     { name: "Classes", href: "/admin/classes", icon: BookOpen, lockable: false },
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: false },
+    { name: "Videos", href: "/educator/videos", icon: Video, lockable: false },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: false },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];

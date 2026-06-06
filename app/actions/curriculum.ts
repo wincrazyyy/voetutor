@@ -324,7 +324,7 @@ export async function reorderSubtopicVideosAction(
 
 export async function renameVideoAction(
   videoId: string,
-  classId: string,
+  classId: string | null,
   title: string,
 ): Promise<CurriculumActionState> {
   const auth = await requireEducator();
@@ -349,6 +349,9 @@ export async function renameVideoAction(
   const { error } = await supabase.from("videos").update({ title: parsed }).eq("id", videoId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
+  /* The curriculum board passes its class; the portal passes null (a video can
+     span many classes) and refreshes the route itself. */
+  if (classId) revalidatePath(`/educator/classes/${classId}`);
+  else revalidatePath("/educator/videos");
   return { ok: true };
 }

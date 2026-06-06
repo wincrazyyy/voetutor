@@ -38,16 +38,16 @@ export interface EnqueueItem {
   file: File;
   title: string;
   description: string;
-  subtopicId: string;
-  classId: string;
+  subtopicId?: string | null;
+  classId?: string | null;
   subtopicLabel?: string | null;
 }
 
 interface ManagedJob extends UploadJob {
   file: File;
   description: string;
-  subtopicId: string;
-  classId: string;
+  subtopicId: string | null;
+  classId: string | null;
   videoId: string | null;
 }
 
@@ -220,8 +220,8 @@ export function UploadManagerProvider({ children }: { children: ReactNode }) {
         error: null,
         file: item.file,
         description: item.description,
-        subtopicId: item.subtopicId,
-        classId: item.classId,
+        subtopicId: item.subtopicId ?? null,
+        classId: item.classId ?? null,
         videoId: null,
       }));
       commit([...jobsRef.current, ...newJobs]);

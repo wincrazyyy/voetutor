@@ -1,18 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Loader2,
-  RotateCcw,
-  UploadCloud,
-  X,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Loader2, RotateCcw, UploadCloud, X } from "lucide-react";
 
+import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   type UploadJob,
@@ -28,7 +18,7 @@ function StatusIcon({ status }: { status: UploadJobStatus }) {
   return <Loader2 className="w-4 h-4 text-primary shrink-0 animate-spin" />;
 }
 
-function UploadTrayRow({
+function UploadRow({
   job,
   onCancel,
   onDismiss,
@@ -97,10 +87,14 @@ function UploadTrayRow({
   );
 }
 
-export function UploadTray() {
+/**
+ * In-page uploads panel for the portal. Replaces the floating tray — the same
+ * live job list (queued / uploading / done / failed) rendered inline so it's
+ * visible while managing the library. Hidden entirely when there are no jobs.
+ */
+export function PortalUploadPanel() {
   const jobs = useUploadJobs();
   const { cancel, dismiss, retry } = useUploadActions();
-  const [collapsed, setCollapsed] = useState(false);
 
   if (jobs.length === 0) return null;
 
@@ -111,35 +105,22 @@ export function UploadTray() {
     active > 0 ? `Uploading ${active} video${active === 1 ? "" : "s"}` : "Uploads complete";
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card shadow-xl overflow-hidden">
-      <div className="flex items-center justify-between gap-2 bg-muted/40 px-4 py-2.5 border-b border-border">
-        <span className="text-sm font-semibold flex items-center gap-2 min-w-0">
-          <UploadCloud className="w-4 h-4 text-primary shrink-0" />
-          <span className="truncate">{headerLabel}</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-label={collapsed ? "Expand uploads" : "Collapse uploads"}
-          className="text-muted-foreground hover:text-foreground shrink-0"
-        >
-          {collapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
+    <Card className="border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 bg-muted/40 px-4 py-2.5 border-b border-border">
+        <UploadCloud className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold truncate">{headerLabel}</span>
       </div>
-
-      {!collapsed && (
-        <div className="max-h-80 overflow-y-auto divide-y divide-border/60">
-          {jobs.map((job) => (
-            <UploadTrayRow
-              key={job.id}
-              job={job}
-              onCancel={() => cancel(job.id)}
-              onDismiss={() => dismiss(job.id)}
-              onRetry={() => retry(job.id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      <div className="max-h-80 overflow-y-auto divide-y divide-border/60">
+        {jobs.map((job) => (
+          <UploadRow
+            key={job.id}
+            job={job}
+            onCancel={() => cancel(job.id)}
+            onDismiss={() => dismiss(job.id)}
+            onRetry={() => retry(job.id)}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }
