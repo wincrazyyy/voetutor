@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  type LucideIcon,
   LayoutDashboard,
   Settings,
   BookMarked,
@@ -29,6 +30,19 @@ interface SidebarNavProps {
   isPendingEducator?: boolean;
 }
 
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  lockable: boolean;
+  badge?: number;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
 const PENDING_HINT = "Locked while your educator account is awaiting admin approval.";
 
 export function SidebarNav({
@@ -40,21 +54,21 @@ export function SidebarNav({
 }: SidebarNavProps) {
   const pathname = usePathname();
 
-  const studentLinks = [
+  const studentLinks: NavItem[] = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, lockable: true },
     { name: "Browse Classes", href: "/classes/browse", icon: Store, lockable: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
-  const educatorLinks = [
+  const educatorLinks: NavItem[] = [
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
     { name: "Videos", href: "/educator/videos", icon: Video, lockable: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
-  const pendingEducatorLinks = [
+  const pendingEducatorLinks: NavItem[] = [
     { name: "Pending Status", href: "/pending", icon: Hourglass, lockable: false },
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
     { name: "Videos", href: "/educator/videos", icon: Video, lockable: true },
@@ -62,7 +76,10 @@ export function SidebarNav({
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
-  const adminLinks = [
+  /* Admins see a labelled split: platform-moderation tools under "Admin", the
+     educator-facing panels they also have under "Educator", so it's obvious
+     which hat each item belongs to. */
+  const adminAdminLinks: NavItem[] = [
     { name: "Admin Hub", href: "/admin", icon: ShieldCheck, lockable: false },
     {
       name: "Educators",
@@ -79,23 +96,27 @@ export function SidebarNav({
       badge: pendingReportCount,
     },
     { name: "Classes", href: "/admin/classes", icon: BookOpen, lockable: false },
+  ];
+
+  const adminEducatorLinks: NavItem[] = [
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: false },
     { name: "Videos", href: "/educator/videos", icon: Video, lockable: false },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: false },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
-  let links;
-  let menuLabel;
+  let sections: NavSection[];
   if (role === "admin") {
-    links = adminLinks;
-    menuLabel = "Admin";
+    sections = [
+      { label: "Admin", items: adminAdminLinks },
+      { label: "Educator", items: adminEducatorLinks },
+    ];
   } else if (role === "educator") {
-    links = isPendingEducator ? pendingEducatorLinks : educatorLinks;
-    menuLabel = isPendingEducator ? "Pending Approval" : "Educator";
+    sections = isPendingEducator
+      ? [{ label: "Pending Approval", items: pendingEducatorLinks }]
+      : [{ label: "Educator", items: educatorLinks }];
   } else {
-    links = studentLinks;
-    menuLabel = "Menu";
+    sections = [{ label: "Menu", items: studentLinks }];
   }
 
   const classSectionLabel = role === "educator" || role === "admin" ? "Your Classes" : "Enrolled Classes";
@@ -112,52 +133,56 @@ export function SidebarNav({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">{menuLabel}</div>
-        {links.map((link) => {
-          const Icon = link.icon;
-          const isActive = pathname === link.href;
-          const badge = "badge" in link ? link.badge : undefined;
-          const locked = isPendingEducator && link.lockable;
+      {sections.map((section) => (
+        <div key={section.label} className="flex flex-col gap-2">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">
+            {section.label}
+          </div>
+          {section.items.map((link) => {
+            const Icon = link.icon;
+            const isActive = pathname === link.href;
+            const badge = link.badge;
+            const locked = isPendingEducator && link.lockable;
 
-          if (locked) {
+            if (locked) {
+              return (
+                <span
+                  key={link.name}
+                  title={PENDING_HINT}
+                  aria-disabled
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                    "text-muted-foreground/60 cursor-not-allowed select-none",
+                  )}
+                >
+                  <Icon className="w-5 h-5 opacity-60" />
+                  <span className="flex-1">{link.name}</span>
+                  <Lock className="w-3.5 h-3.5 opacity-60" />
+                </span>
+              );
+            }
+
             return (
-              <span
+              <Link
                 key={link.name}
-                title={PENDING_HINT}
-                aria-disabled
+                href={link.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                  "text-muted-foreground/60 cursor-not-allowed select-none",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <Icon className="w-5 h-5 opacity-60" />
+                <Icon className="w-5 h-5" />
                 <span className="flex-1">{link.name}</span>
-                <Lock className="w-3.5 h-3.5 opacity-60" />
-              </span>
+                {typeof badge === "number" && badge > 0 && (
+                  <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5">
+                    {badge}
+                  </Badge>
+                )}
+              </Link>
             );
-          }
-
-          return (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="flex-1">{link.name}</span>
-              {typeof badge === "number" && badge > 0 && (
-                <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5">
-                  {badge}
-                </Badge>
-              )}
-            </Link>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      ))}
 
       <div className="flex flex-col gap-1">
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 mt-2">
