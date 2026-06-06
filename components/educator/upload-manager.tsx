@@ -208,6 +208,23 @@ export function UploadManagerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  /* In-app navigation is safe — the provider lives at the authenticated-app
+     root and stays mounted. A full reload or tab close, though, destroys the
+     in-memory queue and aborts the live byte transfers, which cannot resume.
+     Warn while any job is still in flight so a stray refresh can't lose them. */
+  const hasActiveJobs = jobs.some(
+    (job) => job.status === "queued" || job.status === "starting" || job.status === "uploading",
+  );
+  useEffect(() => {
+    if (!hasActiveJobs) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasActiveJobs]);
+
   const enqueue = useCallback(
     (items: EnqueueItem[]) => {
       const newJobs: ManagedJob[] = items.map((item) => ({

@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Film, PlayCircle, Trash2 } from "lucide-react";
+import { Film, PlayCircle, Search, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { VideoRenameDialog } from "@/components/educator/video-rename-dialog";
 import { VideoAssignDialog } from "@/components/educator/video-assign-dialog";
 import { deleteVideoAction } from "@/app/actions/videos";
@@ -187,6 +188,8 @@ function LibraryVideoCard({
  * inline rename, the assign-to-classes picker (overlap), and library deletion.
  */
 export function VideoLibraryList({ videos, tree }: VideoLibraryListProps) {
+  const [query, setQuery] = useState("");
+
   if (videos.length === 0) {
     return (
       <Card className="p-10 border border-dashed border-border bg-card/50 text-center">
@@ -199,11 +202,42 @@ export function VideoLibraryList({ videos, tree }: VideoLibraryListProps) {
     );
   }
 
+  const needle = query.trim().toLowerCase();
+  const filtered = needle
+    ? videos.filter(
+        (video) =>
+          video.title.toLowerCase().includes(needle) ||
+          video.placements.some(
+            (placement) =>
+              placement.class_title.toLowerCase().includes(needle) ||
+              placement.topic_title.toLowerCase().includes(needle) ||
+              placement.subtopic_title.toLowerCase().includes(needle),
+          ),
+      )
+    : videos;
+
   return (
     <div className="space-y-4">
-      {videos.map((video) => (
-        <LibraryVideoCard key={video.id} video={video} tree={tree} />
-      ))}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search videos by title or class…"
+          className="w-full pl-9"
+          aria-label="Search videos"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-10 border border-dashed border-border bg-card/50 text-center">
+          <Search className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No videos match your search.</p>
+        </Card>
+      ) : (
+        filtered.map((video) => <LibraryVideoCard key={video.id} video={video} tree={tree} />)
+      )}
     </div>
   );
 }

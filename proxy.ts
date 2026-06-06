@@ -14,8 +14,10 @@ export const config = {
      * - favicon.ico (favicon file)
      * - api/stream/webhook (Cloudflare Stream webhook — verified by its own
      *   HMAC signature; must bypass the auth gate, not be redirected to login)
+     * - api/cron/reap-uploads (scheduled upload reaper — authenticated by its
+     *   own CRON_SECRET bearer; has no user session, so must bypass the gate)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/stream/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/stream/webhook|api/cron/reap-uploads|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
