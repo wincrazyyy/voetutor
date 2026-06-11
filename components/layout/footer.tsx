@@ -20,7 +20,7 @@ export function Footer() {
         <Link href="#" className="hover:text-primary transition-colors">
           Terms
         </Link>
-        <Link href="#" className="hover:text-primary transition-colors">
+        <Link href="/privacy" className="hover:text-primary transition-colors">
           Privacy
         </Link>
         <div className="w-px h-4 bg-border mx-2"></div>
