@@ -9,7 +9,11 @@ export const metadata: Metadata = {
     "How WSPortal collects, uses, stores, and shares your personal data across our video-tutoring platform.",
 };
 
-const LAST_UPDATED = "11 June 2026";
+const LAST_UPDATED = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+}).format(new Date());
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (

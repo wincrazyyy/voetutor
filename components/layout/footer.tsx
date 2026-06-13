@@ -17,7 +17,7 @@ export function Footer() {
         &copy; {year} WSPortal. All rights reserved.
       </p>
       <div className="flex items-center gap-4 mt-4 md:mt-0">
-        <Link href="#" className="hover:text-primary transition-colors">
+        <Link href="/terms" className="hover:text-primary transition-colors">
           Terms
         </Link>
         <Link href="/privacy" className="hover:text-primary transition-colors">

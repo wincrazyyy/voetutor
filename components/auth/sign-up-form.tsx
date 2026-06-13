@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RoleSelector, type SignUpRole } from "@/components/auth/role-selector";
+import { PasswordRequirements } from "@/components/auth/password-requirements";
+import { validatePassword } from "@/lib/utils/password";
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
   const [role, setRole] = useState<SignUpRole>("student");
@@ -31,8 +33,9 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
@@ -122,7 +125,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
             id="password"
             type="password"
             required
-            minLength={6}
+            minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
@@ -134,13 +137,15 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
             id="repeat-password"
             type="password"
             required
-            minLength={6}
+            minLength={8}
             value={repeatPassword}
             onChange={(e) => setRepeatPassword(e.target.value)}
             disabled={isLoading}
           />
         </div>
       </div>
+
+      {password.length > 0 && <PasswordRequirements value={password} />}
 
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
