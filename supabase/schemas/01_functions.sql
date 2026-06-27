@@ -662,10 +662,10 @@ RETURNS TABLE (
         OR p.role = 'admin'::public.user_role
       )
       AND (p_subject IS NULL OR ep.subject_tags @> ARRAY[p_subject])
-    ORDER BY ep.is_verified DESC, ep.published_at DESC NULLS LAST
+    ORDER BY (ep.tier = 'premium'::public.educator_tier) DESC, ep.is_verified DESC, ep.published_at DESC NULLS LAST
     LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 24), 60));
 $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION public.list_published_educators(INTEGER, TEXT) IS 'Lists PUBLIC educator profiles (published + approved educators, plus admins) for the marketplace surfaces (homepage featured rack + /educators directory). Same access boundary as get_public_educator_profile / published_educator_ids, exposed in bulk. Optional p_subject filters by an exact subject_tag (array containment); p_limit is clamped 1..60. Verified-first, then most-recently-published. SECURITY DEFINER (empty search_path, fully-qualified) so anon can read it without per-row RLS on educator_profiles.';
+COMMENT ON FUNCTION public.list_published_educators(INTEGER, TEXT) IS 'Lists PUBLIC educator profiles (published + approved educators, plus admins) for the marketplace surfaces (homepage featured rack + /educators directory). Same access boundary as get_public_educator_profile / published_educator_ids, exposed in bulk. Optional p_subject filters by an exact subject_tag (array containment); p_limit is clamped 1..60. Premium-first, then verified, then most-recently-published (premium educators get marketplace prominence). SECURITY DEFINER (empty search_path, fully-qualified) so anon can read it without per-row RLS on educator_profiles.';
 
 REVOKE EXECUTE ON FUNCTION public.list_published_educators(INTEGER, TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.list_published_educators(INTEGER, TEXT) TO anon, authenticated;
