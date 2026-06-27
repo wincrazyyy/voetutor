@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { GraduationCap, Sparkles, Users, ShieldCheck, BookOpen } from "lucide-react";
+import { Sparkles, Users, ShieldCheck, BookOpen } from "lucide-react";
+import { VoeWordmark } from "@/components/brand/vault-mark";
 
 interface AuthHeroPanelProps {
   variant: "sign-up" | "login";
@@ -7,7 +8,7 @@ interface AuthHeroPanelProps {
 
 export function AuthHeroPanel({ variant }: AuthHeroPanelProps) {
   const heading =
-    variant === "sign-up" ? "Join WSPortal." : "Welcome back.";
+    variant === "sign-up" ? "Join VOETutor." : "Welcome back.";
   const subheading =
     variant === "sign-up"
       ? "Premium video tutoring, structured curriculum, and expert educators in one calm workspace."
@@ -39,9 +40,8 @@ export function AuthHeroPanel({ variant }: AuthHeroPanelProps) {
       </div>
 
       <div className="relative">
-        <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-          <GraduationCap className="w-7 h-7" />
-          <span className="font-bold text-xl tracking-tight">WSPortal</span>
+        <Link href="/" className="inline-flex hover:opacity-90 transition-opacity">
+          <VoeWordmark tone="onPrimary" />
         </Link>
       </div>
 
@@ -72,7 +72,7 @@ export function AuthHeroPanel({ variant }: AuthHeroPanelProps) {
       </div>
 
       <div className="relative text-xs text-primary-foreground/70">
-        © {new Date().getFullYear()} WSPortal. Crafted for IB students and educators.
+        © {new Date().getFullYear()} VOETutor. Crafted for IB students and educators.
       </div>
     </aside>
   );

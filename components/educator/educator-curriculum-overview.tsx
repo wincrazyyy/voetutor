@@ -10,7 +10,6 @@ import {
   GripVertical,
   Lock,
   PlayCircle,
-  Plus,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,7 +43,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type {
@@ -62,6 +60,8 @@ import { DeleteCurriculumItemButton } from "@/components/educator/delete-curricu
 import { AddVideosToSubtopicDialog } from "@/components/educator/add-videos-to-subtopic-dialog";
 import { UnplaceVideoButton } from "@/components/educator/unplace-video-button";
 import { VideoRenameDialog } from "@/components/educator/video-rename-dialog";
+import { ResourceUploadDialog } from "@/components/educator/resource-upload-dialog";
+import { DeleteResourceButton } from "@/components/educator/delete-resource-button";
 
 interface EducatorCurriculumOverviewProps {
   classId: string;
@@ -365,10 +365,7 @@ function TopicSection({
             <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
               Topic Resources
             </span>
-            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-primary" disabled>
-              <Plus className="w-3 h-3" />
-              Add Resource
-            </Button>
+            <ResourceUploadDialog classId={classId} parentType="topic" parentId={topic.id} />
           </div>
           {topic.resources.length === 0 ? (
             <div className="px-4 py-3 text-xs text-muted-foreground italic border-b border-border/50">
@@ -381,11 +378,19 @@ function TopicSection({
                   key={res.id}
                   className="flex items-center gap-3 p-3 px-4 border-b border-border/50 last:border-0"
                 >
-                  <FileText className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-sm font-medium truncate">{res.title}</span>
-                  <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
+                  <a
+                    href={`/api/resources/${res.id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 min-w-0 flex-1 hover:text-primary transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium truncate">{res.title}</span>
+                  </a>
+                  <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
                     {formatBytes(res.size_bytes)}
                   </span>
+                  <DeleteResourceButton resourceId={res.id} classId={classId} name={res.title} />
                 </div>
               ))}
             </div>
@@ -398,6 +403,11 @@ function TopicSection({
                   {subtopic.title}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
+                  <ResourceUploadDialog
+                    classId={classId}
+                    parentType="subtopic"
+                    parentId={subtopic.id}
+                  />
                   <AddVideosToSubtopicDialog
                     classId={classId}
                     subtopicId={subtopic.id}
@@ -427,13 +437,21 @@ function TopicSection({
                   key={res.id}
                   className="flex items-center gap-3 p-3 px-5 border-b border-border/50 bg-muted/5"
                 >
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium text-muted-foreground truncate">
-                    {res.title}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
+                  <a
+                    href={`/api/resources/${res.id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 min-w-0 flex-1 hover:text-foreground transition-colors"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium text-muted-foreground truncate">
+                      {res.title}
+                    </span>
+                  </a>
+                  <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
                     {formatBytes(res.size_bytes)}
                   </span>
+                  <DeleteResourceButton resourceId={res.id} classId={classId} name={res.title} />
                 </div>
               ))}
 

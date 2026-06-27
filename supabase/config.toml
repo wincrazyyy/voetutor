@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "wsportal"
+project_id = "voe"
 
 [api]
 enabled = true
@@ -117,6 +117,14 @@ file_size_limit = "50MiB"
 # file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
+
+# Educator profile assets (avatars + gallery). Local mirror of the remote bucket; the RLS policies
+# live in supabase/migrations/20260615090000_educator_assets_storage_policies.sql. NOTE: file_size /
+# mime limits here are LOCAL-only — the remote bucket gets them from the migration's bucket insert.
+[storage.buckets.educator-assets]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]

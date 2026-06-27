@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/profile";
+import { getEducatorAccess } from "@/lib/tiers/gate";
 
 export interface ClassFormState {
   error?: string;
@@ -37,10 +38,12 @@ function parseInput(formData: FormData): ClassInput | { error: string } {
 }
 
 export async function createClassAction(formData: FormData): Promise<ClassFormState> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { error: "Sign in required." };
+  const access = await getEducatorAccess();
+  if (!access.profile) return { error: "Sign in required." };
+  const { profile, isPremium } = access;
   if (profile.role !== "educator" && profile.role !== "admin") return { error: "Only educators can create classes." };
   if (profile.role === "educator" && !profile.is_approved) return { error: "Educator account is awaiting approval." };
+  if (!isPremium) return { error: "Classes are a premium feature. Upgrade to create classes." };
 
   const parsed = parseInput(formData);
   if ("error" in parsed) return { error: parsed.error };

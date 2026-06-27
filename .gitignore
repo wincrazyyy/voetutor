@@ -46,3 +46,7 @@ next-env.d.ts
 .claudeignore
 CLAUDE.md
 plans
+
+# migration scratch — one-off helpers, kept local (never committed)
+/.migration-tmp/
+scripts/create-educator-account.ts

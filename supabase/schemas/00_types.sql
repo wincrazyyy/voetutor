@@ -11,3 +11,5 @@ CREATE TYPE topic_status AS ENUM ('locked', 'active', 'completed');
 CREATE TYPE forum_post_type AS ENUM ('general', 'video_qa');
 CREATE TYPE class_report_status AS ENUM ('pending', 'dismissed', 'actioned');
 CREATE TYPE video_status AS ENUM ('uploading', 'queued', 'processing', 'ready', 'errored');
+CREATE TYPE educator_tier AS ENUM ('basic', 'premium');
+CREATE TYPE review_source AS ENUM ('imported', 'verified');

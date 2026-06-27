@@ -14,7 +14,7 @@ export function Footer() {
   return (
     <footer className="w-full flex flex-col md:flex-row items-center justify-between border-t px-8 py-8 bg-card text-muted-foreground text-sm">
       <p>
-        &copy; {year} WSPortal. All rights reserved.
+        &copy; {year} VOETutor. All rights reserved.
       </p>
       <div className="flex items-center gap-4 mt-4 md:mt-0">
         <Link href="/terms" className="hover:text-primary transition-colors">

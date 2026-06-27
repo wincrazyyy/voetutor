@@ -1,17 +1,13 @@
-import { redirect } from "next/navigation";
 import { Film } from "lucide-react";
 
-import { getCurrentProfile } from "@/lib/queries/profile";
+import { requireEducatorPage } from "@/lib/tiers/gate";
 import { getVideoLibrary, getEducatorPlacementTree } from "@/lib/queries/video-library";
 import { VideoLibraryList } from "@/components/educator/video-library-list";
 import { PortalUploadButton } from "@/components/educator/portal-upload-button";
 import { PortalUploadPanel } from "@/components/educator/portal-upload-panel";
 
 export default async function EducatorVideosPage() {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/auth/login");
-  if (profile.role === "educator" && !profile.is_approved) redirect("/pending");
-  if (profile.role !== "educator" && profile.role !== "admin") redirect("/dashboard");
+  const { profile } = await requireEducatorPage({ premium: true });
 
   const [videos, tree] = await Promise.all([
     getVideoLibrary(profile.id),

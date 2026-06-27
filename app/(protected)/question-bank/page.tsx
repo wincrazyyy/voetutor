@@ -1,7 +1,21 @@
+import { redirect } from "next/navigation";
 import { Library } from "lucide-react";
+
+import { getCurrentProfile } from "@/lib/queries/profile";
+import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { Card } from "@/components/ui/card";
 
-export default function QuestionBankPage() {
+export default async function QuestionBankPage() {
+  /* Premium educator feature. Students keep their (stub) access; basic-tier educators are gated.
+     Admins and premium educators pass. */
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/auth/login");
+  if (profile.role === "educator") {
+    if (!profile.is_approved) redirect("/pending");
+    const ep = await getEducatorProfile(profile.id);
+    if ((ep?.tier ?? "basic") !== "premium") redirect("/educator?upgrade=1");
+  }
+
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
       <div>

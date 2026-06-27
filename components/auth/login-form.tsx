@@ -78,7 +78,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       </Button>
 
       <div className="text-center text-sm text-muted-foreground">
-        New to WSPortal?{" "}
+        New to VOETutor?{" "}
         <Link href="/auth/sign-up" className="text-primary font-semibold hover:underline">
           Create an account
         </Link>

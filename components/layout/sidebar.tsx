@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
+import { VoeWordmark } from "@/components/brand/vault-mark";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getEnrolledClasses } from "@/lib/queries/classes";
 import { getClassesForEducator } from "@/lib/queries/educator";
+import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
 import { getPendingReportCount } from "@/lib/queries/class-reports";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -20,11 +21,18 @@ export async function Sidebar() {
   let classes: Array<{ id: string; code: string; title: string }> = [];
   let pendingApplicationCount = 0;
   let pendingReportCount = 0;
+  /* Admins are effectively premium; approved educators read their tier. Drives which nav items the
+     basic tier sees locked (classes / videos / question bank are premium). */
+  let isPremium = role === "admin";
 
   if (profile && !isPendingEducator) {
     if (role === "educator" || role === "admin") {
       const educatorClasses = await getClassesForEducator(profile.id);
       classes = educatorClasses.map((c) => ({ id: c.id, code: c.code, title: c.title }));
+      if (role === "educator") {
+        const ep = await getEducatorProfile(profile.id);
+        isPremium = (ep?.tier ?? "basic") === "premium";
+      }
     } else {
       const enrolled = await getEnrolledClasses(profile.id);
       classes = enrolled.map((c) => ({ id: c.id, code: c.code, title: c.title }));
@@ -46,12 +54,8 @@ export async function Sidebar() {
   return (
     <aside className="w-64 bg-card border-r border-border h-screen sticky top-0 flex flex-col md:flex shrink-0">
       <div className="h-16 flex items-center px-6 border-b border-border shrink-0">
-        <Link
-          href={homeHref}
-          className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity"
-        >
-          <GraduationCap className="w-6 h-6" />
-          <span className="font-bold text-lg tracking-tight">WSPortal</span>
+        <Link href={homeHref} className="hover:opacity-80 transition-opacity">
+          <VoeWordmark />
         </Link>
       </div>
 
@@ -61,6 +65,7 @@ export async function Sidebar() {
         pendingApplicationCount={pendingApplicationCount}
         pendingReportCount={pendingReportCount}
         isPendingEducator={isPendingEducator}
+        isPremium={isPremium}
       />
 
       <div className="p-4 border-t border-border flex items-center gap-2 shrink-0">

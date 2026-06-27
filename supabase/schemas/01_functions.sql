@@ -463,3 +463,308 @@ COMMENT ON FUNCTION public.enroll_in_free_class(UUID) IS 'Self-enrolment path fo
 
 REVOKE EXECUTE ON FUNCTION public.enroll_in_free_class(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.enroll_in_free_class(UUID) TO authenticated;
+
+/* ==========  EDUCATOR PUBLIC PROFILE  ==========
+   Trigger functions, the tier helper, and the public / admin RPCs backing the educator public
+   profile feature. The two trigger functions are PLAIN (no SECURITY DEFINER, no search_path pin),
+   mirroring maintain_class_published_at and protect_profile_role. */
+
+CREATE OR REPLACE FUNCTION internal.maintain_educator_profile_published_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.is_published = TRUE AND NEW.published_at IS NULL THEN
+            NEW.published_at = NOW();
+        ELSIF NEW.is_published = FALSE THEN
+            NEW.published_at = NULL;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF NEW.is_published = TRUE AND OLD.is_published = FALSE THEN
+        NEW.published_at = NOW();
+    ELSIF NEW.is_published = FALSE AND OLD.is_published = TRUE THEN
+        NEW.published_at = NULL;
+    ELSIF NEW.is_published = OLD.is_published THEN
+        NEW.published_at = OLD.published_at;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.maintain_educator_profile_published_at() IS 'Drives educator_profiles.published_at deterministically from is_published transitions: stamps NOW() on publish, clears on unpublish, ignores any caller-supplied value when unchanged. Structural copy of maintain_class_published_at; plain trigger function (no SECURITY DEFINER, no search_path pin) by design.';
+
+CREATE OR REPLACE FUNCTION internal.protect_educator_admin_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF internal.is_admin() THEN
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        /* The educator self-insert policy (educator_profiles_insert_self) does NOT restrict columns,
+           so a direct client INSERT could otherwise self-grant verification / a premium tier / a
+           vanity slug. Coerce every admin-controlled column to its safe default on a non-admin
+           insert — the BEFORE UPDATE branch below never sees INSERTs. */
+        NEW.is_verified = FALSE;
+        NEW.verified_by = NULL;
+        NEW.verified_at = NULL;
+        NEW.tier = 'basic'::public.educator_tier;
+        NEW.slug = NULL;
+        NEW.review_count = 0;
+        NEW.rating_sum = 0;
+        RETURN NEW;
+    END IF;
+
+    IF NEW.is_verified IS DISTINCT FROM OLD.is_verified THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can change verification status.';
+    END IF;
+    IF NEW.verified_by IS DISTINCT FROM OLD.verified_by OR NEW.verified_at IS DISTINCT FROM OLD.verified_at THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Verification audit columns are admin-only.';
+    END IF;
+    IF NEW.tier IS DISTINCT FROM OLD.tier THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can change an educator''s tier.';
+    END IF;
+    IF NEW.slug IS DISTINCT FROM OLD.slug THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: The vanity slug is not user-settable yet.';
+    END IF;
+
+    /* review_count / rating_sum are trigger-maintained (internal.maintain_educator_review_stats),
+       not user-settable. The maintenance write arrives at pg_trigger_depth() = 2, so guard the lock
+       to depth 1 — a direct user UPDATE is blocked, the nested aggregate write passes through. */
+    IF pg_trigger_depth() <= 1 THEN
+        IF NEW.review_count IS DISTINCT FROM OLD.review_count THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: review_count is maintained by trigger, not user-settable.';
+        END IF;
+        IF NEW.rating_sum IS DISTINCT FROM OLD.rating_sum THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: rating_sum is maintained by trigger, not user-settable.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.protect_educator_admin_fields() IS 'Locks the admin-controlled educator_profiles columns (is_verified, verified_by, verified_at, tier, slug) and the trigger-maintained aggregate columns (review_count, rating_sum) against non-admin mutation on BOTH insert and update, mirroring protect_profile_role. On a non-admin INSERT the columns are coerced to safe defaults (the educator self-insert RLS policy does not restrict columns, so a direct client insert would otherwise self-grant them); on UPDATE any change RAISEs. The review_count / rating_sum checks are guarded to pg_trigger_depth() <= 1 so internal.maintain_educator_review_stats (which writes them from a nested AFTER trigger at depth 2) is not rejected. Admins set the verified / tier columns via the set_educator_verified / set_educator_tier RPCs; those writes pass because internal.is_admin() — read from the preserved auth.uid() — is true even inside the SECURITY DEFINER functions. Plain trigger function (no SECURITY DEFINER, no search_path pin).';
+
+CREATE OR REPLACE FUNCTION internal.get_educator_tier(p_educator_id UUID)
+RETURNS public.educator_tier AS $$
+DECLARE
+    v_tier public.educator_tier;
+BEGIN
+    SELECT tier INTO v_tier FROM public.educator_profiles WHERE educator_id = p_educator_id;
+    RETURN COALESCE(v_tier, 'basic'::public.educator_tier);
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.get_educator_tier(UUID) IS 'Single source of truth for an educator''s commercial tier, defaulting to basic when no row exists. SECURITY DEFINER (empty search_path, fully-qualified) so an RLS policy or RPC can read it without a profiles round-trip.';
+
+CREATE OR REPLACE FUNCTION internal.maintain_educator_review_stats()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_educator UUID;
+BEGIN
+    v_educator := COALESCE(NEW.educator_id, OLD.educator_id);
+
+    UPDATE public.educator_profiles ep
+    SET review_count = agg.cnt,
+        rating_sum   = agg.total
+    FROM (
+        SELECT
+            COUNT(*)::INTEGER AS cnt,
+            COALESCE(SUM(rating), 0)::INTEGER AS total
+        FROM public.educator_reviews r
+        WHERE r.educator_id = v_educator
+          AND r.is_visible = TRUE
+    ) AS agg
+    WHERE ep.educator_id = v_educator;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.maintain_educator_review_stats() IS 'AFTER trigger on educator_reviews (insert / update / delete). Recomputes educator_profiles.review_count and rating_sum from the VISIBLE reviews of the affected educator, so visibility flips and deletes stay consistent. SECURITY DEFINER + empty search_path so it can write a row the acting user does not own despite FORCE RLS. No-ops when the educator_profiles row does not exist yet (an approved educator who never built a profile) — recomputed on the next write once the row exists. Imported-inclusive in v1; the future verified-only directory-card aggregate would use separate columns (see plans/educator-reviews.md section 8). The nested educator_profiles UPDATE arrives at pg_trigger_depth() = 2, which protect_educator_admin_fields allows for these two columns.';
+
+CREATE OR REPLACE FUNCTION public.get_public_educator_profile(p_educator_id UUID)
+RETURNS TABLE (
+    educator_id UUID,
+    first_name TEXT,
+    last_name TEXT,
+    display_name TEXT,
+    avatar_url TEXT,
+    role_label TEXT,
+    headline TEXT,
+    hourly_rate_cents INTEGER,
+    subject_tags TEXT[],
+    profile_doc JSONB,
+    is_verified BOOLEAN,
+    tier public.educator_tier,
+    published_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ep.educator_id, p.first_name, p.last_name, p.display_name,
+        ep.avatar_url, ep.role_label, ep.headline, ep.hourly_rate_cents,
+        ep.subject_tags, ep.profile_doc, ep.is_verified, ep.tier, ep.published_at
+    FROM public.educator_profiles ep
+    JOIN public.profiles p ON p.id = ep.educator_id
+    WHERE ep.educator_id = p_educator_id
+      AND ep.is_published = TRUE
+      AND (
+        (p.role = 'educator'::public.user_role AND p.is_approved = TRUE)
+        OR p.role = 'admin'::public.user_role
+      );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.get_public_educator_profile(UUID) IS 'Public read boundary for an educator''s profile: returns ONLY public-safe columns (no whatsapp / gender / application / audit fields) and ONLY for published profiles owned by an approved educator OR an admin (admins are tutors-with-extra-perms, so they are treated as educators for the public profile boundary; the admin role itself is never returned). The WHERE clause plus the column list ARE the access boundary. Does not widen profiles_public.';
+
+REVOKE EXECUTE ON FUNCTION public.get_public_educator_profile(UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_public_educator_profile(UUID) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.published_educator_ids(p_ids UUID[])
+RETURNS UUID[] AS $$
+    SELECT COALESCE(array_agg(ep.educator_id), '{}')
+    FROM public.educator_profiles ep
+    JOIN public.profiles p ON p.id = ep.educator_id
+    WHERE ep.educator_id = ANY(p_ids)
+      AND ep.is_published = TRUE
+      AND (
+        (p.role = 'educator'::public.user_role AND p.is_approved = TRUE)
+        OR p.role = 'admin'::public.user_role
+      );
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.published_educator_ids(UUID[]) IS 'Given a set of educator ids, returns the subset that have a PUBLIC profile (published + approved educator). Lets the marketplace / feeds gate links to /educators/[id] so they never dead-end on an unpublished profile. Returns only ids that are already publicly viewable via get_public_educator_profile, so it leaks nothing beyond that boundary.';
+
+REVOKE EXECUTE ON FUNCTION public.published_educator_ids(UUID[]) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.published_educator_ids(UUID[]) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.list_published_educators(p_limit INTEGER DEFAULT 24, p_subject TEXT DEFAULT NULL)
+RETURNS TABLE (
+    educator_id UUID,
+    first_name TEXT,
+    last_name TEXT,
+    display_name TEXT,
+    avatar_url TEXT,
+    role_label TEXT,
+    headline TEXT,
+    hourly_rate_cents INTEGER,
+    subject_tags TEXT[],
+    is_verified BOOLEAN,
+    tier public.educator_tier,
+    published_at TIMESTAMPTZ
+) AS $$
+    SELECT
+        ep.educator_id, p.first_name, p.last_name, p.display_name,
+        ep.avatar_url, ep.role_label, ep.headline, ep.hourly_rate_cents,
+        ep.subject_tags, ep.is_verified, ep.tier, ep.published_at
+    FROM public.educator_profiles ep
+    JOIN public.profiles p ON p.id = ep.educator_id
+    WHERE ep.is_published = TRUE
+      AND (
+        (p.role = 'educator'::public.user_role AND p.is_approved = TRUE)
+        OR p.role = 'admin'::public.user_role
+      )
+      AND (p_subject IS NULL OR ep.subject_tags @> ARRAY[p_subject])
+    ORDER BY ep.is_verified DESC, ep.published_at DESC NULLS LAST
+    LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 24), 60));
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.list_published_educators(INTEGER, TEXT) IS 'Lists PUBLIC educator profiles (published + approved educators, plus admins) for the marketplace surfaces (homepage featured rack + /educators directory). Same access boundary as get_public_educator_profile / published_educator_ids, exposed in bulk. Optional p_subject filters by an exact subject_tag (array containment); p_limit is clamped 1..60. Verified-first, then most-recently-published. SECURITY DEFINER (empty search_path, fully-qualified) so anon can read it without per-row RLS on educator_profiles.';
+
+REVOKE EXECUTE ON FUNCTION public.list_published_educators(INTEGER, TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.list_published_educators(INTEGER, TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.set_educator_verified(p_educator_id UUID, p_verified BOOLEAN)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT internal.is_admin() THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can verify educators.';
+    END IF;
+
+    UPDATE public.educator_profiles
+    SET is_verified = p_verified,
+        verified_by = CASE WHEN p_verified THEN (SELECT auth.uid()) ELSE NULL END,
+        verified_at = CASE WHEN p_verified THEN NOW() ELSE NULL END
+    WHERE educator_id = p_educator_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Educator profile % not found.', p_educator_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.set_educator_verified(UUID, BOOLEAN) IS 'Admin-only: flips is_verified and stamps / clears the verified_by and verified_at audit columns. SECURITY DEFINER bypasses protect_educator_admin_fields; the function enforces the admin check itself. Mirrors approve_educator.';
+
+REVOKE EXECUTE ON FUNCTION public.set_educator_verified(UUID, BOOLEAN) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.set_educator_verified(UUID, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.set_educator_tier(p_educator_id UUID, p_tier public.educator_tier)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT internal.is_admin() THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can set educator tiers.';
+    END IF;
+
+    UPDATE public.educator_profiles SET tier = p_tier WHERE educator_id = p_educator_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Educator profile % not found.', p_educator_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.set_educator_tier(UUID, public.educator_tier) IS 'Admin-only: sets an educator''s commercial tier. SECURITY DEFINER bypasses protect_educator_admin_fields; the function enforces the admin check itself. Mirrors approve_educator.';
+
+REVOKE EXECUTE ON FUNCTION public.set_educator_tier(UUID, public.educator_tier) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.set_educator_tier(UUID, public.educator_tier) TO authenticated;
+
+/* ==========  EDUCATOR REVIEWS  ==========
+   Public read boundary + admin moderation for the educator_reviews table. Mirrors the educator
+   public-profile RPCs: SECURITY DEFINER, empty search_path, fully-qualified, the WHERE clause and
+   column list ARE the access boundary. */
+
+CREATE OR REPLACE FUNCTION public.get_public_educator_reviews(p_educator_id UUID)
+RETURNS TABLE (
+    id UUID,
+    rating SMALLINT,
+    comment TEXT,
+    reviewer_first_name TEXT,
+    reviewer_last_name TEXT,
+    reviewer_school TEXT,
+    reviewer_image_url TEXT,
+    source public.review_source,
+    created_at TIMESTAMPTZ
+) AS $$
+    SELECT
+        r.id, r.rating, r.comment,
+        r.reviewer_first_name, r.reviewer_last_name, r.reviewer_school,
+        r.reviewer_image_url, r.source, r.created_at
+    FROM public.educator_reviews r
+    JOIN public.educator_profiles ep ON ep.educator_id = r.educator_id
+    JOIN public.profiles p ON p.id = ep.educator_id
+    WHERE r.educator_id = p_educator_id
+      AND r.is_visible = TRUE
+      AND ep.is_published = TRUE
+      AND (
+        (p.role = 'educator'::public.user_role AND p.is_approved = TRUE)
+        OR p.role = 'admin'::public.user_role
+      )
+    ORDER BY r.created_at DESC;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.get_public_educator_reviews(UUID) IS 'Public read boundary for an educator''s reviews: returns ONLY visible reviews of a published, approved educator (or admin). Same anon access pattern as get_public_educator_profile; the WHERE clause plus the column list ARE the boundary. Reviewer identity comes from the denormalized reviewer_* columns (imported reviews). When the verified path ships, verified rows would join profiles_public for live student identity. Does not widen profiles_public.';
+
+REVOKE EXECUTE ON FUNCTION public.get_public_educator_reviews(UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_public_educator_reviews(UUID) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.set_review_visibility(p_review_id UUID, p_visible BOOLEAN)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT internal.is_admin() THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Only admins can moderate reviews.';
+    END IF;
+
+    UPDATE public.educator_reviews SET is_visible = p_visible WHERE id = p_review_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Review % not found.', p_review_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.set_review_visibility(UUID, BOOLEAN) IS 'Admin-only: toggles a review''s is_visible flag. The AFTER UPDATE maintenance trigger recomputes the educator''s review_count / rating_sum, so hidden reviews drop out of the aggregate. Mirrors set_educator_verified.';
+
+REVOKE EXECUTE ON FUNCTION public.set_review_visibility(UUID, BOOLEAN) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.set_review_visibility(UUID, BOOLEAN) TO authenticated;

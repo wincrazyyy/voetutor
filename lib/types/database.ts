@@ -1,9 +1,12 @@
+import type { EducatorProfileDoc } from "./profile-doc";
+
 export type UserRole = "student" | "educator" | "admin";
 export type AnnouncementType = "standard" | "important" | "event";
 export type TopicStatus = "locked" | "active" | "completed";
 export type ForumPostType = "general" | "video_qa";
 export type ClassReportStatus = "pending" | "dismissed" | "actioned";
 export type VideoStatus = "uploading" | "queued" | "processing" | "ready" | "errored";
+export type ReviewSource = "imported" | "verified";
 
 export interface ClassReport {
   id: string;
@@ -17,6 +20,8 @@ export interface ClassReport {
   updated_at: string;
 }
 
+export type EducatorTier = "basic" | "premium";
+
 export interface EducatorProfile {
   educator_id: string;
   gender: string | null;
@@ -28,8 +33,86 @@ export interface EducatorProfile {
   teaching_experience: string | null;
   teaching_subjects: string | null;
   self_introduction: string | null;
+  /* Public-profile fields (added with the educator public-profile feature). */
+  avatar_url: string | null;
+  role_label: string | null;
+  headline: string | null;
+  hourly_rate_cents: number | null;
+  subject_tags: string[] | null;
+  profile_doc: EducatorProfileDoc;
+  is_published: boolean;
+  published_at: string | null;
+  tier: EducatorTier;
+  slug: string | null;
+  is_verified: boolean;
+  verified_by: string | null;
+  verified_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Return shape of the public.get_public_educator_profile RPC — public-safe columns only. */
+export interface PublicEducatorProfile {
+  educator_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  role_label: string | null;
+  headline: string | null;
+  hourly_rate_cents: number | null;
+  subject_tags: string[] | null;
+  profile_doc: EducatorProfileDoc;
+  is_verified: boolean;
+  tier: EducatorTier;
+  published_at: string | null;
+}
+
+/** A lightweight public educator row for marketplace cards (homepage rack + /educators directory).
+ *  Return shape of the public.list_published_educators RPC — public-safe columns only, no profile_doc. */
+export interface PublicEducatorCard {
+  educator_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  role_label: string | null;
+  headline: string | null;
+  hourly_rate_cents: number | null;
+  subject_tags: string[] | null;
+  is_verified: boolean;
+  tier: EducatorTier;
+  published_at: string | null;
+}
+
+/** A row of the educator_reviews table (owner / admin manage view — includes hidden rows). */
+export interface EducatorReview {
+  id: string;
+  educator_id: string;
+  student_id: string | null;
+  source: ReviewSource;
+  rating: number;
+  comment: string;
+  reviewer_first_name: string | null;
+  reviewer_last_name: string | null;
+  reviewer_school: string | null;
+  reviewer_image_url: string | null;
+  is_visible: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Public RPC shape (get_public_educator_reviews) — visible reviews only, identity collapsed to a
+ *  single display name. The "Imported" label is driven by source. */
+export interface PublicEducatorReview {
+  id: string;
+  rating: number;
+  comment: string;
+  reviewer_name: string;
+  reviewer_school: string | null;
+  reviewer_image_url: string | null;
+  source: ReviewSource;
+  created_at: string;
 }
 
 export interface Profile {

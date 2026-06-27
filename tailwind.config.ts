@@ -44,6 +44,10 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        gold: {
+          DEFAULT: "hsl(var(--accent-gold))",
+          foreground: "hsl(var(--accent-gold-foreground))",
+        },
         chart: {
           "1": "hsl(var(--chart-1))",
           "2": "hsl(var(--chart-2))",
@@ -56,6 +60,11 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "ui-serif", "Georgia", "Cambria", "serif"],
+        crest: ["var(--font-crest)", "ui-serif", "Georgia", "serif"],
       },
     },
   },

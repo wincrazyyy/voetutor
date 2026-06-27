@@ -12,8 +12,10 @@ import {
   ClipboardList,
   Flag,
   ShieldCheck,
+  Star,
   Store,
   UserCheck,
+  UserCircle,
   Hourglass,
   Lock,
   Video,
@@ -28,6 +30,8 @@ interface SidebarNavProps {
   pendingApplicationCount?: number;
   pendingReportCount?: number;
   isPendingEducator?: boolean;
+  /** Admin or premium-tier educator. Basic-tier educators see classes/videos/question-bank locked. */
+  isPremium?: boolean;
 }
 
 interface NavItem {
@@ -35,6 +39,8 @@ interface NavItem {
   href: string;
   icon: LucideIcon;
   lockable: boolean;
+  /** Requires the premium tier (locked for basic-tier educators). */
+  premium?: boolean;
   badge?: number;
 }
 
@@ -44,6 +50,7 @@ interface NavSection {
 }
 
 const PENDING_HINT = "Locked while your educator account is awaiting admin approval.";
+const PREMIUM_HINT = "Premium feature — upgrade to unlock classes, videos and the question bank.";
 
 export function SidebarNav({
   role,
@@ -51,6 +58,7 @@ export function SidebarNav({
   pendingApplicationCount = 0,
   pendingReportCount = 0,
   isPendingEducator = false,
+  isPremium = true,
 }: SidebarNavProps) {
   const pathname = usePathname();
 
@@ -63,8 +71,10 @@ export function SidebarNav({
 
   const educatorLinks: NavItem[] = [
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
-    { name: "Videos", href: "/educator/videos", icon: Video, lockable: true },
-    { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
+    { name: "My Profile", href: "/educator/profile", icon: UserCircle, lockable: true },
+    { name: "Reviews", href: "/educator/reviews", icon: Star, lockable: true },
+    { name: "Videos", href: "/educator/videos", icon: Video, lockable: true, premium: true },
+    { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true, premium: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
@@ -100,6 +110,8 @@ export function SidebarNav({
 
   const adminEducatorLinks: NavItem[] = [
     { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: false },
+    { name: "My Profile", href: "/educator/profile", icon: UserCircle, lockable: false },
+    { name: "Reviews", href: "/educator/reviews", icon: Star, lockable: false },
     { name: "Videos", href: "/educator/videos", icon: Video, lockable: false },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: false },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
@@ -121,6 +133,8 @@ export function SidebarNav({
 
   const classSectionLabel = role === "educator" || role === "admin" ? "Your Classes" : "Enrolled Classes";
   const classHrefPrefix = role === "educator" || role === "admin" ? "/educator/classes" : "/classes";
+  /* Basic-tier educators don't get classes at all — show the section locked rather than empty. */
+  const classesLocked = role === "educator" && !isPremium && !isPendingEducator;
 
   return (
     <nav className="flex-1 flex flex-col gap-6 px-4 py-6 overflow-y-auto">
@@ -142,13 +156,15 @@ export function SidebarNav({
             const Icon = link.icon;
             const isActive = pathname === link.href;
             const badge = link.badge;
-            const locked = isPendingEducator && link.lockable;
+            const premiumLocked = role === "educator" && !isPremium && Boolean(link.premium);
+            const locked = (isPendingEducator && link.lockable) || premiumLocked;
 
             if (locked) {
+              const hint = premiumLocked ? PREMIUM_HINT : PENDING_HINT;
               return (
                 <span
                   key={link.name}
-                  title={PENDING_HINT}
+                  title={hint}
                   aria-disabled
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
@@ -198,6 +214,15 @@ export function SidebarNav({
             >
               <Lock className="w-3.5 h-3.5 opacity-60" />
               <span className="text-xs italic">Locked while pending</span>
+            </span>
+          ) : classesLocked ? (
+            <span
+              title={PREMIUM_HINT}
+              aria-disabled
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed select-none"
+            >
+              <Lock className="w-3.5 h-3.5 opacity-60" />
+              <span className="text-xs italic">Premium feature</span>
             </span>
           ) : classes.length === 0 ? (
             <p className="text-xs text-muted-foreground px-3 py-2 italic">

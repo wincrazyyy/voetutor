@@ -1,8 +1,21 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, ClipboardList, GraduationCap, MessageSquare, PlayCircle, Plus, Users } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardList,
+  Film,
+  GraduationCap,
+  Library,
+  Lock,
+  MessageSquare,
+  PlayCircle,
+  Plus,
+  Sparkles,
+  Star,
+  UserCircle,
+  Users,
+} from "lucide-react";
 
-import { getCurrentProfile } from "@/lib/queries/profile";
+import { requireEducatorPage } from "@/lib/tiers/gate";
 import { getClassesForEducator } from "@/lib/queries/educator";
 import { getDisplayName } from "@/lib/utils/format";
 import { Card } from "@/components/ui/card";
@@ -10,16 +23,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default async function EducatorHubPage() {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/auth/login");
-  if (profile.role === "educator" && !profile.is_approved) redirect("/pending");
-  if (profile.role !== "educator" && profile.role !== "admin") {
-    redirect("/dashboard");
+  const { profile, isPremium } = await requireEducatorPage();
+  const firstName =
+    profile.first_name ?? getDisplayName(profile.first_name, profile.last_name, profile.display_name);
+
+  /* Basic tier: public profile + reviews only. Classes / videos / question bank are premium. */
+  if (!isPremium) {
+    return <BasicHub firstName={firstName} />;
   }
 
   const classes = await getClassesForEducator(profile.id);
-  const firstName = profile.first_name ?? getDisplayName(profile.first_name, profile.last_name, profile.display_name);
-
   const totalStudents = classes.reduce((acc, c) => acc + c.student_count, 0);
   const totalVideos = classes.reduce((acc, c) => acc + c.video_count, 0);
   const unansweredPosts = classes.reduce((acc, c) => acc + c.unanswered_post_count, 0);
@@ -137,6 +150,70 @@ export default async function EducatorHubPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Basic-tier hub: the two things a basic educator can do (profile + reviews) plus a premium upsell. */
+function BasicHub({ firstName }: { firstName: string }) {
+  const open = [
+    { name: "Your public profile", desc: "Build the sales page students see on the marketplace.", href: "/educator/profile", icon: UserCircle },
+    { name: "Reviews", desc: "Add and manage testimonials shown on your profile.", href: "/educator/reviews", icon: Star },
+  ];
+  const locked = [
+    { name: "Classes", desc: "Create priced courses and manage curriculum.", icon: ClipboardList },
+    { name: "Videos", desc: "Upload lessons students watch in your classes.", icon: Film },
+    { name: "Question Bank", desc: "Practice questions and past papers by topic.", icon: Library },
+  ];
+
+  return (
+    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome back, {firstName}!</h1>
+        <p className="text-muted-foreground">
+          Your account is on the <span className="font-semibold text-foreground">Basic</span> plan — build a great
+          public profile and collect reviews.
+        </p>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        {open.map((item) => (
+          <Link key={item.href} href={item.href}>
+            <Card className="h-full p-6 border-border bg-card shadow-sm transition-colors hover:border-primary hover:bg-primary/5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg font-bold">{item.name}</h2>
+                <ArrowRight className="w-4 h-4 ml-auto text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">{item.desc}</p>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      <Card className="p-6 border border-dashed border-border bg-card/50">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="w-5 h-5 text-gold" />
+          <h2 className="text-lg font-bold">Unlock more with Premium</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-5">
+          Premium adds teaching tools on top of your profile. Contact the VOETutor team to upgrade.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {locked.map((item) => (
+            <div key={item.name} className="rounded-md border border-border bg-muted/20 p-4">
+              <div className="flex items-center gap-2 mb-1.5 text-muted-foreground">
+                <item.icon className="w-4 h-4" />
+                <span className="text-sm font-semibold text-foreground">{item.name}</span>
+                <Lock className="w-3.5 h-3.5 ml-auto" />
+              </div>
+              <p className="text-xs text-muted-foreground">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

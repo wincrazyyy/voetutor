@@ -47,7 +47,8 @@ export async function updateSession(request: NextRequest) {
     !path.startsWith("/login") &&
     !path.startsWith("/auth") &&
     !path.startsWith("/privacy") &&
-    !path.startsWith("/terms")
+    !path.startsWith("/terms") &&
+    !path.startsWith("/educators")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
@@ -65,7 +66,8 @@ export async function updateSession(request: NextRequest) {
 
     if (role === "educator" && isApproved === false) {
       const isAuthFlow = path.startsWith("/auth");
-      const isAllowed = ALLOWED_WHILE_PENDING.has(path) || isAuthFlow;
+      const isAllowed =
+        ALLOWED_WHILE_PENDING.has(path) || isAuthFlow || path.startsWith("/educators");
       if (!isAllowed) {
         const url = request.nextUrl.clone();
         url.pathname = PENDING_GATE_PATH;

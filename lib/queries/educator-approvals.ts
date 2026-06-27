@@ -23,6 +23,22 @@ export async function getApprovedEducators(): Promise<Profile[]> {
   return (data ?? []) as Profile[];
 }
 
+/**
+ * Every educator-capable account: approved educators plus admins (admins are educators with extra
+ * perms and have public profiles too). Drives the admin "All profiles" tab. Admin SELECT RLS on
+ * profiles permits this read; pair with getEducatorProfilesByIds to fetch each one's profile status.
+ */
+export async function getAllPlatformEducators(): Promise<Profile[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, display_name, role, is_approved, approved_by, approved_at, created_at, updated_at")
+    .or("role.eq.admin,and(role.eq.educator,is_approved.eq.true)")
+    .order("role", { ascending: true })
+    .order("created_at", { ascending: true });
+  return (data ?? []) as Profile[];
+}
+
 export async function getPendingEducatorCount(): Promise<number> {
   const supabase = await createClient();
   const { count } = await supabase

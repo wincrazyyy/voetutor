@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/profile";
+import { getEducatorAccess } from "@/lib/tiers/gate";
 import { createTusUpload, deleteVideo } from "@/lib/cloudflare/client";
 
 const MAX_FILE_BYTES = 30 * 1024 * 1024 * 1024;
@@ -44,13 +45,17 @@ export async function createVideoUploadAction(input: {
   description: string;
   fileSizeBytes: number;
 }): Promise<CreateVideoUploadState> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { error: "Sign in required." };
+  const access = await getEducatorAccess();
+  if (!access.profile) return { error: "Sign in required." };
+  const { profile, isPremium } = access;
   if (profile.role !== "educator" && profile.role !== "admin") {
     return { error: "Only educators can upload videos." };
   }
   if (profile.role === "educator" && !profile.is_approved) {
     return { error: "Educator account is awaiting approval." };
+  }
+  if (!isPremium) {
+    return { error: "Video uploads are a premium feature. Upgrade to add videos." };
   }
 
   const title = input.title.trim();

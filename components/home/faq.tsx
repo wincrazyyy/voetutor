@@ -4,58 +4,53 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Reveal } from "@/components/motion/reveal";
+
+const FAQS = [
+  {
+    q: "What is VOETutor?",
+    a: "VOETutor — the Vault of Excellence — is a curated marketplace of vetted IB educators. Browse specialist tutors, open their profiles, and enrol in their classes to learn through HD video lessons.",
+  },
+  {
+    q: "How are educators vetted?",
+    a: "Every educator applies and is reviewed by our team before their profile goes live. Approved educators can publish a public profile and classes; you’ll see a verified badge on educators we’ve confirmed.",
+  },
+  {
+    q: "How do I get started with an educator?",
+    a: "Browse the educators directory, open a profile to see their background and the classes they teach, then enrol. Free classes you can join straight away.",
+  },
+  {
+    q: "Is it free?",
+    a: "Creating an account and browsing educators is free, and free classes can be joined directly. Paid classes and checkout are coming soon — until then, free enrolment works end to end.",
+  },
+  {
+    q: "Which subjects and curricula are covered?",
+    a: "VOETutor focuses on the IB Diploma Programme across subjects like Maths, the sciences, Economics, and English, with more educators joining the vault over time.",
+  },
+] as const;
 
 export function FAQ() {
   return (
-    <section className="w-full py-24 bg-background flex flex-col items-center">
-      <div className="max-w-3xl mx-auto px-5 w-full">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-            Frequently Asked Questions
+    <section className="flex w-full flex-col items-center bg-background py-20 md:py-24">
+      <div className="mx-auto w-full max-w-3xl px-5">
+        <Reveal className="mb-10 text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">FAQ</p>
+          <h2 className="font-serif text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+            Questions, answered
           </h2>
-          <p className="text-muted-foreground text-lg">
-            Everything you need to know about the Mastery System.
-          </p>
-        </div>
+        </Reveal>
 
         <Accordion type="single" collapsible className="w-full">
-          
-          <AccordionItem value="item-1" className="border-b border-border/50 py-2">
-            <AccordionTrigger className="text-left text-lg font-semibold hover:text-primary transition-colors">
-              Is this for Math Analysis and Approaches (AA) or Applications and Interpretation (AI)?
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground text-base leading-relaxed">
-              This specific mastery system is optimized for IBDP Math AA (both HL and SL). However, the foundational modules and algebra bridging support are highly beneficial for AI students as well. 
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="item-2" className="border-b border-border/50 py-2">
-            <AccordionTrigger className="text-left text-lg font-semibold hover:text-primary transition-colors">
-              What happens if I miss a live Zoom lesson?
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground text-base leading-relaxed">
-              Don't worry. Every live lesson is recorded in high definition and uploaded to your secure Document Vault within 24 hours. You can watch the replays as many times as you need.
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="item-3" className="border-b border-border/50 py-2">
-            <AccordionTrigger className="text-left text-lg font-semibold hover:text-primary transition-colors">
-              How long do I have access to the materials?
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground text-base leading-relaxed">
-              When you enroll in the Mastery System, you get full access for the entire duration of your IB Diploma Programme (up to 24 months). You will have everything you need right up until your final exams.
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="item-4" className="border-b border-border/50 py-2">
-            <AccordionTrigger className="text-left text-lg font-semibold hover:text-primary transition-colors">
-              Are the past papers legally sourced?
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground text-base leading-relaxed">
-              Yes. We provide curated walk-throughs and customized practice questions heavily inspired by historical trends (2008–2025) to ensure you are practicing exactly what the examiners are looking for, completely in line with academic guidelines.
-            </AccordionContent>
-          </AccordionItem>
-
+          {FAQS.map((item, i) => (
+            <AccordionItem key={item.q} value={`item-${i}`} className="border-b border-border/60 py-2">
+              <AccordionTrigger className="text-left font-serif text-lg font-semibold transition-colors hover:text-primary">
+                {item.q}
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                {item.a}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
         </Accordion>
       </div>
     </section>

@@ -45,7 +45,12 @@
     --chart-3: 190 80% 40%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    
+
+    /* Profile accent - gold/amber, cross-mode-consistent (NOT --chart-4, which is purple in dark).
+       Used as a filled chip on section titles + a faint inline-highlight tint. */
+    --accent-gold: 38 92% 38%;
+    --accent-gold-foreground: 40 96% 97%;
+
     --radius: 0.75rem; /* Slightly softer corners for a modern feel */
   }
 
@@ -87,6 +92,10 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    /* Profile accent - brighter gold fill + near-black text for dark mode contrast. */
+    --accent-gold: 41 88% 58%;
+    --accent-gold-foreground: 40 40% 8%;
   }
 }
 
@@ -96,5 +105,119 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ===== VOETutor homepage — hero stage ===== */
+/* faint engraved baseline grid for the hero stage */
+.voe-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.6) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 30%, transparent 75%);
+}
+
+/* ===== VOETutor — "The Vault Opens" intro (SSR markup + pure-CSS open) =====
+   The overlay is SSR-rendered so the first painted frame is the SEALED vault (no hero flash). A gold dial
+   unlocks (windup → throw → overshoot), a tension-hold, then two heavy teal doors SLIDE apart (translateX,
+   GPU-composited) to reveal the already-SSR-painted hero beneath. A client effect in <VaultIntro> runs it
+   ONCE per session (unmounts after the open on first visit, immediately on repeat via sessionStorage);
+   prefers-reduced-motion hides it (display:none). The overlay is pointer-events:none so it never blocks
+   the hero, and the CSS self-dismisses (visibility:hidden ~1.65s) even without JS. */
+.voe-vault {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  pointer-events: none;
+  animation: voe-vault-end 1.7s linear forwards;
+}
+@keyframes voe-vault-end {
+  0%, 95% { visibility: visible; }
+  100% { visibility: hidden; }
+}
+.voe-door {
+  position: absolute;
+  top: 0;
+  height: 100svh;
+  width: 51%;
+  background:
+    linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.07) 48%, transparent 62%),
+    repeating-linear-gradient(180deg, hsl(171 83% 30%) 0 2px, hsl(171 83% 33%) 2px 4px),
+    hsl(var(--primary));
+  will-change: transform;
+}
+.voe-door--l {
+  left: 0;
+  box-shadow: inset -1px 0 0 hsl(var(--accent-gold) / 0.55);
+  animation: voe-door-l 0.62s cubic-bezier(0.76, 0, 0.24, 1) 0.92s forwards;
+}
+.voe-door--r {
+  right: 0;
+  box-shadow: inset 1px 0 0 hsl(var(--accent-gold) / 0.55);
+  animation: voe-door-r 0.62s cubic-bezier(0.76, 0, 0.24, 1) 0.92s forwards;
+}
+@keyframes voe-door-l { to { transform: translateX(-101%); } }
+@keyframes voe-door-r { to { transform: translateX(101%); } }
+.voe-seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  overflow: hidden;
+  background: linear-gradient(transparent, hsl(var(--accent-gold) / 0.85), transparent);
+  animation: voe-seam-fade 1.55s linear forwards;
+}
+@keyframes voe-seam-fade {
+  0%, 58% { opacity: 1; }
+  74%, 100% { opacity: 0; }
+}
+.voe-seam-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent, hsl(var(--accent-gold)), transparent);
+  filter: blur(1px);
+  animation: voe-seam-sweep 0.42s ease-in-out 0.46s both;
+}
+@keyframes voe-seam-sweep {
+  0% { transform: translateY(-100%); opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.voe-dial {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(6.5rem, 17vw, 10rem);
+  height: clamp(6.5rem, 17vw, 10rem);
+  margin-top: calc(clamp(6.5rem, 17vw, 10rem) / -2);
+  margin-left: calc(clamp(6.5rem, 17vw, 10rem) / -2);
+  animation: voe-dial-io 1.5s ease forwards;
+}
+@keyframes voe-dial-io {
+  0% { opacity: 0; transform: scale(0.9); }
+  12% { opacity: 1; transform: scale(1); }
+  60% { opacity: 1; transform: scale(1); }
+  74%, 100% { opacity: 0; transform: scale(0.84); }
+}
+.voe-dial-spin {
+  width: 100%;
+  height: 100%;
+  animation: voe-dial-spin 0.92s ease-in-out 0.2s both;
+}
+@keyframes voe-dial-spin {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-38deg); }
+  68% { transform: rotate(118deg); }
+  84% { transform: rotate(104deg); }
+  100% { transform: rotate(110deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voe-vault {
+    display: none;
   }
 }

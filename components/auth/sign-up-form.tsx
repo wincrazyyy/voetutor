@@ -159,7 +159,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
       </Button>
 
       <p className="text-xs text-muted-foreground text-center leading-relaxed">
-        By creating an account you agree to use WSPortal in line with the platform terms. We&apos;ll never share your details.
+        By creating an account you agree to use VOETutor in line with the platform terms. We&apos;ll never share your details.
       </p>
 
       <div className="text-center text-sm text-muted-foreground">

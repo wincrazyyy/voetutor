@@ -21,6 +21,7 @@ ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE educator_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE educator_reviews ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE classes FORCE ROW LEVEL SECURITY;
@@ -37,6 +38,7 @@ ALTER TABLE forum_posts FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes FORCE ROW LEVEL SECURITY;
 ALTER TABLE educator_profiles FORCE ROW LEVEL SECURITY;
+ALTER TABLE educator_reviews FORCE ROW LEVEL SECURITY;
 
 /* ==========  ROW LEVEL SECURITY POLICIES  ========== */
 /* Conventions enforced across every policy below:
@@ -437,12 +439,15 @@ CREATE POLICY educator_profiles_insert_self ON educator_profiles
     FOR INSERT TO authenticated
     WITH CHECK (
         (SELECT auth.uid()) = educator_id
-        AND EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = (SELECT auth.uid()) AND p.role = 'educator'::user_role
+        AND (
+            (SELECT internal.is_admin())
+            OR EXISTS (
+                SELECT 1 FROM public.profiles p
+                WHERE p.id = (SELECT auth.uid()) AND p.role = 'educator'::user_role
+            )
         )
     );
-COMMENT ON POLICY educator_profiles_insert_self ON educator_profiles IS 'Only the owning educator can create their row, and only if their literal profile role is educator (covers both pending and approved educators; students cannot insert).';
+COMMENT ON POLICY educator_profiles_insert_self ON educator_profiles IS 'The owning user creates their own row (educator_id = auth.uid()) if their literal profile role is educator (covers pending + approved educators) OR they are an admin — so an admin can build / test a profile. Admin rows never go public: get_public_educator_profile filters role = educator. Students cannot insert. The enforce_educator_admin_fields trigger coerces the admin-controlled columns to safe defaults on a non-admin insert.';
 
 CREATE POLICY educator_profiles_update_self ON educator_profiles
     FOR UPDATE TO authenticated
@@ -450,7 +455,65 @@ CREATE POLICY educator_profiles_update_self ON educator_profiles
     WITH CHECK ((SELECT auth.uid()) = educator_id);
 COMMENT ON POLICY educator_profiles_update_self ON educator_profiles IS 'Educators may keep updating their own application info indefinitely. WITH CHECK matches USING so the row cannot be redirected onto another educator mid-update.';
 
+CREATE POLICY educator_profiles_insert_admin ON educator_profiles
+    FOR INSERT TO authenticated
+    WITH CHECK ((SELECT internal.is_admin()));
+COMMENT ON POLICY educator_profiles_insert_admin ON educator_profiles IS 'Admins may create a profile row on any educator''s behalf — the admin-side profile editor (/admin/educators/<id>/profile) mirrors the educator''s own builder. Separate permissive policy alongside educator_profiles_insert_self: a non-admin never satisfies is_admin(), so this widens nothing for them. The adminSaveEducatorProfileAction server action additionally checks the TARGET row is an educator/admin before upserting, so an admin cannot materialise a profile for a student. The enforce_educator_admin_fields trigger early-returns for admins, so tier / is_verified / slug stay guarded only by the action''s explicit column whitelist.';
+
+CREATE POLICY educator_profiles_update_admin ON educator_profiles
+    FOR UPDATE TO authenticated
+    USING ((SELECT internal.is_admin()))
+    WITH CHECK ((SELECT internal.is_admin()));
+COMMENT ON POLICY educator_profiles_update_admin ON educator_profiles IS 'Admins may edit any educator''s public profile through the admin-side builder. WITH CHECK matches USING so an admin update cannot redirect a row onto a different educator_id mid-flight (educator_id is also locked by prevent_educator_profile_modifications). Separate permissive policy — non-admins are unaffected.';
+
 CREATE POLICY educator_profiles_delete_self_or_admin ON educator_profiles
     FOR DELETE TO authenticated
     USING ((SELECT internal.is_admin()) OR (SELECT auth.uid()) = educator_id);
 COMMENT ON POLICY educator_profiles_delete_self_or_admin ON educator_profiles IS 'Educator can wipe their extended info; admin can clean it up if needed.';
+
+/* ----- EDUCATOR REVIEWS ----- */
+CREATE POLICY educator_reviews_select_owner_or_admin ON educator_reviews
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR educator_id = (SELECT auth.uid())
+    );
+COMMENT ON POLICY educator_reviews_select_owner_or_admin ON educator_reviews IS 'Direct table reads are restricted to the owning educator (their own reviews, including hidden ones, for the manage UI) and admins. The PUBLIC anon-readable surface is the get_public_educator_reviews SECURITY DEFINER RPC, which returns only visible reviews of a published, approved educator — the column list + WHERE clause there are the public boundary.';
+
+CREATE POLICY educator_reviews_insert_owner ON educator_reviews
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        educator_id = (SELECT auth.uid())
+        AND source = 'imported'::review_source
+        AND student_id IS NULL
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = (SELECT auth.uid()) AND p.role = 'educator'::user_role
+        )
+    );
+COMMENT ON POLICY educator_reviews_insert_owner ON educator_reviews IS 'An educator (literal role educator — covers pending + approved, mirroring educator_profiles_insert_self) adds IMPORTED reviews on their own profile. The WITH CHECK is the only insert-time guard pinning source = imported and student_id IS NULL for non-admins; the chk_review_source_shape table CHECK backstops every row. Pending educators may stage reviews before approval — they stay invisible publicly until the profile is published and approved (enforced by the public RPC).';
+
+CREATE POLICY educator_reviews_insert_admin ON educator_reviews
+    FOR INSERT TO authenticated
+    WITH CHECK ((SELECT internal.is_admin()));
+COMMENT ON POLICY educator_reviews_insert_admin ON educator_reviews IS 'Admins may import a review on behalf of any educator (the admin-assist path in the admin reviews editor). Separate permissive policy alongside educator_reviews_insert_owner; a non-admin never satisfies is_admin(), so this widens nothing for them.';
+
+CREATE POLICY educator_reviews_update_owner ON educator_reviews
+    FOR UPDATE TO authenticated
+    USING (educator_id = (SELECT auth.uid()) AND source = 'imported'::review_source)
+    WITH CHECK (educator_id = (SELECT auth.uid()) AND source = 'imported'::review_source);
+COMMENT ON POLICY educator_reviews_update_owner ON educator_reviews IS 'An educator edits their own imported reviews. WITH CHECK matches USING so a row cannot be redirected onto another educator or flipped to verified mid-update. review_count / rating_sum live on educator_profiles, not here, so there is nothing admin-locked to tamper with on this table.';
+
+CREATE POLICY educator_reviews_update_admin ON educator_reviews
+    FOR UPDATE TO authenticated
+    USING ((SELECT internal.is_admin()))
+    WITH CHECK ((SELECT internal.is_admin()));
+COMMENT ON POLICY educator_reviews_update_admin ON educator_reviews IS 'Admins moderate / edit any review. Visibility toggles route through the set_review_visibility RPC, but this policy also lets the admin reviews editor correct an imported review''s content.';
+
+CREATE POLICY educator_reviews_delete_owner_or_admin ON educator_reviews
+    FOR DELETE TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (educator_id = (SELECT auth.uid()) AND source = 'imported'::review_source)
+    );
+COMMENT ON POLICY educator_reviews_delete_owner_or_admin ON educator_reviews IS 'Owner removes their own imported reviews; admins remove any. The maintenance AFTER DELETE trigger recomputes the educator''s aggregate.';

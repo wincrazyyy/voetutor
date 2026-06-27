@@ -202,9 +202,9 @@ export function LessonPlayerClient({
                   <div className="p-4 bg-primary/5 border-b border-border/50 flex flex-col gap-2">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Resources</div>
                     {activeTopic.resources.map((res) => (
-                      <Link
+                      <a
                         key={res.id}
-                        href={res.file_url}
+                        href={`/api/resources/${res.id}/download`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-between p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
@@ -221,7 +221,7 @@ export function LessonPlayerClient({
                           </div>
                         </div>
                         <Download className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2" />
-                      </Link>
+                      </a>
                     ))}
                   </div>
                 )}
@@ -236,9 +236,9 @@ export function LessonPlayerClient({
                       {subtopic.resources.length > 0 && (
                         <div className="flex flex-col border-b border-border/50 bg-muted/5">
                           {subtopic.resources.map((res) => (
-                            <Link
+                            <a
                               key={res.id}
-                              href={res.file_url}
+                              href={`/api/resources/${res.id}/download`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-3 p-3 px-5 hover:bg-muted/50 transition-colors group"
@@ -250,7 +250,7 @@ export function LessonPlayerClient({
                               <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
                                 {formatBytes(res.size_bytes)}
                               </span>
-                            </Link>
+                            </a>
                           ))}
                         </div>
                       )}

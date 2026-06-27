@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,17 @@ export function MarketplaceCard({ cls }: MarketplaceCardProps) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Taught by <span className="font-semibold text-foreground">{educatorName}</span>
+          Taught by{" "}
+          {cls.educatorProfilePublished && cls.educator_id ? (
+            <Link
+              href={`/educators/${cls.educator_id}`}
+              className="font-semibold text-primary hover:underline"
+            >
+              {educatorName}
+            </Link>
+          ) : (
+            <span className="font-semibold text-foreground">{educatorName}</span>
+          )}
         </p>
 
         {cls.description && (

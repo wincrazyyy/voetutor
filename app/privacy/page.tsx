@@ -4,9 +4,9 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — WSPortal",
+  title: "Privacy Policy — VOETutor",
   description:
-    "How WSPortal collects, uses, stores, and shares your personal data across our video-tutoring platform.",
+    "How VOETutor collects, uses, stores, and shares your personal data across our video-tutoring platform.",
 };
 
 const LAST_UPDATED = new Intl.DateTimeFormat("en-GB", {
@@ -56,10 +56,10 @@ export default function PrivacyPolicy() {
 
       <article className="w-full max-w-3xl mx-auto px-5 py-12 md:py-16 flex-1">
         <header className="mb-10 space-y-2 border-b border-border pb-8">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
+          <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
           <p className="text-sm leading-relaxed text-muted-foreground pt-2">
-            WSPortal (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;the platform&rdquo;) is a premium video-tutoring
+            VOETutor (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;the platform&rdquo;) is a premium video-tutoring
             platform for IB students and educators. This policy explains what personal data we collect, why we
             collect it, who we share it with, and the rights you have over it. It applies to everyone who creates an
             account or browses the platform.
@@ -68,7 +68,7 @@ export default function PrivacyPolicy() {
 
         <div className="space-y-10">
           <Section id="data-you-provide" title="1. Information you give us">
-            <p>When you sign up and use WSPortal, you provide:</p>
+            <p>When you sign up and use VOETutor, you provide:</p>
             <DataTable
               rows={[
                 {
@@ -168,7 +168,7 @@ export default function PrivacyPolicy() {
             </ul>
             <p>
               We may also disclose data if required by law, or to protect the rights, safety, and security of
-              WSPortal and its users.
+              VOETutor and its users.
             </p>
             <p>
               <strong className="text-foreground">Payments:</strong> paid classes are not yet available. When paid
@@ -216,8 +216,8 @@ export default function PrivacyPolicy() {
 
           <Section id="children" title="10. Children and younger students">
             <p>
-              WSPortal serves IB students, some of whom are under 18. We collect only the data needed to provide the
-              service. If you are below the age of digital consent in your country, please use WSPortal with the
+              VOETutor serves IB students, some of whom are under 18. We collect only the data needed to provide the
+              service. If you are below the age of digital consent in your country, please use VOETutor with the
               involvement of a parent or guardian. If you believe a child has provided us data without appropriate
               consent, contact us and we will remove it.
             </p>

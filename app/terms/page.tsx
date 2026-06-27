@@ -4,9 +4,9 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — WSPortal",
+  title: "Terms of Service — VOETutor",
   description:
-    "The terms governing your use of WSPortal, our premium video-tutoring platform for IB students and educators.",
+    "The terms governing your use of VOETutor, our premium video-tutoring platform for IB students and educators.",
 };
 
 const LAST_UPDATED = new Intl.DateTimeFormat("en-GB", {
@@ -33,20 +33,20 @@ export default function TermsOfService() {
 
       <article className="w-full max-w-3xl mx-auto px-5 py-12 md:py-16 flex-1">
         <header className="mb-10 space-y-2 border-b border-border pb-8">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Terms of Service</h1>
+          <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight text-foreground">Terms of Service</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
           <p className="text-sm leading-relaxed text-muted-foreground pt-2">
-            These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of WSPortal
-            (&ldquo;WSPortal&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), a premium video-tutoring platform for IB
+            These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of VOETutor
+            (&ldquo;VOETutor&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), a premium video-tutoring platform for IB
             students and educators. By creating an account or using the platform, you agree to these Terms. If you do
-            not agree, please do not use WSPortal.
+            not agree, please do not use VOETutor.
           </p>
         </header>
 
         <div className="space-y-10">
           <Section id="eligibility" title="1. Eligibility and accounts">
             <p>
-              To use WSPortal you must be able to form a binding agreement, or use the platform with the involvement
+              To use VOETutor you must be able to form a binding agreement, or use the platform with the involvement
               of a parent or guardian where you are below the age of digital consent in your country. You agree to
               provide accurate information when registering and to keep it up to date.
             </p>
@@ -58,7 +58,7 @@ export default function TermsOfService() {
           </Section>
 
           <Section id="roles" title="2. Roles on the platform">
-            <p>WSPortal has three kinds of account:</p>
+            <p>VOETutor has three kinds of account:</p>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>
                 <strong className="text-foreground">Students</strong> enrol in classes, watch lessons, track their
@@ -79,7 +79,7 @@ export default function TermsOfService() {
           <Section id="educator-content" title="3. Educator content and conduct">
             <p>
               As an educator, you retain ownership of the videos, descriptions, profile information, and other content
-              you create. By uploading content, you grant WSPortal a non-exclusive licence to host, encode, store, and
+              you create. By uploading content, you grant VOETutor a non-exclusive licence to host, encode, store, and
               deliver it to your enrolled students and, where applicable, to display your profile and class listings to
               prospective students.
             </p>
@@ -95,7 +95,7 @@ export default function TermsOfService() {
           </Section>
 
           <Section id="student-conduct" title="4. Student conduct">
-            <p>When using WSPortal you agree not to:</p>
+            <p>When using VOETutor you agree not to:</p>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>download, copy, redistribute, screen-record, or resell any video or material without permission;</li>
               <li>share your account or class access with anyone else;</li>
@@ -105,7 +105,7 @@ export default function TermsOfService() {
             </ul>
             <p>
               Course materials are provided for your personal learning only. All content remains the property of the
-              educator or WSPortal.
+              educator or VOETutor.
             </p>
           </Section>
 
@@ -129,7 +129,7 @@ export default function TermsOfService() {
 
           <Section id="availability" title="7. Availability and changes to the service">
             <p>
-              We work to keep WSPortal available and reliable, but we provide the platform on an &ldquo;as is&rdquo;
+              We work to keep VOETutor available and reliable, but we provide the platform on an &ldquo;as is&rdquo;
               and &ldquo;as available&rdquo; basis. We may add, change, suspend, or remove features at any time. We are
               not liable for interruptions, data loss, or downtime, though we take reasonable steps to minimise them.
             </p>
@@ -137,7 +137,7 @@ export default function TermsOfService() {
 
           <Section id="ip" title="8. Intellectual property">
             <p>
-              The WSPortal name, platform, design, and software are owned by us and protected by intellectual property
+              The VOETutor name, platform, design, and software are owned by us and protected by intellectual property
               laws. These Terms do not grant you any right to use our branding or software except as needed to use the
               platform as intended. Educator and student content remains owned by its respective creators, subject to
               the licences described above.
@@ -146,7 +146,7 @@ export default function TermsOfService() {
 
           <Section id="termination" title="9. Suspension and termination">
             <p>
-              You may stop using WSPortal and request deletion of your account at any time. We may suspend or terminate
+              You may stop using VOETutor and request deletion of your account at any time. We may suspend or terminate
               your access if you breach these Terms, if required by law, or to protect the platform and its users. On
               termination, your right to access the platform ends; sections of these Terms that by their nature should
               survive will continue to apply.
@@ -155,8 +155,8 @@ export default function TermsOfService() {
 
           <Section id="liability" title="10. Disclaimers and limitation of liability">
             <p>
-              WSPortal is an educational platform; we do not guarantee any particular academic outcome, exam result, or
-              that content is error-free. To the fullest extent permitted by law, WSPortal and its providers are not
+              VOETutor is an educational platform; we do not guarantee any particular academic outcome, exam result, or
+              that content is error-free. To the fullest extent permitted by law, VOETutor and its providers are not
               liable for any indirect, incidental, or consequential damages arising from your use of the platform.
             </p>
           </Section>
@@ -164,7 +164,7 @@ export default function TermsOfService() {
           <Section id="privacy" title="11. Privacy">
             <p>
               Our <Link href="/privacy">Privacy Policy</Link> explains what data we collect and how we use it. By using
-              WSPortal you also agree to that policy.
+              VOETutor you also agree to that policy.
             </p>
           </Section>
 
@@ -172,7 +172,7 @@ export default function TermsOfService() {
             <p>
               We may update these Terms as the platform evolves — for example, when paid checkout launches. We will
               revise the &ldquo;Last updated&rdquo; date above and, for material changes, take reasonable steps to
-              notify you. Continued use of WSPortal after changes take effect means you accept the updated Terms.
+              notify you. Continued use of VOETutor after changes take effect means you accept the updated Terms.
             </p>
           </Section>
 

@@ -63,15 +63,107 @@ CREATE TABLE educator_profiles (
     teaching_experience TEXT,
     teaching_subjects TEXT,
     self_introduction TEXT,
+    avatar_url TEXT CHECK (avatar_url IS NULL OR (char_length(avatar_url) <= 2048 AND avatar_url ~* '^https://')),
+    role_label TEXT CHECK (role_label IS NULL OR char_length(role_label) <= 120),
+    headline TEXT CHECK (headline IS NULL OR char_length(headline) <= 160),
+    hourly_rate_cents INTEGER CHECK (hourly_rate_cents IS NULL OR hourly_rate_cents >= 0),
+    subject_tags TEXT[],
+    profile_doc JSONB DEFAULT '{"version":1,"sections":[]}'::jsonb NOT NULL
+        CHECK (octet_length(profile_doc::text) <= 262144),
+    is_published BOOLEAN DEFAULT FALSE NOT NULL,
+    published_at TIMESTAMPTZ,
+    tier educator_tier DEFAULT 'basic' NOT NULL,
+    slug TEXT UNIQUE
+        CHECK (slug IS NULL OR (char_length(slug) BETWEEN 3 AND 40 AND slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')),
+    is_verified BOOLEAN DEFAULT FALSE NOT NULL,
+    verified_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    verified_at TIMESTAMPTZ,
+    review_count INTEGER DEFAULT 0 NOT NULL CHECK (review_count >= 0),
+    rating_sum INTEGER DEFAULT 0 NOT NULL CHECK (rating_sum >= 0),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-COMMENT ON TABLE educator_profiles IS 'Optional 1:1 sidecar to profiles holding application / promotion fields that only educators care about. Filled in after sign-up by the educator themselves; admins read it during approval review and may also surface it on public educator profiles for promotion.';
+COMMENT ON TABLE educator_profiles IS 'Optional 1:1 sidecar to profiles holding application / promotion fields that only educators care about. Filled in after sign-up by the educator themselves; admins read it during approval review and surface it on the educator''s public profile page.';
+COMMENT ON COLUMN educator_profiles.review_count IS 'Denormalized count of VISIBLE educator_reviews (imported-inclusive in v1). Maintained by internal.maintain_educator_review_stats; locked against direct user writes by protect_educator_admin_fields (depth-guarded). Average = rating_sum / review_count, computed at read time. v1 UI reads the aggregate off the returned review list instead; these columns are the maintained hook for the future directory-card aggregate.';
 COMMENT ON COLUMN educator_profiles.self_introduction IS 'Free-form pitch the educator writes about themselves. Surfaced to admins for review and may be displayed publicly for promotion — front-end UI warns the educator to keep it serious.';
+COMMENT ON COLUMN educator_profiles.profile_doc IS 'The structured, versioned public-profile body (a list of typed sections). Opaque JSONB to the DB; shape is policed in TypeScript (validateProfileDoc), never a DB CHECK — this is what keeps the tier roadmap zero-schema-churn.';
+COMMENT ON COLUMN educator_profiles.hourly_rate_cents IS 'Private-tutoring rate in the smallest HKD unit. NULL means "no rate set" (rendered as "Contact for rate"), distinct from 0.';
+COMMENT ON COLUMN educator_profiles.is_published IS 'When true the profile is publicly visible via get_public_educator_profile. Educators flip this themselves; published_at is trigger-stamped.';
+COMMENT ON COLUMN educator_profiles.tier IS 'Commercial tier (basic / premium). Admin-controlled, locked by protect_educator_admin_fields; set via the set_educator_tier RPC. v1 treats both tiers identically (hooks only).';
+COMMENT ON COLUMN educator_profiles.is_verified IS 'Admin-set trust badge. Locked by protect_educator_admin_fields; flipped via the set_educator_verified RPC.';
+COMMENT ON COLUMN educator_profiles.slug IS 'Reserved vanity-URL column; stays NULL in v1 (UUID route only). A format / reserved-word CHECK ships WITH the slug setter, not now.';
 
 CREATE TRIGGER set_educator_profiles_updated_at
     BEFORE UPDATE ON educator_profiles
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+CREATE TRIGGER set_educator_profile_published_at
+    BEFORE INSERT OR UPDATE ON educator_profiles
+    FOR EACH ROW EXECUTE PROCEDURE internal.maintain_educator_profile_published_at();
+
+CREATE TRIGGER enforce_educator_admin_fields
+    BEFORE INSERT OR UPDATE ON educator_profiles
+    FOR EACH ROW EXECUTE PROCEDURE internal.protect_educator_admin_fields();
+
+/* ----------------------------------------- */
+
+CREATE TABLE educator_reviews (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    educator_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    student_id UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    source review_source DEFAULT 'imported'::review_source NOT NULL,
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT NOT NULL CONSTRAINT educator_reviews_comment_len
+        CHECK (char_length(trim(comment)) > 0 AND char_length(comment) <= 4000),
+    reviewer_first_name TEXT CHECK (reviewer_first_name IS NULL OR char_length(reviewer_first_name) <= 80),
+    reviewer_last_name TEXT CHECK (reviewer_last_name IS NULL OR char_length(reviewer_last_name) <= 80),
+    reviewer_school TEXT CHECK (reviewer_school IS NULL OR char_length(reviewer_school) <= 120),
+    reviewer_image_url TEXT CHECK (
+        reviewer_image_url IS NULL
+        OR (char_length(reviewer_image_url) <= 2048 AND reviewer_image_url ~* '^https://')
+    ),
+    is_visible BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    CONSTRAINT chk_review_source_shape CHECK (
+        (source = 'imported'::review_source AND student_id IS NULL)
+        OR (source = 'verified'::review_source AND student_id IS NOT NULL)
+    )
+);
+COMMENT ON TABLE educator_reviews IS 'Reviews / testimonials shown on an educator''s public profile. source = imported: a testimonial the educator (or an admin) carries over from outside the platform, labelled "Imported" in the UI as unverified — the v1 path and the manual legacy-migration target. source = verified: a future path for reviews written by a registered enrolled student (student_id set, identity read through profiles_public). Reviewer identity for imported rows lives in the denormalized reviewer_* columns since there is no platform account behind them.';
+COMMENT ON COLUMN educator_reviews.source IS 'imported (educator-supplied, unverified, v1) or verified (registered-student-authored, future). Drives the "Imported" label and the verified/imported RLS + aggregate split.';
+COMMENT ON COLUMN educator_reviews.student_id IS 'NULL for imported reviews (legacy / guest). Set only for the future verified path, where the reviewer is a real enrolled student; identity is then read through profiles_public, not the reviewer_* columns.';
+COMMENT ON COLUMN educator_reviews.is_visible IS 'Moderation lever, default TRUE. Hidden reviews never reach get_public_educator_reviews and never count toward the educator_profiles aggregate. Admin-controlled via set_review_visibility.';
+COMMENT ON CONSTRAINT chk_review_source_shape ON educator_reviews IS 'Imported reviews carry no student_id; verified reviews must. NOTE for the verified phase: student_id is ON DELETE SET NULL, which would violate this CHECK for a verified row when the student account is deleted — resolve before shipping verified (see plans/educator-reviews.md section 8).';
+
+CREATE INDEX idx_educator_reviews_educator_id ON educator_reviews(educator_id);
+CREATE INDEX idx_educator_reviews_student_id ON educator_reviews(student_id);
+
+CREATE INDEX idx_educator_reviews_visible
+    ON educator_reviews(educator_id, created_at DESC)
+    WHERE is_visible = TRUE;
+COMMENT ON INDEX idx_educator_reviews_visible IS 'Partial + ordered index for the public read slice (get_public_educator_reviews: WHERE educator_id = ? AND is_visible ORDER BY created_at DESC).';
+
+CREATE UNIQUE INDEX uniq_educator_reviews_verified_per_student
+    ON educator_reviews(educator_id, student_id)
+    WHERE source = 'verified'::review_source;
+COMMENT ON INDEX uniq_educator_reviews_verified_per_student IS 'One verified review per student per educator. Reserved for the verified phase; inert while no verified rows exist.';
+
+CREATE TRIGGER set_educator_reviews_updated_at
+    BEFORE UPDATE ON educator_reviews
+    FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+CREATE TRIGGER maintain_educator_review_stats_on_insert
+    AFTER INSERT ON educator_reviews
+    FOR EACH ROW EXECUTE PROCEDURE internal.maintain_educator_review_stats();
+
+CREATE TRIGGER maintain_educator_review_stats_on_update
+    AFTER UPDATE ON educator_reviews
+    FOR EACH ROW EXECUTE PROCEDURE internal.maintain_educator_review_stats();
+
+CREATE TRIGGER maintain_educator_review_stats_on_delete
+    AFTER DELETE ON educator_reviews
+    FOR EACH ROW EXECUTE PROCEDURE internal.maintain_educator_review_stats();
 
 /* ==========  CORE CURRICULUM ARCHITECTURE  ========== */
 
@@ -408,6 +500,7 @@ CREATE TRIGGER enforce_immutability_announcements BEFORE UPDATE ON announcements
 CREATE TRIGGER enforce_immutability_forum_posts BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_forum_replies BEFORE UPDATE ON forum_replies FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_educator_profiles BEFORE UPDATE ON educator_profiles FOR EACH ROW EXECUTE PROCEDURE internal.prevent_educator_profile_modifications();
+CREATE TRIGGER enforce_immutability_educator_reviews BEFORE UPDATE ON educator_reviews FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_video_placements BEFORE UPDATE ON video_placements FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 
 CREATE TRIGGER enforce_role_security BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE internal.protect_profile_role();

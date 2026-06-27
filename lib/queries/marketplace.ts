@@ -3,6 +3,7 @@ import type { Class, ProfilePublic } from "@/lib/types/database";
 
 export interface MarketplaceClass extends Class {
   educator: ProfilePublic | null;
+  educatorProfilePublished: boolean;
 }
 
 export async function getPublishedClasses(excludeUserId?: string): Promise<MarketplaceClass[]> {
@@ -33,6 +34,7 @@ export async function getPublishedClasses(excludeUserId?: string): Promise<Marke
     new Set(filtered.map((c) => c.educator_id).filter((id): id is string => Boolean(id))),
   );
   let educatorMap = new Map<string, ProfilePublic>();
+  let publishedProfileIds = new Set<string>();
   if (educatorIds.length > 0) {
     const { data: educators } = await supabase
       .from("profiles_public")
@@ -41,10 +43,14 @@ export async function getPublishedClasses(excludeUserId?: string): Promise<Marke
     educatorMap = new Map(
       ((educators ?? []) as ProfilePublic[]).map((e) => [e.id, e]),
     );
+
+    const { data: publishedIds } = await supabase.rpc("published_educator_ids", { p_ids: educatorIds });
+    publishedProfileIds = new Set((publishedIds ?? []) as string[]);
   }
 
   return filtered.map((c) => ({
     ...c,
     educator: c.educator_id ? (educatorMap.get(c.educator_id) ?? null) : null,
+    educatorProfilePublished: c.educator_id ? publishedProfileIds.has(c.educator_id) : false,
   }));
 }
