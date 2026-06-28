@@ -84,7 +84,7 @@ export async function saveEducatorProfileAction(
      removed photos, abandoned uploads). Best-effort — never fails the save. */
   await cleanupEducatorAssetOrphans(supabase, profile.id, collectReferencedAssetUrls(doc, avatarUrl));
 
-  revalidatePath("/educator/profile");
+  revalidatePath("/profile");
   revalidatePath(`/educators/${profile.id}`);
   return {};
 }
@@ -108,7 +108,7 @@ export async function setProfilePublishedAction(publish: boolean): Promise<Profi
 
   if (error) return { error: "Profile visibility could not be updated." };
 
-  revalidatePath("/educator/profile");
+  revalidatePath("/profile");
   revalidatePath(`/educators/${profile.id}`);
   return {};
 }
@@ -189,8 +189,8 @@ export async function adminSaveEducatorProfileAction(
      branch on the educator-assets storage policies. */
   await cleanupEducatorAssetOrphans(supabase, educatorId, collectReferencedAssetUrls(doc, avatarUrl));
 
-  revalidatePath(`/admin/educators/${educatorId}/profile`);
-  revalidatePath("/admin/educators");
+  revalidatePath(`/educators/${educatorId}/edit`);
+  revalidatePath("/educators");
   revalidatePath(`/educators/${educatorId}`);
   return {};
 }
@@ -211,8 +211,8 @@ export async function adminSetProfilePublishedAction(
 
   if (error) return { error: "Profile visibility could not be updated." };
 
-  revalidatePath(`/admin/educators/${educatorId}/profile`);
-  revalidatePath("/admin/educators");
+  revalidatePath(`/educators/${educatorId}/edit`);
+  revalidatePath("/educators");
   revalidatePath(`/educators/${educatorId}`);
   return {};
 }

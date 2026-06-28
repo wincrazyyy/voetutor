@@ -8,6 +8,13 @@ const ALLOWED_WHILE_PENDING = new Set<string>([PENDING_GATE_PATH, "/settings"]);
    while MAINTENANCE_MODE is on. */
 const MAINTENANCE_PATH = "/maintenance";
 
+/* Only the public marketplace surfaces under /educators are anon-reachable: the directory itself and a
+   per-educator public profile. The admin editors (/educators/[id]/edit, /educators/[id]/reviews) sit
+   under the same prefix but must stay auth-gated, so match exactly rather than by prefix. */
+function isPublicEducatorPath(path: string): boolean {
+  return path === "/educators" || /^\/educators\/[^/]+$/.test(path);
+}
+
 export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const maintenance = process.env.MAINTENANCE_MODE === "true";
@@ -101,7 +108,7 @@ export async function updateSession(request: NextRequest) {
     !path.startsWith(MAINTENANCE_PATH) &&
     !path.startsWith("/privacy") &&
     !path.startsWith("/terms") &&
-    !path.startsWith("/educators")
+    !isPublicEducatorPath(path)
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
@@ -111,7 +118,7 @@ export async function updateSession(request: NextRequest) {
   if (user && role === "educator" && isApproved === false) {
     const isAuthFlow = path.startsWith("/auth");
     const isAllowed =
-      ALLOWED_WHILE_PENDING.has(path) || isAuthFlow || path.startsWith("/educators");
+      ALLOWED_WHILE_PENDING.has(path) || isAuthFlow || isPublicEducatorPath(path);
     if (!isAllowed) {
       const url = request.nextUrl.clone();
       url.pathname = PENDING_GATE_PATH;

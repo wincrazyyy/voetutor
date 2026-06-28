@@ -9,15 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { addVideosToSubtopicAction } from "@/app/actions/videos";
+import { addVideosToParentAction } from "@/app/actions/videos";
 import { formatShortDuration } from "@/lib/utils/format";
-import type { VideoStatus } from "@/lib/types/database";
+import type { PlacementParent, VideoStatus } from "@/lib/types/database";
 import type { LibraryVideo } from "@/lib/queries/video-library";
 
 interface AddVideosToSubtopicDialogProps {
   classId: string;
-  subtopicId: string;
-  subtopicLabel: string;
+  parent: PlacementParent;
+  parentLabel: string;
   libraryVideos: LibraryVideo[];
   placedVideoIds: string[];
 }
@@ -38,8 +38,8 @@ function statusLabel(status: VideoStatus): string | null {
  */
 export function AddVideosToSubtopicDialog({
   classId,
-  subtopicId,
-  subtopicLabel,
+  parent,
+  parentLabel,
   libraryVideos,
   placedVideoIds,
 }: AddVideosToSubtopicDialogProps) {
@@ -83,7 +83,7 @@ export function AddVideosToSubtopicDialog({
       return;
     }
     startTransition(async () => {
-      const result = await addVideosToSubtopicAction(classId, subtopicId, [...selected]);
+      const result = await addVideosToParentAction(classId, parent, [...selected]);
       if (result?.error) {
         setError(result.error);
         return;
@@ -111,7 +111,7 @@ export function AddVideosToSubtopicDialog({
               <Film className="w-5 h-5 text-primary shrink-0" />
               Add videos
             </h2>
-            <p className="text-sm text-muted-foreground truncate mt-1">{subtopicLabel}</p>
+            <p className="text-sm text-muted-foreground truncate mt-1">{parentLabel}</p>
           </div>
           <button
             type="button"
@@ -125,7 +125,7 @@ export function AddVideosToSubtopicDialog({
         </div>
 
         <div className="px-6 pt-4">
-          <Link href="/educator/videos" className="block">
+          <Link href="/library" className="block">
             <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 transition-colors hover:bg-primary/10">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="rounded-md bg-primary/15 p-2 text-primary shrink-0">
@@ -175,7 +175,7 @@ export function AddVideosToSubtopicDialog({
             <>
               {available.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">
-                  All your library videos are already in this subtopic.
+                  All your library videos are already here.
                 </p>
               ) : filteredAvailable.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">No videos match your search.</p>
@@ -227,7 +227,7 @@ export function AddVideosToSubtopicDialog({
                               {video.placements.map((placement) => (
                                 <span
                                   key={placement.placement_id}
-                                  title={`${placement.class_title} / ${placement.topic_title} / ${placement.subtopic_title}`}
+                                  title={`${placement.class_title} / ${placement.topic_title}${placement.subtopic_title ? ` / ${placement.subtopic_title}` : ""}`}
                                   className="inline-flex items-center gap-1 text-[10px] rounded border border-border bg-muted/40 px-1.5 py-0.5 text-muted-foreground max-w-full"
                                 >
                                   <span className="font-medium text-foreground truncate max-w-[8rem]">
@@ -237,10 +237,14 @@ export function AddVideosToSubtopicDialog({
                                   <span className="truncate max-w-[6rem]">
                                     {placement.topic_title}
                                   </span>
-                                  <span className="opacity-50">/</span>
-                                  <span className="truncate max-w-[6rem]">
-                                    {placement.subtopic_title}
-                                  </span>
+                                  {placement.subtopic_title && (
+                                    <>
+                                      <span className="opacity-50">/</span>
+                                      <span className="truncate max-w-[6rem]">
+                                        {placement.subtopic_title}
+                                      </span>
+                                    </>
+                                  )}
                                 </span>
                               ))}
                             </div>
@@ -264,7 +268,7 @@ export function AddVideosToSubtopicDialog({
                     ) : (
                       <ChevronRight className="w-3.5 h-3.5" />
                     )}
-                    Already in this subtopic ({added.length})
+                    Already here ({added.length})
                   </button>
                   {showAdded && (
                     <div className="mt-2 flex flex-col gap-0.5">

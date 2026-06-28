@@ -57,9 +57,10 @@ export function LessonPlayerClient({
   initialCompleted,
   userId,
 }: LessonPlayerClientProps) {
-  const flatVideos = curriculum.flatMap((topic) =>
-    topic.subtopics.flatMap((sub) => sub.videos.map((v) => v.id)),
-  );
+  const flatVideos = curriculum.flatMap((topic) => [
+    ...topic.videos.map((v) => v.id),
+    ...topic.subtopics.flatMap((sub) => sub.videos.map((v) => v.id)),
+  ]);
   const currentIndex = flatVideos.findIndex((id) => id === lessonId);
   const previousVideo = currentIndex > 0 ? flatVideos[currentIndex - 1] : null;
   const nextVideo = currentIndex !== -1 && currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null;
@@ -137,7 +138,7 @@ export function LessonPlayerClient({
         <div className="flex items-center justify-between mt-6 shrink-0">
           {previousVideo ? (
             <Button asChild variant="outline" className="rounded-full gap-2 group">
-              <Link href={`/lessons/${previousVideo}?from=${classId}`}>
+              <Link href={`/lesson/${previousVideo}?from=${classId}`}>
                 <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 <span className="hidden sm:inline">Previous</span>
               </Link>
@@ -162,7 +163,7 @@ export function LessonPlayerClient({
 
           {nextVideo ? (
             <Button asChild variant="outline" className="rounded-full gap-2 group">
-              <Link href={`/lessons/${nextVideo}?from=${classId}`}>
+              <Link href={`/lesson/${nextVideo}?from=${classId}`}>
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -198,10 +199,34 @@ export function LessonPlayerClient({
                 <h2 className="font-bold text-sm">{activeTopic?.title ?? "Course Content"}</h2>
               </div>
               <div className="flex flex-col">
-                {activeTopic?.resources && activeTopic.resources.length > 0 && (
+                {activeTopic && (activeTopic.videos.length > 0 || activeTopic.notes.length > 0) && (
                   <div className="p-4 bg-primary/5 border-b border-border/50 flex flex-col gap-2">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Resources</div>
-                    {activeTopic.resources.map((res) => (
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Materials</div>
+                    {activeTopic.videos.map((v) => {
+                      const isActive = v.id === lessonId;
+                      return (
+                        <Link
+                          key={v.placement_id}
+                          href={`/lesson/${v.id}?from=${classId}`}
+                          className={`flex items-center gap-3 p-3 bg-card border rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group ${
+                            isActive ? "border-primary" : "border-primary/20"
+                          }`}
+                        >
+                          <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
+                            {v.is_completed || (isActive && completed) ? (
+                              <CheckCircle2 className="w-4 h-4" />
+                            ) : (
+                              <FileText className="w-4 h-4" />
+                            )}
+                          </div>
+                          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight flex-1 min-w-0 truncate">
+                            {v.title}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0">{formatShortDuration(v.duration)}</span>
+                        </Link>
+                      );
+                    })}
+                    {activeTopic.notes.map((res) => (
                       <a
                         key={res.id}
                         href={`/api/resources/${res.id}/download`}
@@ -233,9 +258,9 @@ export function LessonPlayerClient({
                     </div>
 
                     <div className="flex flex-col">
-                      {subtopic.resources.length > 0 && (
+                      {subtopic.notes.length > 0 && (
                         <div className="flex flex-col border-b border-border/50 bg-muted/5">
-                          {subtopic.resources.map((res) => (
+                          {subtopic.notes.map((res) => (
                             <a
                               key={res.id}
                               href={`/api/resources/${res.id}/download`}
@@ -261,7 +286,7 @@ export function LessonPlayerClient({
                         return (
                           <Link
                             key={v.id}
-                            href={`/lessons/${v.id}?from=${classId}`}
+                            href={`/lesson/${v.id}?from=${classId}`}
                             className={`flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 ${
                               isActive ? "bg-primary/5 border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
                             }`}
@@ -303,7 +328,7 @@ export function LessonPlayerClient({
 
             <TabsContent value="discussion" className="m-0 flex flex-col h-full outline-none">
               <div className="p-4 border-b border-border bg-muted/20 sticky top-0 z-10 flex flex-col gap-3">
-                <Link href={`/classes/${classId}/forum`} className="group self-end">
+                <Link href={`/class/${classId}/forum`} className="group self-end">
                   <span className="text-xs font-medium text-primary flex items-center gap-1 hover:underline">
                     View all class discussions
                     <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />

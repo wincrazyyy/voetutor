@@ -95,7 +95,7 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                   </div>
                   <div className="shrink-0 flex items-center gap-3">
                     <Link
-                      href={`/educator/classes/${c.id}/edit`}
+                      href={`/class/${c.id}/edit`}
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                     >
                       Manage

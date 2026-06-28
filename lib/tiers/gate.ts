@@ -51,7 +51,9 @@ export async function requireEducatorPage(opts?: { premium?: boolean }): Promise
     tier = ep?.tier ?? "basic";
   }
   const isPremium = isAdmin || tier === "premium";
-  if (opts?.premium && !isPremium) redirect("/educator?upgrade=1");
+  /* A non-premium educator who reaches a premium URL directly is bounced to their hub with no hint
+     that a premium tier exists — it's admin-granted, never advertised. */
+  if (opts?.premium && !isPremium) redirect("/dashboard");
 
   return { profile, isAdmin, tier, isPremium, caps: capabilitiesFor(tier) };
 }

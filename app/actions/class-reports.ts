@@ -56,7 +56,7 @@ export async function dismissReportAction(reportId: string): Promise<ReportActio
 
   if (error) return { error: error.message };
 
-  revalidatePath("/admin/reports");
+  revalidatePath("/reports");
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -109,8 +109,8 @@ export async function actionReportAction(reportId: string): Promise<ReportAction
     .eq("class_id", classId)
     .eq("status", "pending");
 
-  revalidatePath("/admin/reports");
+  revalidatePath("/reports");
   revalidatePath("/admin");
-  revalidatePath("/classes/browse");
+  revalidatePath("/classes");
   return { ok: true };
 }

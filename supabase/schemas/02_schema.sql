@@ -321,44 +321,64 @@ CREATE TRIGGER set_videos_updated_at
 CREATE TABLE video_placements (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    subtopic_id UUID NOT NULL REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    topic_id UUID REFERENCES topics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subtopic_id UUID REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
     order_index INTEGER NOT NULL CHECK (order_index >= 0),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    UNIQUE (video_id, subtopic_id)
+    CONSTRAINT chk_video_placement_parent CHECK ((topic_id IS NOT NULL) <> (subtopic_id IS NOT NULL))
 );
-COMMENT ON TABLE video_placements IS 'Join table placing library videos into the curriculum: each row surfaces one video inside one subtopic at a given order_index. The many-to-many design lets a single video appear in multiple subtopics across the owning educator''s classes (overlap). Deleting a subtopic removes the placement only — the underlying library video survives; deleting a video removes all its placements.';
-COMMENT ON COLUMN video_placements.order_index IS 'Position of the video within its subtopic. Not unique; the curriculum sorts by it and the educator reorders via drag-and-drop. The (video_id, subtopic_id) UNIQUE constraint blocks placing the same video into one subtopic twice.';
+COMMENT ON TABLE video_placements IS 'Join table placing library videos into the curriculum: each row surfaces one video inside one curriculum node (a topic OR a subtopic, never both) at a given order_index. The many-to-many design lets a single video appear in multiple nodes across the owning educator''s classes (overlap) — e.g. a topic-level intro video plus per-subtopic lessons. Deleting the parent topic/subtopic removes the placement only — the underlying library video survives; deleting a video removes all its placements.';
+COMMENT ON CONSTRAINT chk_video_placement_parent ON video_placements IS 'XOR gate: a placement hangs off exactly one of topic_id / subtopic_id. Mirrors the resources / resource_placements parent exclusivity.';
+COMMENT ON COLUMN video_placements.order_index IS 'Position of the video within its parent node''s ordered list. Not unique; the curriculum sorts by it and the educator reorders via drag-and-drop. The partial unique indexes block placing the same video into one node twice.';
 
+CREATE UNIQUE INDEX uniq_video_placements_subtopic ON video_placements(video_id, subtopic_id) WHERE subtopic_id IS NOT NULL;
+CREATE UNIQUE INDEX uniq_video_placements_topic ON video_placements(video_id, topic_id) WHERE topic_id IS NOT NULL;
 CREATE INDEX idx_video_placements_subtopic_id ON video_placements(subtopic_id);
+CREATE INDEX idx_video_placements_topic_id ON video_placements(topic_id);
 CREATE INDEX idx_video_placements_video_id ON video_placements(video_id);
 
 /* ----------------------------------------- */
 
 CREATE TABLE resources (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    owner_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
     title TEXT NOT NULL CHECK (char_length(title) <= 255),
+    description TEXT,
     size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),
     file_url TEXT NOT NULL CHECK (char_length(file_url) <= 2048 AND file_url ~* '^https://'),
-    topic_id UUID REFERENCES topics(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    subtopic_id UUID REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    CONSTRAINT chk_resource_parent_exclusivity CHECK (
-        (topic_id IS NOT NULL AND subtopic_id IS NULL) OR
-        (topic_id IS NULL AND subtopic_id IS NOT NULL)
-    )
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-COMMENT ON TABLE resources IS 'Polymorphic asset table supporting attachments to either topics or subtopics via constrained exclusivity.';
+COMMENT ON TABLE resources IS 'Educator-owned library of PDF notes, keyed by owner_id (FK to profiles) — a note exists independently of the curriculum and is surfaced inside classes through resource_placements (many-to-many), so one note can appear in several topics/subtopics across several of the owning educator''s classes. Mirrors the videos / video_placements library model. Branded "Notes" in the UI.';
+COMMENT ON COLUMN resources.owner_id IS 'The educator who owns this library note. Edit/delete and placement rights resolve directly from this column rather than through the curriculum hierarchy, since a note may be placed into many classes or none.';
 COMMENT ON COLUMN resources.size_bytes IS 'Enforces BIGINT to prevent overflow issues common with large file representations in 32-bit integers.';
-COMMENT ON COLUMN resources.file_url IS 'Required HTTPS URL up to 2048 characters; the inline CHECK enforces both the length cap and the protocol restriction.';
-COMMENT ON CONSTRAINT chk_resource_parent_exclusivity ON resources IS 'Guarantees the structural integrity of the asset hierarchy by acting as an XOR gate.';
+COMMENT ON COLUMN resources.file_url IS 'Required HTTPS URL up to 2048 characters; the inline CHECK enforces both the length cap and the protocol restriction. Points at an owner-keyed object class-resources/{owner_id}/{uuid}.pdf; downloads go through /api/resources/[id]/download (signed URL minted server-side after a placement-membership check), never a direct public read.';
 
-CREATE INDEX idx_resources_topic_id ON resources(topic_id);
-CREATE INDEX idx_resources_subtopic_id ON resources(subtopic_id);
+CREATE INDEX idx_resources_owner_id ON resources(owner_id);
 
 CREATE TRIGGER set_resources_updated_at
     BEFORE UPDATE ON resources
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+/* ----------------------------------------- */
+
+CREATE TABLE resource_placements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    topic_id UUID REFERENCES topics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subtopic_id UUID REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    order_index INTEGER NOT NULL CHECK (order_index >= 0),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    CONSTRAINT chk_resource_placement_parent CHECK ((topic_id IS NOT NULL) <> (subtopic_id IS NOT NULL))
+);
+COMMENT ON TABLE resource_placements IS 'Join table placing library notes (resources) into the curriculum: each row surfaces one note inside one curriculum node (a topic OR a subtopic, never both) at a given order_index. Mirrors video_placements. The many-to-many design lets a single note appear in multiple nodes across the owning educator''s classes (overlap). Deleting the parent topic/subtopic removes the placement only — the underlying library note survives; deleting a note removes all its placements. Notes are never referenced by forum_posts, so (unlike video_placements) there is no forum-lineage trigger.';
+COMMENT ON CONSTRAINT chk_resource_placement_parent ON resource_placements IS 'XOR gate: a placement hangs off exactly one of topic_id / subtopic_id.';
+
+CREATE UNIQUE INDEX uniq_resource_placements_subtopic ON resource_placements(resource_id, subtopic_id) WHERE subtopic_id IS NOT NULL;
+CREATE UNIQUE INDEX uniq_resource_placements_topic ON resource_placements(resource_id, topic_id) WHERE topic_id IS NOT NULL;
+CREATE INDEX idx_resource_placements_subtopic_id ON resource_placements(subtopic_id);
+CREATE INDEX idx_resource_placements_topic_id ON resource_placements(topic_id);
+CREATE INDEX idx_resource_placements_resource_id ON resource_placements(resource_id);
 
 /* ==========  USER PROGRESS TRACKING  ========== */
 
@@ -502,6 +522,7 @@ CREATE TRIGGER enforce_immutability_forum_replies BEFORE UPDATE ON forum_replies
 CREATE TRIGGER enforce_immutability_educator_profiles BEFORE UPDATE ON educator_profiles FOR EACH ROW EXECUTE PROCEDURE internal.prevent_educator_profile_modifications();
 CREATE TRIGGER enforce_immutability_educator_reviews BEFORE UPDATE ON educator_reviews FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 CREATE TRIGGER enforce_immutability_video_placements BEFORE UPDATE ON video_placements FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
+CREATE TRIGGER enforce_immutability_resource_placements BEFORE UPDATE ON resource_placements FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 
 CREATE TRIGGER enforce_role_security BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE internal.protect_profile_role();
 CREATE TRIGGER enforce_forum_post_security BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_post_ownership();

@@ -10,15 +10,19 @@ import { StatCards } from "@/components/dashboard/stat-cards";
 import { ContinueWatchingHero } from "@/components/dashboard/continue-watching-hero";
 import { GlobalUpdatesFeed } from "@/components/dashboard/global-updates-feed";
 import { EnrolledClassesList } from "@/components/dashboard/enrolled-classes-list";
+import { EducatorHub } from "@/components/dashboard/educator-hub";
 
 export default async function DashboardHubPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/auth/login");
 
-  if (profile.role === "admin") redirect("/admin");
+  /* Role-resolved home: /dashboard is ALWAYS the educator or student dashboard, never the admin console.
+     An admin is an educator with extra privileges, so they get the same EducatorHub here; the separate
+     /admin console is reachable from the sidebar. Students get the learning dashboard below. */
+  if (profile.role === "admin") return <EducatorHub />;
   if (profile.role === "educator") {
     if (!profile.is_approved) redirect("/pending");
-    redirect("/educator");
+    return <EducatorHub />;
   }
 
   const [classes, announcements, continueWatching, stats] = await Promise.all([

@@ -194,21 +194,39 @@ export interface Video {
 export interface VideoPlacement {
   id: string;
   video_id: string;
-  subtopic_id: string;
+  /** Polymorphic parent: exactly one of topic_id / subtopic_id is set (XOR). */
+  topic_id: string | null;
+  subtopic_id: string | null;
   order_index: number;
   created_at: string;
 }
 
+/** A library note (PDF), owned by an educator and placed into the curriculum via resource_placements. */
 export interface Resource {
   id: string;
+  owner_id: string;
   title: string;
+  description: string | null;
   size_bytes: number;
   file_url: string;
-  topic_id: string | null;
-  subtopic_id: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface ResourcePlacement {
+  id: string;
+  resource_id: string;
+  /** Polymorphic parent: exactly one of topic_id / subtopic_id is set (XOR). */
+  topic_id: string | null;
+  subtopic_id: string | null;
+  order_index: number;
+  created_at: string;
+}
+
+/** A curriculum parent node — a video or note placement hangs off exactly one of these. */
+export type PlacementParent =
+  | { kind: "topic"; id: string }
+  | { kind: "subtopic"; id: string };
 
 export interface UserVideoProgress {
   user_id: string;

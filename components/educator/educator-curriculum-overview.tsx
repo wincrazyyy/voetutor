@@ -46,27 +46,31 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type {
+  NoteWithPlacement,
   SubtopicWithChildren,
   TopicWithChildren,
   VideoWithProgress,
 } from "@/lib/queries/curriculum";
 import type { LibraryVideo } from "@/lib/queries/video-library";
+import type { LibraryNote } from "@/lib/queries/note-library";
 import type { VideoStatus } from "@/lib/types/database";
 import { formatBytes, formatShortDuration } from "@/lib/utils/format";
-import { reorderSubtopicVideosAction } from "@/app/actions/curriculum";
+import { reorderPlacedVideosAction } from "@/app/actions/curriculum";
 import { TopicFormDialog } from "@/components/educator/topic-form-dialog";
 import { SubtopicFormDialog } from "@/components/educator/subtopic-form-dialog";
 import { DeleteCurriculumItemButton } from "@/components/educator/delete-curriculum-item-button";
 import { AddVideosToSubtopicDialog } from "@/components/educator/add-videos-to-subtopic-dialog";
+import { AddNotesToParentDialog } from "@/components/educator/add-notes-to-parent-dialog";
 import { UnplaceVideoButton } from "@/components/educator/unplace-video-button";
+import { UnplaceNoteButton } from "@/components/educator/unplace-note-button";
 import { VideoRenameDialog } from "@/components/educator/video-rename-dialog";
-import { ResourceUploadDialog } from "@/components/educator/resource-upload-dialog";
-import { DeleteResourceButton } from "@/components/educator/delete-resource-button";
+import { NoteRenameDialog } from "@/components/educator/note-rename-dialog";
 
 interface EducatorCurriculumOverviewProps {
   classId: string;
   curriculum: TopicWithChildren[];
   libraryVideos: LibraryVideo[];
+  libraryNotes: LibraryNote[];
 }
 
 function videoStatusLabel(status: VideoStatus): string | null {
@@ -79,12 +83,6 @@ function pluralise(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-/**
- * Droppable ids are namespaced so a single DndContext can host three kinds of
- * targets: a placement row is a raw UUID (no colon), a subtopic container is
- * "sub:<id>", and a topic header is "topic:<id>". Prefer the innermost hit — a
- * row over its container over its topic — so insertion is precise.
- */
 const detectCollisions: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
   const candidates = pointerHits.length > 0 ? pointerHits : rectIntersection(args);
@@ -95,15 +93,8 @@ const detectCollisions: CollisionDetection = (args) => {
   return candidates.length > 0 ? [candidates[0]] : [];
 };
 
-/**
- * The board keys on PLACEMENT ids, not video ids: a shared video can appear in
- * more than one subtopic of the same class, so the video id is no longer unique
- * across the board. Each draggable row is one placement.
- */
-function findByPlacement(
-  topics: TopicWithChildren[],
-  placementId: string,
-): VideoWithProgress | null {
+/** Search only subtopic video lists — the dnd board reorders subtopic-level placements. */
+function findByPlacement(topics: TopicWithChildren[], placementId: string): VideoWithProgress | null {
   for (const topic of topics) {
     for (const subtopic of topic.subtopics) {
       const found = subtopic.videos.find((video) => video.placement_id === placementId);
@@ -118,12 +109,6 @@ interface ReorderResult {
   targetOrderedPlacementIds: string[];
 }
 
-/**
- * Pure helper: produces the optimistic topic tree after dropping `activeId`
- * (a placement id) into `targetSubtopicId` (before `overPlacementId`, or at the
- * end when null), plus the destination subtopic's resulting ordered placement-id
- * list for persistence. Returns null when the drop is a no-op.
- */
 function computeReorder(
   topics: TopicWithChildren[],
   activeId: string,
@@ -177,6 +162,56 @@ function computeReorder(
   return { nextTopics, targetOrderedPlacementIds };
 }
 
+function NoteRow({ note, classId, onError }: { note: NoteWithPlacement; classId: string; onError: (m: string) => void }) {
+  return (
+    <div className="flex items-center gap-3 p-3 px-5 border-b border-border/50 bg-muted/5 last:border-0">
+      <a
+        href={`/api/resources/${note.id}/download`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 min-w-0 flex-1 hover:text-foreground transition-colors"
+      >
+        <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium text-muted-foreground truncate">{note.title}</span>
+      </a>
+      <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
+        {formatBytes(note.size_bytes)}
+      </span>
+      <NoteRenameDialog resourceId={note.id} classId={classId} initialTitle={note.title} />
+      <UnplaceNoteButton placementId={note.placement_id} onError={onError} />
+    </div>
+  );
+}
+
+function TopicVideoRow({ video, classId, onError }: { video: VideoWithProgress; classId: string; onError: (m: string) => void }) {
+  const statusLabel = videoStatusLabel(video.status);
+  return (
+    <div className="flex items-center gap-3 p-3 px-5 border-b border-border/50 bg-muted/5 last:border-0 group">
+      <Link href={`/lesson/${video.id}?from=${classId}`} className="flex items-center gap-3 min-w-0 flex-1">
+        <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+        <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+          {video.title}
+        </span>
+        {statusLabel && (
+          <Badge
+            variant="secondary"
+            className={`text-[9px] uppercase tracking-wider font-bold shrink-0 ${
+              video.status === "errored" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {statusLabel}
+          </Badge>
+        )}
+      </Link>
+      <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
+        {formatShortDuration(video.duration)}
+      </span>
+      <VideoRenameDialog videoId={video.id} classId={classId} initialTitle={video.title} />
+      <UnplaceVideoButton placementId={video.placement_id} onError={onError} />
+    </div>
+  );
+}
+
 function SortableVideoRow({
   video,
   classId,
@@ -212,10 +247,7 @@ function SortableVideoRow({
       >
         <GripVertical className="w-4 h-4" />
       </button>
-      <Link
-        href={`/lessons/${video.id}?from=${classId}`}
-        className="flex items-center gap-3 py-3 flex-1 min-w-0"
-      >
+      <Link href={`/lesson/${video.id}?from=${classId}`} className="flex items-center gap-3 py-3 flex-1 min-w-0">
         <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
         <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
           {video.title}
@@ -224,9 +256,7 @@ function SortableVideoRow({
           <Badge
             variant="secondary"
             className={`text-[9px] uppercase tracking-wider font-bold shrink-0 ${
-              video.status === "errored"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-muted text-muted-foreground"
+              video.status === "errored" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
             }`}
           >
             {statusLabel}
@@ -275,9 +305,7 @@ function SubtopicVideoList({
       {subtopic.videos.length === 0 && (
         <div
           className={`m-2 flex min-h-[64px] items-center justify-center rounded-md border-2 border-dashed px-4 py-6 text-center text-xs italic transition-colors ${
-            isOver
-              ? "border-primary/40 bg-primary/5 text-primary"
-              : "border-border/50 text-muted-foreground"
+            isOver ? "border-primary/40 bg-primary/5 text-primary" : "border-border/50 text-muted-foreground"
           }`}
         >
           Drop a video here, or use Add videos above.
@@ -291,11 +319,13 @@ function TopicSection({
   topic,
   classId,
   libraryVideos,
+  libraryNotes,
   onError,
 }: {
   topic: TopicWithChildren;
   classId: string;
   libraryVideos: LibraryVideo[];
+  libraryNotes: LibraryNote[];
   onError: (message: string) => void;
 }) {
   const { setNodeRef } = useDroppable({
@@ -308,9 +338,7 @@ function TopicSection({
       value={topic.id}
       className="bg-card rounded-xl border border-border shadow-sm overflow-hidden relative"
     >
-      <div
-        className={`absolute top-0 left-0 w-full h-1 ${topic.status === "active" ? "bg-primary" : "bg-muted"}`}
-      />
+      <div className={`absolute top-0 left-0 w-full h-1 ${topic.status === "active" ? "bg-primary" : "bg-muted"}`} />
       <AccordionTrigger className="p-5 bg-muted/10 hover:bg-muted/40 transition-colors border-b border-border hover:no-underline [&[data-state=open]]:bg-muted/40 text-left pt-6">
         <div ref={setNodeRef} className="flex flex-col gap-3 w-full pr-2">
           <div className="flex items-start justify-between gap-4">
@@ -345,12 +373,7 @@ function TopicSection({
           <div className="p-3 bg-muted/20 border-b border-border/50 flex items-center justify-between gap-2">
             <SubtopicFormDialog topicId={topic.id} classId={classId} mode="create" />
             <div className="flex items-center gap-1">
-              <TopicFormDialog
-                classId={classId}
-                mode="rename"
-                topicId={topic.id}
-                initialTitle={topic.title}
-              />
+              <TopicFormDialog classId={classId} mode="rename" topicId={topic.id} initialTitle={topic.title} />
               <DeleteCurriculumItemButton
                 kind="topic"
                 itemId={topic.id}
@@ -361,37 +384,39 @@ function TopicSection({
             </div>
           </div>
 
-          <div className="p-3 bg-primary/5 border-b border-border/50 flex items-center justify-between">
+          {/* Topic-level materials: an intro video, a topic-wide note, etc. */}
+          <div className="p-3 bg-primary/5 border-b border-border/50 flex items-center justify-between gap-2 flex-wrap">
             <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
-              Topic Resources
+              Topic Materials
             </span>
-            <ResourceUploadDialog classId={classId} parentType="topic" parentId={topic.id} />
+            <div className="flex items-center gap-1">
+              <AddVideosToSubtopicDialog
+                classId={classId}
+                parent={{ kind: "topic", id: topic.id }}
+                parentLabel={topic.title}
+                libraryVideos={libraryVideos}
+                placedVideoIds={topic.videos.map((video) => video.id)}
+              />
+              <AddNotesToParentDialog
+                classId={classId}
+                parent={{ kind: "topic", id: topic.id }}
+                parentLabel={topic.title}
+                libraryNotes={libraryNotes}
+                placedNoteIds={topic.notes.map((note) => note.id)}
+              />
+            </div>
           </div>
-          {topic.resources.length === 0 ? (
+          {topic.videos.length === 0 && topic.notes.length === 0 ? (
             <div className="px-4 py-3 text-xs text-muted-foreground italic border-b border-border/50">
-              No topic-level resources.
+              No topic-level materials. Use Add videos / Add notes for an intro video or a topic-wide note.
             </div>
           ) : (
             <div className="border-b border-border/50">
-              {topic.resources.map((res) => (
-                <div
-                  key={res.id}
-                  className="flex items-center gap-3 p-3 px-4 border-b border-border/50 last:border-0"
-                >
-                  <a
-                    href={`/api/resources/${res.id}/download`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 min-w-0 flex-1 hover:text-primary transition-colors"
-                  >
-                    <FileText className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-sm font-medium truncate">{res.title}</span>
-                  </a>
-                  <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
-                    {formatBytes(res.size_bytes)}
-                  </span>
-                  <DeleteResourceButton resourceId={res.id} classId={classId} name={res.title} />
-                </div>
+              {topic.videos.map((video) => (
+                <TopicVideoRow key={video.placement_id} video={video} classId={classId} onError={onError} />
+              ))}
+              {topic.notes.map((note) => (
+                <NoteRow key={note.placement_id} note={note} classId={classId} onError={onError} />
               ))}
             </div>
           )}
@@ -403,15 +428,17 @@ function TopicSection({
                   {subtopic.title}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <ResourceUploadDialog
+                  <AddNotesToParentDialog
                     classId={classId}
-                    parentType="subtopic"
-                    parentId={subtopic.id}
+                    parent={{ kind: "subtopic", id: subtopic.id }}
+                    parentLabel={`${topic.title} / ${subtopic.title}`}
+                    libraryNotes={libraryNotes}
+                    placedNoteIds={subtopic.notes.map((note) => note.id)}
                   />
                   <AddVideosToSubtopicDialog
                     classId={classId}
-                    subtopicId={subtopic.id}
-                    subtopicLabel={`${topic.title} / ${subtopic.title}`}
+                    parent={{ kind: "subtopic", id: subtopic.id }}
+                    parentLabel={`${topic.title} / ${subtopic.title}`}
                     libraryVideos={libraryVideos}
                     placedVideoIds={subtopic.videos.map((video) => video.id)}
                   />
@@ -427,32 +454,13 @@ function TopicSection({
                     itemId={subtopic.id}
                     classId={classId}
                     name={subtopic.title}
-                    summary={pluralise(subtopic.videos.length, "video")}
+                    summary={`${pluralise(subtopic.videos.length, "video")}, ${pluralise(subtopic.notes.length, "note")}`}
                   />
                 </div>
               </div>
 
-              {subtopic.resources.map((res) => (
-                <div
-                  key={res.id}
-                  className="flex items-center gap-3 p-3 px-5 border-b border-border/50 bg-muted/5"
-                >
-                  <a
-                    href={`/api/resources/${res.id}/download`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 min-w-0 flex-1 hover:text-foreground transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium text-muted-foreground truncate">
-                      {res.title}
-                    </span>
-                  </a>
-                  <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
-                    {formatBytes(res.size_bytes)}
-                  </span>
-                  <DeleteResourceButton resourceId={res.id} classId={classId} name={res.title} />
-                </div>
+              {subtopic.notes.map((note) => (
+                <NoteRow key={note.placement_id} note={note} classId={classId} onError={onError} />
               ))}
 
               <SubtopicVideoList subtopic={subtopic} classId={classId} onError={onError} />
@@ -468,6 +476,7 @@ export function EducatorCurriculumOverview({
   classId,
   curriculum,
   libraryVideos,
+  libraryNotes,
 }: EducatorCurriculumOverviewProps) {
   const router = useRouter();
   const [topics, setTopics] = useState<TopicWithChildren[]>(curriculum);
@@ -521,10 +530,6 @@ export function EducatorCurriculumOverview({
     }
     if (!targetSubtopicId) return;
 
-    /* A video can be placed in many subtopics, but only once per subtopic
-       (UNIQUE(video_id, subtopic_id)). Reject a cross-subtopic drop onto a
-       subtopic that already holds this video up front — no optimistic churn,
-       no doomed round-trip. */
     if (sourceSubtopicId !== targetSubtopicId) {
       const draggedVideo = findByPlacement(topics, activeId);
       const targetSubtopic = topics
@@ -541,25 +546,17 @@ export function EducatorCurriculumOverview({
       }
     }
 
-    const result = computeReorder(
-      topics,
-      activeId,
-      sourceSubtopicId,
-      targetSubtopicId,
-      overPlacementId,
-    );
+    const result = computeReorder(topics, activeId, sourceSubtopicId, targetSubtopicId, overPlacementId);
     if (!result) return;
 
     setTopics(result.nextTopics);
     startTransition(async () => {
-      const response = await reorderSubtopicVideosAction(
+      const response = await reorderPlacedVideosAction(
         classId,
-        targetSubtopicId,
+        { kind: "subtopic", id: targetSubtopicId },
         result.targetOrderedPlacementIds,
       );
       if (response?.error) {
-        /* Revert to the last server-confirmed tree rather than a possibly-stale
-           optimistic snapshot, so a failed drop can't clobber a concurrent one. */
         setTopics(curriculum);
         setError(response.error);
         return;
@@ -583,12 +580,7 @@ export function EducatorCurriculumOverview({
       {error && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            aria-label="Dismiss"
-            className="shrink-0 hover:opacity-70"
-          >
+          <button type="button" onClick={() => setError(null)} aria-label="Dismiss" className="shrink-0 hover:opacity-70">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -599,7 +591,7 @@ export function EducatorCurriculumOverview({
           <FolderTree className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
           <h3 className="text-lg font-bold mb-1">No topics yet</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Use <span className="font-semibold text-foreground">Add Topic</span> above to start building this class&apos;s curriculum. Each topic holds subtopics, and each subtopic holds video lessons.
+            Use <span className="font-semibold text-foreground">Add Topic</span> above to start building this class&apos;s curriculum. Each topic holds subtopics, videos and notes.
           </p>
         </Card>
       ) : (
@@ -612,18 +604,14 @@ export function EducatorCurriculumOverview({
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <Accordion
-            type="multiple"
-            value={openTopics}
-            onValueChange={setOpenTopics}
-            className="w-full flex flex-col gap-4"
-          >
+          <Accordion type="multiple" value={openTopics} onValueChange={setOpenTopics} className="w-full flex flex-col gap-4">
             {topics.map((topic) => (
               <TopicSection
                 key={topic.id}
                 topic={topic}
                 classId={classId}
                 libraryVideos={libraryVideos}
+                libraryNotes={libraryNotes}
                 onError={setError}
               />
             ))}

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getDisplayName, intervalToSeconds } from "@/lib/utils/format";
+import { placedVideoRowsForClass } from "@/lib/curriculum/placements";
 import type { Class } from "@/lib/types/database";
 
 export interface EducatorClassSummary extends Class {
@@ -24,13 +25,10 @@ export async function getClassesForEducator(educatorId: string): Promise<Educato
   return Promise.all(
     classes.map(async (cls) => {
       const c = cls as Class;
-      const [students, topics, videos, posts] = await Promise.all([
+      const [students, topics, videoRows, posts] = await Promise.all([
         supabase.from("class_enrollments").select("user_id", { count: "exact", head: true }).eq("class_id", c.id),
         supabase.from("topics").select("id", { count: "exact", head: true }).eq("class_id", c.id),
-        supabase
-          .from("video_placements")
-          .select("id, subtopics!inner(topics!inner(class_id))", { count: "exact", head: true })
-          .eq("subtopics.topics.class_id", c.id),
+        placedVideoRowsForClass(supabase, c.id),
         supabase
           .from("forum_posts")
           .select("id", { count: "exact", head: true })
@@ -41,7 +39,7 @@ export async function getClassesForEducator(educatorId: string): Promise<Educato
         ...c,
         student_count: students.count ?? 0,
         topic_count: topics.count ?? 0,
-        video_count: videos.count ?? 0,
+        video_count: new Set(videoRows.map((v) => v.id)).size,
         unanswered_post_count: posts.count ?? 0,
       };
     }),
@@ -60,12 +58,9 @@ export interface EducatorClassStats {
 export async function getEducatorClassStats(classId: string): Promise<EducatorClassStats> {
   const supabase = await createClient();
 
-  const [enrollRes, placementRes, postRes] = await Promise.all([
+  const [enrollRes, placedVideos, postRes] = await Promise.all([
     supabase.from("class_enrollments").select("user_id").eq("class_id", classId),
-    supabase
-      .from("video_placements")
-      .select("video_id, subtopics!inner(topics!inner(class_id))")
-      .eq("subtopics.topics.class_id", classId),
+    placedVideoRowsForClass(supabase, classId),
     supabase
       .from("forum_posts")
       .select("id", { count: "exact", head: true })
@@ -75,9 +70,7 @@ export async function getEducatorClassStats(classId: string): Promise<EducatorCl
 
   const rosterIds = ((enrollRes.data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
   const studentCount = rosterIds.length;
-  const videoIds = [
-    ...new Set(((placementRes.data ?? []) as Array<{ video_id: string }>).map((r) => r.video_id)),
-  ];
+  const videoIds = [...new Set(placedVideos.map((r) => r.id))];
   const totalVideos = videoIds.length;
 
   let completions = 0;
@@ -140,26 +133,19 @@ export interface StudentRosterProgress {
 export async function getStudentRosterProgress(classId: string): Promise<StudentRosterProgress> {
   const supabase = await createClient();
 
-  const [enrollRes, placementRes] = await Promise.all([
+  const [enrollRes, placedVideos] = await Promise.all([
     supabase.from("class_enrollments").select("user_id").eq("class_id", classId),
-    supabase
-      .from("video_placements")
-      .select("order_index, videos!inner(id, title), subtopics!inner(topics!inner(class_id))")
-      .eq("subtopics.topics.class_id", classId)
-      .order("order_index", { ascending: true }),
+    placedVideoRowsForClass(supabase, classId),
   ]);
 
   const userIds = ((enrollRes.data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
-  const placementRows = (placementRes.data ?? []) as unknown as Array<{
-    videos: { id: string; title: string };
-  }>;
   /* A shared video could be placed more than once in a class; show it once. */
   const seenVideo = new Set<string>();
   const videos: Array<{ id: string; title: string }> = [];
-  for (const row of placementRows) {
-    if (!seenVideo.has(row.videos.id)) {
-      seenVideo.add(row.videos.id);
-      videos.push({ id: row.videos.id, title: row.videos.title });
+  for (const row of placedVideos) {
+    if (!seenVideo.has(row.id)) {
+      seenVideo.add(row.id);
+      videos.push({ id: row.id, title: row.title });
     }
   }
 

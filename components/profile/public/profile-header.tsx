@@ -56,7 +56,7 @@ export function ProfileHeader({ profile }: { profile: PublicEducatorProfile }) {
               )}
             >
               {name}
-              {profile.is_verified ? (
+              {profile.is_verified && profile.tier === "premium" ? (
                 <span title="Verified educator" className="ml-2 inline-flex align-middle">
                   <BadgeCheck
                     className="h-6 w-6 text-primary sm:h-7 sm:w-7"
@@ -111,7 +111,7 @@ export function ProfileHeader({ profile }: { profile: PublicEducatorProfile }) {
               </div>
             </div>
             <Link
-              href="/classes/browse"
+              href="/classes"
               className="text-sm font-semibold text-primary hover:underline sm:text-right"
             >
               {classesLabel} →

@@ -63,7 +63,7 @@ export async function createClassAction(formData: FormData): Promise<ClassFormSt
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect(`/educator/classes/${(data as { id: string }).id}/edit`);
+  redirect(`/class/${(data as { id: string }).id}/edit`);
 }
 
 export async function updateClassAction(classId: string, formData: FormData): Promise<ClassFormState> {
@@ -85,8 +85,8 @@ export async function updateClassAction(classId: string, formData: FormData): Pr
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
-  revalidatePath(`/educator/classes/${classId}/edit`);
+  revalidatePath(`/class/${classId}`);
+  revalidatePath(`/class/${classId}/edit`);
   return {};
 }
 
@@ -105,9 +105,9 @@ export async function setClassPublishedAction(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
-  revalidatePath(`/educator/classes/${classId}/edit`);
-  revalidatePath("/classes/browse");
+  revalidatePath(`/class/${classId}`);
+  revalidatePath(`/class/${classId}/edit`);
+  revalidatePath("/classes");
   return {};
 }
 
@@ -141,7 +141,7 @@ export async function deleteClassAction(
   if (deleteError) return { error: deleteError.message };
 
   revalidatePath("/", "layout");
-  redirect(isAdmin ? "/admin/classes" : "/educator");
+  redirect(isAdmin ? "/classes" : "/dashboard");
 }
 
 export async function enrollInFreeClassAction(classId: string): Promise<ClassFormState> {
@@ -153,5 +153,5 @@ export async function enrollInFreeClassAction(classId: string): Promise<ClassFor
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect(`/classes/${classId}`);
+  redirect(`/class/${classId}`);
 }

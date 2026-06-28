@@ -91,7 +91,7 @@ export default async function EducatorPublicProfilePage({ params }: PageProps) {
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <VoeWordmark />
           </Link>
-          <Link href="/classes/browse" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+          <Link href="/classes" className="text-sm font-medium text-muted-foreground hover:text-foreground">
             Browse classes
           </Link>
         </div>
@@ -104,7 +104,7 @@ export default async function EducatorPublicProfilePage({ params }: PageProps) {
               <strong className="text-primary">Draft preview</strong> — only you can see this. Publish from your
               builder to go live.
             </span>
-            <Link href="/educator/profile" className="shrink-0 font-semibold text-primary underline">
+            <Link href="/profile" className="shrink-0 font-semibold text-primary underline">
               Edit
             </Link>
           </div>

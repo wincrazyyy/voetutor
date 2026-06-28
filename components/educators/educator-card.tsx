@@ -57,7 +57,7 @@ function CardInner({ educator }: { educator: PublicEducatorCard }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate font-serif text-lg font-semibold leading-tight text-foreground">{name}</span>
-            {educator.is_verified ? (
+            {educator.is_verified && educator.tier === "premium" ? (
               <span style={{ transform: "translateZ(60px)" }} title="Verified educator">
                 <BadgeCheck className="h-4 w-4 shrink-0 text-gold" aria-label="Verified educator" />
               </span>

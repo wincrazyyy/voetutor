@@ -206,9 +206,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM public.video_placements vp
-        JOIN public.subtopics s ON s.id = vp.subtopic_id
-        JOIN public.topics t ON t.id = s.topic_id
-        WHERE vp.video_id = NEW.video_id AND t.class_id = NEW.class_id
+        WHERE vp.video_id = NEW.video_id
+          AND internal.placement_class_id(vp.topic_id, vp.subtopic_id) = NEW.class_id
     ) THEN
         RAISE EXCEPTION 'CONSTRAINT VIOLATION: forum_posts.video_id must reference a video placed in the same class as the post (post class %).', NEW.class_id;
     END IF;
@@ -216,7 +215,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.validate_forum_post_video_class() IS 'Closes the cross-class loophole left open by chk_forum_post_video_context under the video-library model: when a post references a video, that video must have a video_placements row in the post''s class. CHECK constraints cannot reach across tables, hence the trigger. The UPDATE-path early-exit is wrapped in a nested IF (rather than a single conjoined expression) because PostgreSQL does not guarantee short-circuit evaluation, so OLD must only be referenced inside an explicit TG_OP = ''UPDATE'' branch.';
+COMMENT ON FUNCTION internal.validate_forum_post_video_class() IS 'Closes the cross-class loophole left open by chk_forum_post_video_context under the video-library model: when a post references a video, that video must have a video_placements row (topic- or subtopic-level) resolving to the post''s class via internal.placement_class_id. CHECK constraints cannot reach across tables, hence the trigger. The UPDATE-path early-exit is wrapped in a nested IF (rather than a single conjoined expression) because PostgreSQL does not guarantee short-circuit evaluation, so OLD must only be referenced inside an explicit TG_OP = ''UPDATE'' branch.';
 
 CREATE OR REPLACE FUNCTION internal.protect_placement_forum_lineage()
 RETURNS TRIGGER AS $$
@@ -224,17 +223,13 @@ DECLARE
     v_old_class_id UUID;
     v_new_class_id UUID;
 BEGIN
-    IF NEW.subtopic_id IS NOT DISTINCT FROM OLD.subtopic_id THEN
+    IF NEW.topic_id IS NOT DISTINCT FROM OLD.topic_id
+       AND NEW.subtopic_id IS NOT DISTINCT FROM OLD.subtopic_id THEN
         RETURN NEW;
     END IF;
 
-    SELECT t.class_id INTO v_old_class_id
-    FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
-    WHERE s.id = OLD.subtopic_id;
-
-    SELECT t.class_id INTO v_new_class_id
-    FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
-    WHERE s.id = NEW.subtopic_id;
+    v_old_class_id := internal.placement_class_id(OLD.topic_id, OLD.subtopic_id);
+    v_new_class_id := internal.placement_class_id(NEW.topic_id, NEW.subtopic_id);
 
     IF v_old_class_id IS DISTINCT FROM v_new_class_id
        AND EXISTS (
@@ -247,7 +242,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.protect_placement_forum_lineage() IS 'Library-model successor to protect_video_class_lineage. Fires when a placement is moved (subtopic_id changes) to a subtopic in a different class: blocks the move while forum_posts in the original class still reference the video, preserving the forum_post -> video class invariant enforced by validate_forum_post_video_class. Placement deletes (unplace) are handled by the application; cascade deletes from subtopic/class removal garbage-collect the dependent posts via the videos FK.';
+COMMENT ON FUNCTION internal.protect_placement_forum_lineage() IS 'Library-model successor to protect_video_class_lineage. Fires when a placement is moved (its topic_id or subtopic_id parent changes) to a node in a different class: blocks the move while forum_posts in the original class still reference the video, preserving the forum_post -> video class invariant enforced by validate_forum_post_video_class. Class is resolved from whichever parent is set via internal.placement_class_id. Placement deletes (unplace) are handled by the application; cascade deletes from topic/subtopic/class removal garbage-collect the dependent posts via the videos FK.';
 
 CREATE OR REPLACE FUNCTION internal.protect_subtopic_class_lineage()
 RETURNS TRIGGER AS $$
@@ -288,16 +283,16 @@ BEGIN
         SELECT 1
         FROM public.forum_posts fp
         JOIN public.video_placements vp ON vp.video_id = fp.video_id
-        JOIN public.subtopics s ON s.id = vp.subtopic_id
-        WHERE s.topic_id = NEW.id
+        WHERE vp.topic_id = NEW.id
+           OR vp.subtopic_id IN (SELECT id FROM public.subtopics WHERE topic_id = NEW.id)
     ) THEN
-        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move topic % to a different class while forum_posts reference videos placed within its subtree. Move or delete the dependent video_qa posts first.', NEW.id;
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: Cannot move topic % to a different class while forum_posts reference videos placed within it. Move or delete the dependent video_qa posts first.', NEW.id;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql STABLE;
-COMMENT ON FUNCTION internal.protect_topic_class_lineage() IS 'Top of the class-lineage protection chain: blocks topic reassignment that would alter the class of any video (resolved via video_placements) bound to a forum_post.';
+COMMENT ON FUNCTION internal.protect_topic_class_lineage() IS 'Top of the class-lineage protection chain: blocks topic reassignment that would alter the class of any video bound to a forum_post — whether the video is placed directly on the topic (vp.topic_id) or on one of its subtopics (vp.subtopic_id), under the polymorphic placement model.';
 
 /* ==========  RLS HELPER FUNCTIONS  ========== */
 
@@ -370,6 +365,23 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 COMMENT ON FUNCTION internal.is_active_educator() IS 'Boolean predicate for "is the caller an APPROVED educator?". SECURITY DEFINER bypasses RLS on profiles. Unapproved educators return FALSE — matching the get_user_role downgrade convention but without coupling to enum identity.';
 
+CREATE OR REPLACE FUNCTION internal.placement_class_id(p_topic_id UUID, p_subtopic_id UUID)
+RETURNS UUID AS $$
+DECLARE
+    v_class_id UUID;
+BEGIN
+    IF p_topic_id IS NOT NULL THEN
+        SELECT class_id INTO v_class_id FROM public.topics WHERE id = p_topic_id;
+    ELSIF p_subtopic_id IS NOT NULL THEN
+        SELECT t.class_id INTO v_class_id
+        FROM public.subtopics s JOIN public.topics t ON t.id = s.topic_id
+        WHERE s.id = p_subtopic_id;
+    END IF;
+    RETURN v_class_id;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.placement_class_id(UUID, UUID) IS 'Single source of truth for "which class does this placement belong to" under the polymorphic (topic XOR subtopic) placement model shared by video_placements and resource_placements. Returns the class id from whichever parent column is set (NULL if neither, which the XOR CHECK forbids). SECURITY DEFINER (empty search_path, fully-qualified) so RLS policies and lineage/validation triggers can resolve a placement to its class without reading topics/subtopics under RLS.';
+
 CREATE OR REPLACE FUNCTION internal.owns_video(p_video_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -387,14 +399,36 @@ BEGIN
     RETURN EXISTS (
         SELECT 1
         FROM public.video_placements vp
-        JOIN public.subtopics s ON s.id = vp.subtopic_id
-        JOIN public.topics t ON t.id = s.topic_id
         WHERE vp.video_id = p_video_id
-          AND t.class_id IN (SELECT internal.get_user_class_ids())
+          AND internal.placement_class_id(vp.topic_id, vp.subtopic_id) IN (SELECT internal.get_user_class_ids())
     );
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION internal.video_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library video is placed in any class the caller is enrolled in or teaches. Used by videos_select_authorized so the videos policy never reads video_placements under RLS — the other half of the fix that prevents the videos <-> video_placements policy recursion (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+COMMENT ON FUNCTION internal.video_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library video is placed in any class the caller is enrolled in or teaches (topic- or subtopic-level, resolved via internal.placement_class_id). Used by videos_select_authorized so the videos policy never reads video_placements under RLS — the other half of the fix that prevents the videos <-> video_placements policy recursion (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+
+CREATE OR REPLACE FUNCTION internal.owns_resource(p_resource_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.resources
+        WHERE id = p_resource_id AND owner_id = (SELECT auth.uid())
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.owns_resource(UUID) IS 'Bypasses RLS to check whether the caller owns a library note (resource). Used inside the resource_placements policies to break the resources <-> resource_placements RLS recursion (Postgres 42P17), mirroring internal.owns_video. SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+
+CREATE OR REPLACE FUNCTION internal.resource_in_user_classes(p_resource_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.resource_placements rp
+        WHERE rp.resource_id = p_resource_id
+          AND internal.placement_class_id(rp.topic_id, rp.subtopic_id) IN (SELECT internal.get_user_class_ids())
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.resource_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library note is placed in any class the caller is enrolled in or teaches (topic- or subtopic-level, resolved via internal.placement_class_id). Used by resources_select_authorized so the resources policy never reads resource_placements under RLS — mirrors internal.video_in_user_classes and prevents the resources <-> resource_placements recursion (Postgres 42P17).';
 
 /* ==========  PUBLIC RPC FUNCTIONS  ========== */
 /* RPCs deliberately live in the public schema so PostgREST can expose them
@@ -620,16 +654,20 @@ GRANT  EXECUTE ON FUNCTION public.get_public_educator_profile(UUID) TO anon, aut
 
 CREATE OR REPLACE FUNCTION public.published_educator_ids(p_ids UUID[])
 RETURNS UUID[] AS $$
-    SELECT COALESCE(array_agg(ep.educator_id), '{}')
-    FROM public.educator_profiles ep
-    JOIN public.profiles p ON p.id = ep.educator_id
-    WHERE ep.educator_id = ANY(p_ids)
-      AND ep.is_published = TRUE
-      AND (
-        (p.role = 'educator'::public.user_role AND p.is_approved = TRUE)
-        OR p.role = 'admin'::public.user_role
-      );
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
+BEGIN
+    RETURN (
+        SELECT COALESCE(array_agg(ep.educator_id), '{}')
+        FROM public.educator_profiles ep
+        JOIN public.profiles p ON p.id = ep.educator_id
+        WHERE ep.educator_id = ANY(p_ids)
+          AND ep.is_published = TRUE
+          AND (
+            (p.role = 'educator'::public.user_role AND p.is_approved = TRUE)
+            OR p.role = 'admin'::public.user_role
+          )
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 COMMENT ON FUNCTION public.published_educator_ids(UUID[]) IS 'Given a set of educator ids, returns the subset that have a PUBLIC profile (published + approved educator). Lets the marketplace / feeds gate links to /educators/[id] so they never dead-end on an unpublished profile. Returns only ids that are already publicly viewable via get_public_educator_profile, so it leaks nothing beyond that boundary.';
 
 REVOKE EXECUTE ON FUNCTION public.published_educator_ids(UUID[]) FROM PUBLIC;
@@ -650,6 +688,8 @@ RETURNS TABLE (
     tier public.educator_tier,
     published_at TIMESTAMPTZ
 ) AS $$
+BEGIN
+    RETURN QUERY
     SELECT
         ep.educator_id, p.first_name, p.last_name, p.display_name,
         ep.avatar_url, ep.role_label, ep.headline, ep.hourly_rate_cents,
@@ -664,7 +704,8 @@ RETURNS TABLE (
       AND (p_subject IS NULL OR ep.subject_tags @> ARRAY[p_subject])
     ORDER BY (ep.tier = 'premium'::public.educator_tier) DESC, ep.is_verified DESC, ep.published_at DESC NULLS LAST
     LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 24), 60));
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 COMMENT ON FUNCTION public.list_published_educators(INTEGER, TEXT) IS 'Lists PUBLIC educator profiles (published + approved educators, plus admins) for the marketplace surfaces (homepage featured rack + /educators directory). Same access boundary as get_public_educator_profile / published_educator_ids, exposed in bulk. Optional p_subject filters by an exact subject_tag (array containment); p_limit is clamped 1..60. Premium-first, then verified, then most-recently-published (premium educators get marketplace prominence). SECURITY DEFINER (empty search_path, fully-qualified) so anon can read it without per-row RLS on educator_profiles.';
 
 REVOKE EXECUTE ON FUNCTION public.list_published_educators(INTEGER, TEXT) FROM PUBLIC;
@@ -729,6 +770,8 @@ RETURNS TABLE (
     source public.review_source,
     created_at TIMESTAMPTZ
 ) AS $$
+BEGIN
+    RETURN QUERY
     SELECT
         r.id, r.rating, r.comment,
         r.reviewer_first_name, r.reviewer_last_name, r.reviewer_school,
@@ -744,7 +787,8 @@ RETURNS TABLE (
         OR p.role = 'admin'::public.user_role
       )
     ORDER BY r.created_at DESC;
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 COMMENT ON FUNCTION public.get_public_educator_reviews(UUID) IS 'Public read boundary for an educator''s reviews: returns ONLY visible reviews of a published, approved educator (or admin). Same anon access pattern as get_public_educator_profile; the WHERE clause plus the column list ARE the boundary. Reviewer identity comes from the denormalized reviewer_* columns (imported reviews). When the verified path ships, verified rows would join profiles_public for live student identity. Does not widen profiles_public.';
 
 REVOKE EXECUTE ON FUNCTION public.get_public_educator_reviews(UUID) FROM PUBLIC;

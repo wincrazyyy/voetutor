@@ -50,7 +50,7 @@ export function ContinueWatchingHero({ item }: ContinueWatchingHeroProps) {
             </p>
           </div>
         </div>
-        <Link href={`/lessons/${item.video_id}?from=${item.class_id}`} className="w-full md:w-auto shrink-0">
+        <Link href={`/lesson/${item.video_id}?from=${item.class_id}`} className="w-full md:w-auto shrink-0">
           <Button className="w-full rounded-full shadow-md">Resume Lesson</Button>
         </Link>
       </div>

@@ -81,7 +81,7 @@ function LibraryVideoCard({
             <div className="flex items-center gap-2 flex-wrap">
               {ready ? (
                 <Link
-                  href={`/lessons/${video.id}`}
+                  href={`/lesson/${video.id}`}
                   className="text-sm font-semibold truncate hover:text-primary transition-colors"
                 >
                   {video.title}
@@ -119,13 +119,19 @@ function LibraryVideoCard({
               <span
                 key={placement.placement_id}
                 className="inline-flex items-center gap-1 text-[11px] rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
-                title={`${placement.class_title} → ${placement.topic_title} → ${placement.subtopic_title}`}
+                title={
+                  placement.subtopic_title
+                    ? `${placement.class_title} → ${placement.topic_title} → ${placement.subtopic_title}`
+                    : `${placement.class_title} → ${placement.topic_title} (topic-level)`
+                }
               >
                 <span className="font-medium text-foreground truncate max-w-[10rem]">
                   {placement.class_title}
                 </span>
                 <span className="opacity-60">·</span>
-                <span className="truncate max-w-[10rem]">{placement.subtopic_title}</span>
+                <span className="truncate max-w-[10rem]">
+                  {placement.subtopic_title ?? placement.topic_title}
+                </span>
               </span>
             ))}
           </div>
@@ -137,7 +143,11 @@ function LibraryVideoCard({
           <VideoAssignDialog
             videoId={video.id}
             videoTitle={video.title}
-            currentSubtopicIds={video.placements.map((placement) => placement.subtopic_id)}
+            currentParents={video.placements.map((placement) =>
+              placement.parent_kind === "topic"
+                ? { kind: "topic" as const, id: placement.topic_id }
+                : { kind: "subtopic" as const, id: placement.subtopic_id! },
+            )}
             tree={tree}
           />
           {confirmingDelete ? (
@@ -211,7 +221,7 @@ export function VideoLibraryList({ videos, tree }: VideoLibraryListProps) {
             (placement) =>
               placement.class_title.toLowerCase().includes(needle) ||
               placement.topic_title.toLowerCase().includes(needle) ||
-              placement.subtopic_title.toLowerCase().includes(needle),
+              (placement.subtopic_title ?? "").toLowerCase().includes(needle),
           ),
       )
     : videos;

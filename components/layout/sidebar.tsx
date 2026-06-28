@@ -46,10 +46,9 @@ export async function Sidebar() {
     ]);
   }
 
-  let homeHref = "/dashboard";
-  if (role === "admin") homeHref = "/admin";
-  else if (role === "educator" && isApproved) homeHref = "/educator";
-  else if (isPendingEducator) homeHref = "/pending";
+  /* /dashboard is everyone's home (student or educator hub); admins land there too — /admin is a
+     separate console, not the home. Pending educators are pinned to their gate page. */
+  const homeHref = isPendingEducator ? "/pending" : "/dashboard";
 
   return (
     <aside className="w-64 bg-card border-r border-border h-screen sticky top-0 flex flex-col md:flex shrink-0">

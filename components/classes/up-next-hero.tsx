@@ -7,7 +7,7 @@ import { formatShortDuration } from "@/lib/utils/format";
 interface UpNextHeroVideo {
   id: string;
   title: string;
-  subtopic_title: string;
+  subtopic_title: string | null;
   duration: string | null;
 }
 
@@ -48,11 +48,12 @@ export function UpNextHero({ video, classId }: UpNextHeroProps) {
             <div className="text-sm font-bold text-primary mb-1 uppercase tracking-wider">Up Next</div>
             <h2 className="text-2xl font-bold mb-2">{video.title}</h2>
             <p className="text-muted-foreground">
-              {video.subtopic_title} • {formatShortDuration(video.duration)}
+              {video.subtopic_title ? `${video.subtopic_title} • ` : ""}
+              {formatShortDuration(video.duration)}
             </p>
           </div>
         </div>
-        <Link href={`/lessons/${video.id}?from=${classId}`} className="w-full md:w-auto shrink-0">
+        <Link href={`/lesson/${video.id}?from=${classId}`} className="w-full md:w-auto shrink-0">
           <Button size="lg" className="w-full rounded-full text-md h-12 px-8 shadow-md">
             Resume Lesson
           </Button>

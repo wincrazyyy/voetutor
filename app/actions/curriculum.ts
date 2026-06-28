@@ -5,6 +5,15 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { deleteVideo } from "@/lib/cloudflare/client";
+import {
+  type PlacementParent,
+  parentColumns,
+  parentKey,
+  parentOf,
+  resolveOwnedParentClass,
+  classesForPlacementRows,
+} from "@/lib/curriculum/placements";
+import { NOTES_BUCKET, notePathFromUrl } from "@/lib/storage/notes";
 import type { Profile } from "@/lib/types/database";
 
 export interface CurriculumActionState {
@@ -53,7 +62,7 @@ async function ownsClass(
 }
 
 /**
- * Garbage-collects library videos that no longer appear in any subtopic. Given
+ * Garbage-collects library videos that no longer appear in any placement. Given
  * the videos that *were* placed under a just-deleted topic/subtopic, it deletes
  * the rows whose placements have all cascaded away (and best-effort reaps their
  * Cloudflare counterparts, which the Postgres cascade never reaches). Videos
@@ -85,6 +94,63 @@ async function gcOrphanedVideos(
   await Promise.all(uids.map((uid) => deleteVideo(uid).catch(() => undefined)));
 }
 
+/** Notes analogue of gcOrphanedVideos: deletes library notes left with no placement and reaps storage. */
+async function gcOrphanedResources(
+  supabase: SupabaseServerClient,
+  candidateIds: string[],
+): Promise<void> {
+  if (candidateIds.length === 0) return;
+  const { data: remaining } = await supabase
+    .from("resource_placements")
+    .select("resource_id")
+    .in("resource_id", candidateIds);
+  const stillPlaced = new Set(
+    ((remaining ?? []) as Array<{ resource_id: string }>).map((row) => row.resource_id),
+  );
+  const orphanIds = candidateIds.filter((id) => !stillPlaced.has(id));
+  if (orphanIds.length === 0) return;
+
+  const { data: orphanRows } = await supabase
+    .from("resources")
+    .select("file_url")
+    .in("id", orphanIds);
+  await supabase.from("resources").delete().in("id", orphanIds);
+  const paths = ((orphanRows ?? []) as Array<{ file_url: string }>)
+    .map((row) => notePathFromUrl(row.file_url))
+    .filter((path): path is string => Boolean(path));
+  if (paths.length > 0) {
+    await supabase.storage.from(NOTES_BUCKET).remove(paths).catch(() => undefined);
+  }
+}
+
+/** Distinct placed video ids under a topic — both topic-level and via its subtopics. */
+async function videoIdsUnderTopic(supabase: SupabaseServerClient, topicId: string): Promise<string[]> {
+  const [{ data: direct }, { data: viaSub }] = await Promise.all([
+    supabase.from("video_placements").select("video_id").eq("topic_id", topicId),
+    supabase.from("video_placements").select("video_id, subtopics!inner(topic_id)").eq("subtopics.topic_id", topicId),
+  ]);
+  return [
+    ...new Set([
+      ...((direct ?? []) as Array<{ video_id: string }>).map((r) => r.video_id),
+      ...((viaSub ?? []) as Array<{ video_id: string }>).map((r) => r.video_id),
+    ]),
+  ];
+}
+
+/** Distinct placed note ids under a topic — both topic-level and via its subtopics. */
+async function resourceIdsUnderTopic(supabase: SupabaseServerClient, topicId: string): Promise<string[]> {
+  const [{ data: direct }, { data: viaSub }] = await Promise.all([
+    supabase.from("resource_placements").select("resource_id").eq("topic_id", topicId),
+    supabase.from("resource_placements").select("resource_id, subtopics!inner(topic_id)").eq("subtopics.topic_id", topicId),
+  ]);
+  return [
+    ...new Set([
+      ...((direct ?? []) as Array<{ resource_id: string }>).map((r) => r.resource_id),
+      ...((viaSub ?? []) as Array<{ resource_id: string }>).map((r) => r.resource_id),
+    ]),
+  ];
+}
+
 export async function createTopicAction(
   classId: string,
   title: string,
@@ -114,7 +180,7 @@ export async function createTopicAction(
     .insert({ class_id: classId, title: parsed, order_index: orderIndex, status: "active" });
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
 }
 
@@ -137,7 +203,7 @@ export async function renameTopicAction(
   const { error } = await supabase.from("topics").update({ title: parsed }).eq("id", topicId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
 }
 
@@ -153,20 +219,16 @@ export async function deleteTopicAction(
     return { error: "You don't have permission to edit this class." };
   }
 
-  const { data: candidates } = await supabase
-    .from("video_placements")
-    .select("video_id, subtopics!inner(topic_id)")
-    .eq("subtopics.topic_id", topicId);
-  const candidateIds = [
-    ...new Set(((candidates ?? []) as Array<{ video_id: string }>).map((row) => row.video_id)),
-  ];
+  const videoCandidates = await videoIdsUnderTopic(supabase, topicId);
+  const resourceCandidates = await resourceIdsUnderTopic(supabase, topicId);
 
   const { error } = await supabase.from("topics").delete().eq("id", topicId);
   if (error) return { error: error.message };
 
-  await gcOrphanedVideos(supabase, candidateIds);
+  await gcOrphanedVideos(supabase, videoCandidates);
+  await gcOrphanedResources(supabase, resourceCandidates);
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
 }
 
@@ -200,7 +262,7 @@ export async function createSubtopicAction(
     .insert({ topic_id: topicId, title: parsed, order_index: orderIndex });
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
 }
 
@@ -226,7 +288,7 @@ export async function renameSubtopicAction(
     .eq("id", subtopicId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
 }
 
@@ -242,88 +304,105 @@ export async function deleteSubtopicAction(
     return { error: "You don't have permission to edit this class." };
   }
 
-  const { data: candidates } = await supabase
-    .from("video_placements")
-    .select("video_id")
-    .eq("subtopic_id", subtopicId);
-  const candidateIds = [
-    ...new Set(((candidates ?? []) as Array<{ video_id: string }>).map((row) => row.video_id)),
+  const [{ data: videoCandidates }, { data: resourceCandidates }] = await Promise.all([
+    supabase.from("video_placements").select("video_id").eq("subtopic_id", subtopicId),
+    supabase.from("resource_placements").select("resource_id").eq("subtopic_id", subtopicId),
+  ]);
+  const videoIds = [
+    ...new Set(((videoCandidates ?? []) as Array<{ video_id: string }>).map((row) => row.video_id)),
+  ];
+  const resourceIds = [
+    ...new Set(((resourceCandidates ?? []) as Array<{ resource_id: string }>).map((row) => row.resource_id)),
   ];
 
   const { error } = await supabase.from("subtopics").delete().eq("id", subtopicId);
   if (error) return { error: error.message };
 
-  await gcOrphanedVideos(supabase, candidateIds);
+  await gcOrphanedVideos(supabase, videoIds);
+  await gcOrphanedResources(supabase, resourceIds);
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
 }
 
 /**
- * Persists the canonical ordered membership of a subtopic. Every id in
- * orderedPlacementIds is a video_placements row, written as (subtopic_id =
- * subtopicId, order_index = its position), so this single action covers BOTH
- * in-place reordering and cross-subtopic moves. The board keys on PLACEMENT ids
- * (not video ids) because a shared video can appear in more than one subtopic of
- * the same class, so a video id is no longer unique on the board. Moves stay
- * within one class, so the UPDATE never changes a placement's class and
- * internal.protect_placement_forum_lineage early-exits. Updates are scoped to
- * placements already inside this class. order_index has no unique constraint, so
- * concurrent writes settle to a clean 0..n-1 sequence; the UNIQUE(video_id,
- * subtopic_id) constraint is the backstop if a video is dragged onto a subtopic
- * it already lives in.
+ * Persists the canonical ordered membership of a parent node (topic or subtopic) for one placement
+ * table. Every id in orderedPlacementIds is set to (parent, order_index = its position), so this
+ * single helper covers BOTH in-place reordering and moves between sibling nodes of the same class.
+ * Moves stay within one class (validated below), so the UPDATE never changes a placement's class and
+ * internal.protect_placement_forum_lineage early-exits. order_index has no unique constraint, so
+ * concurrent writes settle to a clean 0..n-1 sequence; the partial UNIQUE indexes are the backstop if
+ * a piece of content is dragged onto a node it already lives in.
  */
-export async function reorderSubtopicVideosAction(
+async function reorderPlacements(
+  table: "video_placements" | "resource_placements",
   classId: string,
-  subtopicId: string,
+  parent: PlacementParent,
   orderedPlacementIds: string[],
+  profile: Profile,
 ): Promise<CurriculumActionState> {
-  const auth = await requireEducator();
-  if ("error" in auth) return { error: auth.error };
-
   const supabase = await createClient();
-  if (!(await ownsClass(supabase, classId, auth.profile))) {
+  if (!(await ownsClass(supabase, classId, profile))) {
     return { error: "You don't have permission to edit this class." };
   }
 
-  const { data: target } = await supabase
-    .from("subtopics")
-    .select("id, topics!inner(class_id)")
-    .eq("id", subtopicId)
-    .maybeSingle();
-  const targetRow = target as { topics: { class_id: string } } | null;
-  if (!targetRow || targetRow.topics.class_id !== classId) {
-    return { error: "Subtopic not found in this class." };
-  }
+  const resolved = await resolveOwnedParentClass(supabase, profile, parent);
+  if ("error" in resolved) return { error: resolved.error };
+  if (resolved.classId !== classId) return { error: "That node is not in this class." };
 
-  const { data: classSubs } = await supabase
-    .from("subtopics")
-    .select("id, topics!inner(class_id)")
-    .eq("topics.class_id", classId);
-  const classSubtopicIds = ((classSubs ?? []) as Array<{ id: string }>).map((row) => row.id);
-  if (classSubtopicIds.length === 0) return { ok: true };
+  if (orderedPlacementIds.length === 0) return { ok: true };
 
+  /* Confirm every placement being reordered currently belongs to this class. */
+  const { data: rows } = await supabase
+    .from(table)
+    .select("id, topic_id, subtopic_id")
+    .in("id", orderedPlacementIds);
+  const rowList = (rows ?? []) as Array<{ id: string; topic_id: string | null; subtopic_id: string | null }>;
+  const classByParent = await classesForPlacementRows(supabase, rowList);
+  const allInClass =
+    rowList.length === orderedPlacementIds.length &&
+    rowList.every((r) => {
+      const p = parentOf(r);
+      return p ? classByParent.get(parentKey(p)) === classId : false;
+    });
+  if (!allInClass) return { error: "Some items are not in this class." };
+
+  const cols = parentColumns(parent);
   const results = await Promise.all(
     orderedPlacementIds.map((placementId, index) =>
-      supabase
-        .from("video_placements")
-        .update({ subtopic_id: subtopicId, order_index: index })
-        .eq("id", placementId)
-        .in("subtopic_id", classSubtopicIds),
+      supabase.from(table).update({ ...cols, order_index: index }).eq("id", placementId),
     ),
   );
   const failed = results.find((result) => result.error);
   if (failed?.error) {
-    /* Dragging a video onto a subtopic it already appears in trips the
-       UNIQUE(video_id, subtopic_id) backstop; surface it as a clean message. */
     if (failed.error.code === "23505") {
-      return { error: "That video is already in the destination subtopic." };
+      return { error: "That item is already in the destination node." };
     }
     return { error: failed.error.message };
   }
 
-  revalidatePath(`/educator/classes/${classId}`);
+  revalidatePath(`/class/${classId}`);
   return { ok: true };
+}
+
+export async function reorderPlacedVideosAction(
+  classId: string,
+  parent: PlacementParent,
+  orderedPlacementIds: string[],
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+  return reorderPlacements("video_placements", classId, parent, orderedPlacementIds, auth.profile);
+}
+
+export async function reorderPlacedNotesAction(
+  classId: string,
+  parent: PlacementParent,
+  orderedPlacementIds: string[],
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+  return reorderPlacements("resource_placements", classId, parent, orderedPlacementIds, auth.profile);
 }
 
 export async function renameVideoAction(
@@ -355,7 +434,7 @@ export async function renameVideoAction(
 
   /* The curriculum board passes its class; the portal passes null (a video can
      span many classes) and refreshes the route itself. */
-  if (classId) revalidatePath(`/educator/classes/${classId}`);
-  else revalidatePath("/educator/videos");
+  if (classId) revalidatePath(`/class/${classId}`);
+  else revalidatePath("/library");
   return { ok: true };
 }

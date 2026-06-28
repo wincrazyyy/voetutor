@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { classNodeIds, placementsUnderClassFilter } from "@/lib/curriculum/placements";
 import type { Class, ProfilePublic } from "@/lib/types/database";
 
 export interface EnrolledClassSummary {
@@ -82,14 +83,16 @@ export async function getClassVideoTotals(
 ): Promise<{ total_videos: number; watched_videos: number; progress_percent: number }> {
   const supabase = await createClient();
 
-  const { data: placementRows } = await supabase
-    .from("video_placements")
-    .select("video_id, subtopics!inner(topics!inner(class_id))")
-    .eq("subtopics.topics.class_id", classId);
+  const { topicIds, subtopicIds } = await classNodeIds(supabase, classId);
+  const orFilter = placementsUnderClassFilter(topicIds, subtopicIds);
 
-  const videoIds = [
-    ...new Set((placementRows ?? []).map((row) => (row as { video_id: string }).video_id)),
-  ];
+  let placementRows: Array<{ video_id: string }> = [];
+  if (orFilter) {
+    const { data } = await supabase.from("video_placements").select("video_id").or(orFilter);
+    placementRows = (data ?? []) as Array<{ video_id: string }>;
+  }
+
+  const videoIds = [...new Set(placementRows.map((row) => row.video_id))];
   const total = videoIds.length;
 
   if (total === 0) {

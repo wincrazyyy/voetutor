@@ -5,15 +5,14 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { deleteResourceAction } from "@/app/actions/resources";
+import { deleteNoteAction } from "@/app/actions/resources";
 
 interface DeleteResourceButtonProps {
   resourceId: string;
-  classId: string;
   name: string;
 }
 
-export function DeleteResourceButton({ resourceId, classId, name }: DeleteResourceButtonProps) {
+export function DeleteResourceButton({ resourceId, name }: DeleteResourceButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +21,7 @@ export function DeleteResourceButton({ resourceId, classId, name }: DeleteResour
   const handleDelete = () => {
     setError(null);
     startTransition(async () => {
-      const result = await deleteResourceAction(resourceId, classId);
+      const result = await deleteNoteAction(resourceId);
       if (result?.error) {
         setError(result.error);
         return;

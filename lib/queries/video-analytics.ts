@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { intervalToSeconds } from "@/lib/utils/format";
+import { placedVideoRowsForClass } from "@/lib/curriculum/placements";
 
 export interface VideoAnalytics {
   videoId: string;
@@ -19,24 +20,17 @@ export interface VideoAnalytics {
 export async function getVideoAnalyticsForClass(classId: string): Promise<VideoAnalytics[]> {
   const supabase = await createClient();
 
-  const [placementRes, enrollRes] = await Promise.all([
-    supabase
-      .from("video_placements")
-      .select("order_index, videos!inner(id, title), subtopics!inner(topics!inner(class_id))")
-      .eq("subtopics.topics.class_id", classId)
-      .order("order_index", { ascending: true }),
+  const [placedVideos, enrollRes] = await Promise.all([
+    placedVideoRowsForClass(supabase, classId),
     supabase.from("class_enrollments").select("user_id").eq("class_id", classId),
   ]);
 
-  const placementRows = (placementRes.data ?? []) as unknown as Array<{
-    videos: { id: string; title: string };
-  }>;
   const seen = new Set<string>();
   const videos: Array<{ id: string; title: string }> = [];
-  for (const row of placementRows) {
-    if (!seen.has(row.videos.id)) {
-      seen.add(row.videos.id);
-      videos.push({ id: row.videos.id, title: row.videos.title });
+  for (const row of placedVideos) {
+    if (!seen.has(row.id)) {
+      seen.add(row.id);
+      videos.push({ id: row.id, title: row.title });
     }
   }
   if (videos.length === 0) return [];

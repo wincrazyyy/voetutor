@@ -16,6 +16,7 @@ import {
   Store,
   UserCheck,
   UserCircle,
+  Users,
   Hourglass,
   Lock,
   Video,
@@ -30,7 +31,8 @@ interface SidebarNavProps {
   pendingApplicationCount?: number;
   pendingReportCount?: number;
   isPendingEducator?: boolean;
-  /** Admin or premium-tier educator. Basic-tier educators see classes/videos/question-bank locked. */
+  /** Admin or premium-tier educator. Premium-only nav (Content Library, Question Bank, the classes
+   *  section) is **hidden entirely** for basic-tier educators — premium is admin-granted, never advertised. */
   isPremium?: boolean;
 }
 
@@ -39,7 +41,7 @@ interface NavItem {
   href: string;
   icon: LucideIcon;
   lockable: boolean;
-  /** Requires the premium tier (locked for basic-tier educators). */
+  /** Premium-only item — omitted from the nav entirely for non-premium educators (not shown locked). */
   premium?: boolean;
   badge?: number;
 }
@@ -50,7 +52,6 @@ interface NavSection {
 }
 
 const PENDING_HINT = "Locked while your educator account is awaiting admin approval.";
-const PREMIUM_HINT = "Premium feature — upgrade to unlock classes, videos and the question bank.";
 
 export function SidebarNav({
   role,
@@ -64,25 +65,27 @@ export function SidebarNav({
 
   const studentLinks: NavItem[] = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, lockable: true },
-    { name: "Browse Classes", href: "/classes/browse", icon: Store, lockable: true },
+    { name: "Browse Classes", href: "/classes", icon: Store, lockable: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
   const educatorLinks: NavItem[] = [
-    { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
-    { name: "My Profile", href: "/educator/profile", icon: UserCircle, lockable: true },
-    { name: "Reviews", href: "/educator/reviews", icon: Star, lockable: true },
-    { name: "Videos", href: "/educator/videos", icon: Video, lockable: true, premium: true },
+    { name: "Educator Hub", href: "/dashboard", icon: LayoutDashboard, lockable: true },
+    { name: "My Profile", href: "/profile", icon: UserCircle, lockable: true },
+    { name: "Reviews", href: "/reviews", icon: Star, lockable: true },
+    { name: "Content Library", href: "/library", icon: Video, lockable: true, premium: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true, premium: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
+  /* Pending educators become BASIC on approval, so their locked preview shows only the basic feature
+     set (profile + reviews) — never the premium items, which they won't get without an admin grant. */
   const pendingEducatorLinks: NavItem[] = [
     { name: "Pending Status", href: "/pending", icon: Hourglass, lockable: false },
-    { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: true },
-    { name: "Videos", href: "/educator/videos", icon: Video, lockable: true },
-    { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true },
+    { name: "Educator Hub", href: "/dashboard", icon: LayoutDashboard, lockable: true },
+    { name: "My Profile", href: "/profile", icon: UserCircle, lockable: true },
+    { name: "Reviews", href: "/reviews", icon: Star, lockable: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
 
@@ -92,27 +95,28 @@ export function SidebarNav({
   const adminAdminLinks: NavItem[] = [
     { name: "Admin Hub", href: "/admin", icon: ShieldCheck, lockable: false },
     {
-      name: "Educators",
-      href: "/admin/educators",
+      name: "Approvals",
+      href: "/approvals",
       icon: UserCheck,
       lockable: false,
       badge: pendingApplicationCount,
     },
+    { name: "Educators", href: "/educators", icon: Users, lockable: false },
     {
       name: "Reports",
-      href: "/admin/reports",
+      href: "/reports",
       icon: Flag,
       lockable: false,
       badge: pendingReportCount,
     },
-    { name: "Classes", href: "/admin/classes", icon: BookOpen, lockable: false },
+    { name: "Classes", href: "/classes", icon: BookOpen, lockable: false },
   ];
 
   const adminEducatorLinks: NavItem[] = [
-    { name: "Educator Hub", href: "/educator", icon: LayoutDashboard, lockable: false },
-    { name: "My Profile", href: "/educator/profile", icon: UserCircle, lockable: false },
-    { name: "Reviews", href: "/educator/reviews", icon: Star, lockable: false },
-    { name: "Videos", href: "/educator/videos", icon: Video, lockable: false },
+    { name: "Educator Hub", href: "/dashboard", icon: LayoutDashboard, lockable: false },
+    { name: "My Profile", href: "/profile", icon: UserCircle, lockable: false },
+    { name: "Reviews", href: "/reviews", icon: Star, lockable: false },
+    { name: "Content Library", href: "/library", icon: Video, lockable: false },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: false },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
   ];
@@ -126,15 +130,19 @@ export function SidebarNav({
   } else if (role === "educator") {
     sections = isPendingEducator
       ? [{ label: "Pending Approval", items: pendingEducatorLinks }]
-      : [{ label: "Educator", items: educatorLinks }];
+      : [{ label: "Educator", items: educatorLinks.filter((l) => isPremium || !l.premium) }];
   } else {
     sections = [{ label: "Menu", items: studentLinks }];
   }
 
   const classSectionLabel = role === "educator" || role === "admin" ? "Your Classes" : "Enrolled Classes";
-  const classHrefPrefix = role === "educator" || role === "admin" ? "/educator/classes" : "/classes";
-  /* Basic-tier educators don't get classes at all — show the section locked rather than empty. */
-  const classesLocked = role === "educator" && !isPremium && !isPendingEducator;
+  /* One role-resolved class URL: /class/[id] renders the learning view for students and the management
+     view for the owning educator / admin. */
+  const classHrefPrefix = "/class";
+  /* Classes are a premium teaching feature. Show the section only to students (enrolments), admins, and
+     premium educators — basic + pending educators don't see it at all (premium stays invisible). */
+  const showClasses =
+    role === "student" || role === "admin" || (role === "educator" && isPremium && !isPendingEducator);
 
   return (
     <nav className="flex-1 flex flex-col gap-6 px-4 py-6 overflow-y-auto">
@@ -156,15 +164,13 @@ export function SidebarNav({
             const Icon = link.icon;
             const isActive = pathname === link.href;
             const badge = link.badge;
-            const premiumLocked = role === "educator" && !isPremium && Boolean(link.premium);
-            const locked = (isPendingEducator && link.lockable) || premiumLocked;
+            const locked = isPendingEducator && link.lockable;
 
             if (locked) {
-              const hint = premiumLocked ? PREMIUM_HINT : PENDING_HINT;
               return (
                 <span
                   key={link.name}
-                  title={hint}
+                  title={PENDING_HINT}
                   aria-disabled
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
@@ -200,68 +206,52 @@ export function SidebarNav({
         </div>
       ))}
 
-      <div className="flex flex-col gap-1">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 mt-2">
-          {classSectionLabel}
-        </div>
+      {showClasses && (
+        <div className="flex flex-col gap-1">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 mt-2">
+            {classSectionLabel}
+          </div>
 
-        <div className="relative flex flex-col gap-1 mt-1">
-          {isPendingEducator ? (
-            <span
-              title={PENDING_HINT}
-              aria-disabled
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed select-none"
-            >
-              <Lock className="w-3.5 h-3.5 opacity-60" />
-              <span className="text-xs italic">Locked while pending</span>
-            </span>
-          ) : classesLocked ? (
-            <span
-              title={PREMIUM_HINT}
-              aria-disabled
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed select-none"
-            >
-              <Lock className="w-3.5 h-3.5 opacity-60" />
-              <span className="text-xs italic">Premium feature</span>
-            </span>
-          ) : classes.length === 0 ? (
-            <p className="text-xs text-muted-foreground px-3 py-2 italic">
-              {role === "educator" || role === "admin" ? "No classes assigned yet." : "No enrolments yet."}
-            </p>
-          ) : (
-            classes.map((cls) => {
-              const href = `${classHrefPrefix}/${cls.id}`;
-              const isActive = pathname.startsWith(href);
-              return (
-                <Link
-                  key={cls.id}
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
-                    isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <div
+          <div className="relative flex flex-col gap-1 mt-1">
+            {classes.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-3 py-2 italic">
+                {role === "educator" || role === "admin" ? "No classes assigned yet." : "No enrolments yet."}
+              </p>
+            ) : (
+              classes.map((cls) => {
+                const href = `${classHrefPrefix}/${cls.id}`;
+                const isActive = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={cls.id}
+                    href={href}
                     className={cn(
-                      "w-5 h-5 flex items-center justify-center rounded-md border shrink-0",
-                      isActive
-                        ? "border-primary bg-primary/20 text-primary"
-                        : "border-muted-foreground/30 text-muted-foreground group-hover:border-foreground",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
+                      isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    {role === "educator" || role === "admin" ? (
-                      <ClipboardList className="w-3 h-3" />
-                    ) : (
-                      <BookMarked className="w-3 h-3" />
-                    )}
-                  </div>
-                  <span className="truncate">{cls.title}</span>
-                </Link>
-              );
-            })
-          )}
+                    <div
+                      className={cn(
+                        "w-5 h-5 flex items-center justify-center rounded-md border shrink-0",
+                        isActive
+                          ? "border-primary bg-primary/20 text-primary"
+                          : "border-muted-foreground/30 text-muted-foreground group-hover:border-foreground",
+                      )}
+                    >
+                      {role === "educator" || role === "admin" ? (
+                        <ClipboardList className="w-3 h-3" />
+                      ) : (
+                        <BookMarked className="w-3 h-3" />
+                      )}
+                    </div>
+                    <span className="truncate">{cls.title}</span>
+                  </Link>
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </nav>
   );
 }

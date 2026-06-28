@@ -37,8 +37,8 @@ function UploadRow({
         <StatusIcon status={job.status} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium truncate">{job.title || job.fileName}</p>
-          {job.subtopicLabel && (
-            <p className="text-[11px] text-muted-foreground truncate">→ {job.subtopicLabel}</p>
+          {job.parentLabel && (
+            <p className="text-[11px] text-muted-foreground truncate">→ {job.parentLabel}</p>
           )}
         </div>
         {job.status === "error" ? (

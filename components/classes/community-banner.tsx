@@ -13,7 +13,7 @@ export function CommunityBanner({ classId, memberCount }: CommunityBannerProps) 
       <h2 className="text-2xl font-bold">Community</h2>
       <Card className="p-5 border-primary/20 shadow-sm bg-primary/5 hover:bg-primary/10 transition-colors group overflow-hidden relative cursor-pointer">
         <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
-        <Link href={`/classes/${classId}/forum`} className="flex flex-col gap-2">
+        <Link href={`/class/${classId}/forum`} className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-primary font-bold">
               <MessageSquare className="w-5 h-5" />

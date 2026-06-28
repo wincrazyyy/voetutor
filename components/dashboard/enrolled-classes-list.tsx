@@ -56,7 +56,7 @@ export function EnrolledClassesList({ classes }: EnrolledClassesListProps) {
               </div>
 
               <div className="p-3 bg-muted/20 border-t border-border">
-                <Link href={`/classes/${cls.id}`} className="w-full">
+                <Link href={`/class/${cls.id}`} className="w-full">
                   <Button
                     variant="ghost"
                     className="w-full justify-between group hover:bg-primary/5 hover:text-primary text-sm font-semibold h-10"

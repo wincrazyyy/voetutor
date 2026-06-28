@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import * as tus from "tus-js-client";
 
 import { createVideoUploadAction, deleteVideoAction } from "@/app/actions/videos";
+import type { PlacementParent } from "@/lib/types/database";
 
 /** tus chunk size — Cloudflare requires a multiple of 256 KiB; 50 MB works. */
 const CHUNK_SIZE = 50 * 1024 * 1024;
@@ -28,7 +29,7 @@ export interface UploadJob {
   id: string;
   fileName: string;
   title: string;
-  subtopicLabel: string | null;
+  parentLabel: string | null;
   progress: number;
   status: UploadJobStatus;
   error: string | null;
@@ -38,15 +39,15 @@ export interface EnqueueItem {
   file: File;
   title: string;
   description: string;
-  subtopicId?: string | null;
+  parent?: PlacementParent | null;
   classId?: string | null;
-  subtopicLabel?: string | null;
+  parentLabel?: string | null;
 }
 
 interface ManagedJob extends UploadJob {
   file: File;
   description: string;
-  subtopicId: string | null;
+  parent: PlacementParent | null;
   classId: string | null;
   videoId: string | null;
 }
@@ -140,7 +141,7 @@ export function UploadManagerProvider({ children }: { children: ReactNode }) {
       let result;
       try {
         result = await createVideoUploadAction({
-          subtopicId: job.subtopicId,
+          parent: job.parent,
           title: job.title,
           description: job.description,
           fileSizeBytes: job.file.size,
@@ -231,13 +232,13 @@ export function UploadManagerProvider({ children }: { children: ReactNode }) {
         id: crypto.randomUUID(),
         fileName: item.file.name,
         title: item.title,
-        subtopicLabel: item.subtopicLabel ?? null,
+        parentLabel: item.parentLabel ?? null,
         progress: 0,
         status: "queued",
         error: null,
         file: item.file,
         description: item.description,
-        subtopicId: item.subtopicId ?? null,
+        parent: item.parent ?? null,
         classId: item.classId ?? null,
         videoId: null,
       }));

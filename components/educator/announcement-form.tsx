@@ -65,7 +65,7 @@ export function AnnouncementForm({ classId, authorId }: AnnouncementFormProps) {
       return;
     }
 
-    router.push(`/educator/classes/${classId}`);
+    router.push(`/class/${classId}`);
     router.refresh();
   };
 

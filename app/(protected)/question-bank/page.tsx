@@ -13,7 +13,7 @@ export default async function QuestionBankPage() {
   if (profile.role === "educator") {
     if (!profile.is_approved) redirect("/pending");
     const ep = await getEducatorProfile(profile.id);
-    if ((ep?.tier ?? "basic") !== "premium") redirect("/educator?upgrade=1");
+    if ((ep?.tier ?? "basic") !== "premium") redirect("/dashboard");
   }
 
   return (

@@ -7,44 +7,44 @@ import { FolderTree, Layers, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { setVideoPlacementsAction } from "@/app/actions/videos";
+import type { PlacementParent } from "@/lib/types/database";
 import type { PlacementTreeClass } from "@/lib/queries/video-library";
 
 interface VideoAssignDialogProps {
   videoId: string;
   videoTitle: string;
-  currentSubtopicIds: string[];
+  currentParents: PlacementParent[];
   tree: PlacementTreeClass[];
 }
 
+function key(parent: PlacementParent): string {
+  return `${parent.kind}:${parent.id}`;
+}
+
 /**
- * Per-video placement picker: tick the subtopics — across any of the educator's
- * classes — where this video should appear. Ticking subtopics in two different
- * classes is how a single library video overlaps into both. Submitting
- * reconciles the video's placements to the ticked set.
+ * Per-video placement picker: tick the curriculum nodes — topics and/or subtopics, across any of the
+ * educator's classes — where this video should appear. Ticking nodes in two different classes is how a
+ * single library video overlaps into both. Submitting reconciles the video's placements to the ticked
+ * set. A topic itself is tickable (a topic-level intro video), as is any subtopic under it.
  */
-export function VideoAssignDialog({
-  videoId,
-  videoTitle,
-  currentSubtopicIds,
-  tree,
-}: VideoAssignDialogProps) {
+export function VideoAssignDialog({ videoId, videoTitle, currentParents, tree }: VideoAssignDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set(currentSubtopicIds));
+  const [selected, setSelected] = useState<Set<string>>(new Set(currentParents.map(key)));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const openDialog = () => {
-    setSelected(new Set(currentSubtopicIds));
+    setSelected(new Set(currentParents.map(key)));
     setError(null);
     setOpen(true);
   };
 
-  const toggle = (subtopicId: string) => {
+  const toggle = (k: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(subtopicId)) next.delete(subtopicId);
-      else next.add(subtopicId);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
       return next;
     });
   };
@@ -52,8 +52,12 @@ export function VideoAssignDialog({
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    const parents: PlacementParent[] = [...selected].map((k) => {
+      const [kind, id] = k.split(":");
+      return { kind: kind as "topic" | "subtopic", id };
+    });
     startTransition(async () => {
-      const result = await setVideoPlacementsAction(videoId, [...selected]);
+      const result = await setVideoPlacementsAction(videoId, parents);
       if (result?.error) {
         setError(result.error);
         return;
@@ -73,7 +77,7 @@ export function VideoAssignDialog({
   }
 
   const selectedCount = selected.size;
-  const hasSubtopics = tree.some((cls) => cls.topics.some((topic) => topic.subtopics.length > 0));
+  const hasNodes = tree.some((cls) => cls.topics.length > 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
@@ -99,10 +103,10 @@ export function VideoAssignDialog({
 
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-            {!hasSubtopics ? (
+            {!hasNodes ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                You have no subtopics yet. Add topics and subtopics to a class first, then place
-                videos into them.
+                You have no topics yet. Add topics and subtopics to a class first, then place videos
+                into them.
               </p>
             ) : (
               tree.map((cls) => (
@@ -119,26 +123,28 @@ export function VideoAssignDialog({
                   ) : (
                     cls.topics.map((topic) => (
                       <div key={topic.id} className="pl-6 space-y-1.5">
-                        <p className="text-xs font-semibold text-muted-foreground">{topic.title}</p>
-                        {topic.subtopics.length === 0 ? (
-                          <p className="text-xs text-muted-foreground/70 italic pl-1">
-                            No subtopics yet.
-                          </p>
-                        ) : (
-                          topic.subtopics.map((subtopic) => (
-                            <label
-                              key={subtopic.id}
-                              className="flex items-center gap-2.5 pl-1 py-1 text-sm cursor-pointer hover:text-primary transition-colors"
-                            >
-                              <Checkbox
-                                checked={selected.has(subtopic.id)}
-                                onCheckedChange={() => toggle(subtopic.id)}
-                                disabled={pending}
-                              />
-                              <span className="truncate">{subtopic.title}</span>
-                            </label>
-                          ))
-                        )}
+                        <label className="flex items-center gap-2.5 py-1 text-sm cursor-pointer font-semibold hover:text-primary transition-colors">
+                          <Checkbox
+                            checked={selected.has(`topic:${topic.id}`)}
+                            onCheckedChange={() => toggle(`topic:${topic.id}`)}
+                            disabled={pending}
+                          />
+                          <span className="truncate">{topic.title}</span>
+                          <span className="text-[10px] font-normal text-muted-foreground">(topic-level)</span>
+                        </label>
+                        {topic.subtopics.map((subtopic) => (
+                          <label
+                            key={subtopic.id}
+                            className="flex items-center gap-2.5 pl-5 py-1 text-sm cursor-pointer hover:text-primary transition-colors"
+                          >
+                            <Checkbox
+                              checked={selected.has(`subtopic:${subtopic.id}`)}
+                              onCheckedChange={() => toggle(`subtopic:${subtopic.id}`)}
+                              disabled={pending}
+                            />
+                            <span className="truncate">{subtopic.title}</span>
+                          </label>
+                        ))}
                       </div>
                     ))
                   )}
@@ -151,7 +157,7 @@ export function VideoAssignDialog({
 
           <div className="flex items-center justify-between gap-2 p-6 pt-4 border-t border-border">
             <span className="text-xs text-muted-foreground">
-              {selectedCount} subtopic{selectedCount === 1 ? "" : "s"} selected
+              {selectedCount} location{selectedCount === 1 ? "" : "s"} selected
             </span>
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>

@@ -15,6 +15,7 @@ ALTER TABLE subtopics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE video_placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE resource_placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
@@ -32,6 +33,7 @@ ALTER TABLE subtopics FORCE ROW LEVEL SECURITY;
 ALTER TABLE videos FORCE ROW LEVEL SECURITY;
 ALTER TABLE video_placements FORCE ROW LEVEL SECURITY;
 ALTER TABLE resources FORCE ROW LEVEL SECURITY;
+ALTER TABLE resource_placements FORCE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress FORCE ROW LEVEL SECURITY;
 ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts FORCE ROW LEVEL SECURITY;
@@ -206,61 +208,55 @@ CREATE POLICY video_placements_select_authorized ON video_placements
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR EXISTS (
-            SELECT 1 FROM public.subtopics s
-            JOIN public.topics t ON t.id = s.topic_id
-            WHERE s.id = video_placements.subtopic_id AND t.class_id IN (SELECT internal.get_user_class_ids())
-        )
+        OR (SELECT internal.placement_class_id(video_placements.topic_id, video_placements.subtopic_id)) IN (SELECT internal.get_user_class_ids())
     );
-COMMENT ON POLICY video_placements_select_authorized ON video_placements IS 'A placement is visible to anyone who can see its subtopic — i.e. users enrolled in or teaching the placement''s class. Drives curriculum rendering for students and educators.';
+COMMENT ON POLICY video_placements_select_authorized ON video_placements IS 'A placement is visible to anyone who can see its parent node — i.e. users enrolled in or teaching the placement''s class (resolved from the topic- or subtopic-level parent via internal.placement_class_id). Drives curriculum rendering for students and educators.';
 
 CREATE POLICY video_placements_modify_educator_or_admin ON video_placements
     FOR ALL TO authenticated
     USING (
         (SELECT internal.is_admin())
         OR (
-            EXISTS (
-                SELECT 1 FROM public.subtopics s
-                JOIN public.topics t ON t.id = s.topic_id
-                JOIN public.classes c ON c.id = t.class_id
-                WHERE s.id = video_placements.subtopic_id AND c.educator_id = (SELECT auth.uid())
-            )
+            (SELECT internal.is_class_educator(internal.placement_class_id(video_placements.topic_id, video_placements.subtopic_id)))
             AND (SELECT internal.owns_video(video_placements.video_id))
         )
     );
-COMMENT ON POLICY video_placements_modify_educator_or_admin ON video_placements IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-class move must satisfy ownership on both endpoints. The video-ownership half goes through internal.owns_video (SECURITY DEFINER) so this policy never reads videos under RLS — otherwise it would recurse with videos_select (Postgres 42P17).';
+COMMENT ON POLICY video_placements_modify_educator_or_admin ON video_placements IS 'Placing/reordering/removing a video requires the caller to BOTH own the destination class (educator) AND own the video — enforcing the same-educator-only sharing rule. FOR ALL with no separate WITH CHECK means USING is applied to both the old and new row, so a cross-node/cross-class move must satisfy ownership on both endpoints. Class is resolved from the topic- or subtopic-level parent via internal.placement_class_id; the class-ownership half goes through internal.is_class_educator and the video-ownership half through internal.owns_video (both SECURITY DEFINER) so this policy never reads classes/videos under RLS — otherwise it would recurse with videos_select (Postgres 42P17).';
 
-/* RESOURCES */
+/* RESOURCES (owner-owned library of PDF notes; mirrors videos) */
 CREATE POLICY resources_select_authorized ON resources
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR EXISTS (SELECT 1 FROM public.topics t WHERE t.id = resources.topic_id AND t.class_id IN (SELECT internal.get_user_class_ids()))
-        OR EXISTS (
-            SELECT 1 FROM public.subtopics s
-            JOIN public.topics t ON t.id = s.topic_id
-            WHERE s.id = resources.subtopic_id AND t.class_id IN (SELECT internal.get_user_class_ids())
-        )
+        OR owner_id = (SELECT auth.uid())
+        OR (SELECT internal.resource_in_user_classes(resources.id))
     );
-COMMENT ON POLICY resources_select_authorized ON resources IS 'Resolves visibility boundaries dynamically depending on whether the resource is bound to a topic or a subtopic.';
+COMMENT ON POLICY resources_select_authorized ON resources IS 'Library notes are visible to admins, the owning educator, and any user enrolled in (or teaching) a class the note is placed into. The placement check goes through internal.resource_in_user_classes (SECURITY DEFINER) rather than an inline subquery so the resources policy never reads resource_placements under RLS — otherwise resources_select and resource_placements_modify would recurse (Postgres 42P17). Mirrors videos_select_authorized.';
 
 CREATE POLICY resources_modify_educator_or_admin ON resources
     FOR ALL TO authenticated
+    USING ((SELECT internal.is_admin()) OR owner_id = (SELECT auth.uid()));
+COMMENT ON POLICY resources_modify_educator_or_admin ON resources IS 'Library notes are managed (Insert/Update/Delete) by their owning educator or an admin. Ownership resolves directly from owner_id. FOR ALL with USING only (matching videos_modify_educator_or_admin): Postgres applies USING to both the existing and the new row, so an INSERT must set owner_id to the caller and an UPDATE cannot reassign ownership.';
+
+/* RESOURCE PLACEMENTS (mirror video_placements; no forum lineage — notes aren't referenced by forum_posts) */
+CREATE POLICY resource_placements_select_authorized ON resource_placements
+    FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR EXISTS (
-            SELECT 1 FROM public.topics t
-            JOIN public.classes c ON c.id = t.class_id
-            WHERE t.id = resources.topic_id AND c.educator_id = (SELECT auth.uid())
-        )
-        OR EXISTS (
-            SELECT 1 FROM public.subtopics s
-            JOIN public.topics t ON t.id = s.topic_id
-            JOIN public.classes c ON c.id = t.class_id
-            WHERE s.id = resources.subtopic_id AND c.educator_id = (SELECT auth.uid())
+        OR (SELECT internal.placement_class_id(resource_placements.topic_id, resource_placements.subtopic_id)) IN (SELECT internal.get_user_class_ids())
+    );
+COMMENT ON POLICY resource_placements_select_authorized ON resource_placements IS 'A note placement is visible to anyone who can see its parent node — users enrolled in or teaching the placement''s class (resolved via internal.placement_class_id). Drives curriculum rendering. Mirrors video_placements_select_authorized.';
+
+CREATE POLICY resource_placements_modify_educator_or_admin ON resource_placements
+    FOR ALL TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (
+            (SELECT internal.is_class_educator(internal.placement_class_id(resource_placements.topic_id, resource_placements.subtopic_id)))
+            AND (SELECT internal.owns_resource(resource_placements.resource_id))
         )
     );
-COMMENT ON POLICY resources_modify_educator_or_admin ON resources IS 'Delegates file asset management to the parent class educator, dynamically evaluating the polymorphic parent linkage.';
+COMMENT ON POLICY resource_placements_modify_educator_or_admin ON resource_placements IS 'Placing/reordering/removing a note requires the caller to BOTH own the destination class (educator) AND own the note — same-educator-only sharing, mirroring video_placements_modify_educator_or_admin. The class-ownership half goes through internal.is_class_educator and the note-ownership half through internal.owns_resource (both SECURITY DEFINER) so this policy never reads classes/resources under RLS (avoids the resources <-> resource_placements recursion, Postgres 42P17).';
 
 /* ----- USER VIDEO PROGRESS ----- */
 CREATE POLICY progress_select_authorized ON user_video_progress
@@ -270,13 +266,11 @@ CREATE POLICY progress_select_authorized ON user_video_progress
         OR user_id = (SELECT auth.uid())
         OR EXISTS (
             SELECT 1 FROM public.video_placements vp
-            JOIN public.subtopics s ON s.id = vp.subtopic_id
-            JOIN public.topics t ON t.id = s.topic_id
-            JOIN public.classes c ON c.id = t.class_id
-            WHERE vp.video_id = user_video_progress.video_id AND c.educator_id = (SELECT auth.uid())
+            WHERE vp.video_id = user_video_progress.video_id
+              AND (SELECT internal.is_class_educator(internal.placement_class_id(vp.topic_id, vp.subtopic_id)))
         )
     );
-COMMENT ON POLICY progress_select_authorized ON user_video_progress IS 'Permits students to fetch their own telemetry state, while granting educators visibility over progress for any video placed in a class they own (resolved via video_placements).';
+COMMENT ON POLICY progress_select_authorized ON user_video_progress IS 'Permits students to fetch their own telemetry state, while granting educators visibility over progress for any video placed (topic- or subtopic-level) in a class they own — resolved via internal.placement_class_id + internal.is_class_educator so the policy never reads classes/topics/subtopics under RLS.';
 
 CREATE POLICY progress_insert_self ON user_video_progress
     FOR INSERT TO authenticated
