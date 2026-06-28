@@ -329,7 +329,7 @@ export function LessonPlayerClient({
             </TabsContent>
 
             <TabsContent value="discussion" className="m-0 flex flex-col h-full outline-none">
-              <ForumLessonQA classId={classId} lessonId={lessonId} threads={qaThreads} classEducatorId={classEducatorId} />
+              <ForumLessonQA classId={classId} lessonId={lessonId} threads={qaThreads} classEducatorId={classEducatorId} currentUserId={userId} />
             </TabsContent>
           </div>
         </Tabs>

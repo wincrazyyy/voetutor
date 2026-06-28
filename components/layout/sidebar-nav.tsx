@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 interface SidebarNavProps {
   role: UserRole;
   classes: Array<{ id: string; code: string; title: string }>;
+  /** Per-class unread-announcement counts (students). */
+  classUnread?: Record<string, number>;
   pendingApplicationCount?: number;
   pendingReportCount?: number;
   isPendingEducator?: boolean;
@@ -56,6 +58,7 @@ const PENDING_HINT = "Locked while your educator account is awaiting admin appro
 export function SidebarNav({
   role,
   classes,
+  classUnread = {},
   pendingApplicationCount = 0,
   pendingReportCount = 0,
   isPendingEducator = false,
@@ -244,7 +247,12 @@ export function SidebarNav({
                         <BookMarked className="w-3 h-3" />
                       )}
                     </div>
-                    <span className="truncate">{cls.title}</span>
+                    <span className="flex-1 truncate">{cls.title}</span>
+                    {(classUnread[cls.id] ?? 0) > 0 && (
+                      <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5 shrink-0">
+                        {classUnread[cls.id]}
+                      </Badge>
+                    )}
                   </Link>
                 );
               })

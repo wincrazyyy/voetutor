@@ -7,6 +7,7 @@ import { getClassesForEducator } from "@/lib/queries/educator";
 import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
 import { getPendingReportCount } from "@/lib/queries/class-reports";
+import { getUnreadAnnouncementCountsByClass } from "@/lib/queries/announcements";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
@@ -39,6 +40,14 @@ export async function Sidebar() {
     }
   }
 
+  /* Per-class unread-announcement badges — a student affordance (educators authored their own, so the
+     count would be noise). */
+  let classUnread: Record<string, number> = {};
+  if (role === "student" && profile && classes.length > 0) {
+    const counts = await getUnreadAnnouncementCountsByClass(profile.id, classes.map((c) => c.id));
+    classUnread = Object.fromEntries(counts);
+  }
+
   if (role === "admin") {
     [pendingApplicationCount, pendingReportCount] = await Promise.all([
       getPendingEducatorCount(),
@@ -61,6 +70,7 @@ export async function Sidebar() {
       <SidebarNav
         role={role}
         classes={classes}
+        classUnread={classUnread}
         pendingApplicationCount={pendingApplicationCount}
         pendingReportCount={pendingReportCount}
         isPendingEducator={isPendingEducator}

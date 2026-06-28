@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Bold, Code, Italic, Link2, List, Quote } from "lucide-react";
+import { Bold, Code, ImagePlus, Italic, Link2, List, Loader2, Quote } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ForumMarkdown } from "@/components/forum/forum-markdown";
+import { uploadRteImage } from "@/lib/forum/rte-image";
 
 interface MarkdownEditorProps {
   value: string;
@@ -13,6 +14,8 @@ interface MarkdownEditorProps {
   minRows?: number;
   autoFocus?: boolean;
   id?: string;
+  /** Current user's id — enables the image-embed button (uploads to rte-images/{uploaderId}/...). */
+  uploaderId?: string;
 }
 
 export function MarkdownEditor({
@@ -22,9 +25,13 @@ export function MarkdownEditor({
   minRows = 4,
   autoFocus = false,
   id,
+  uploaderId,
 }: MarkdownEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<"write" | "preview">("write");
+  const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState<string | null>(null);
 
   const restore = (selStart: number, selEnd: number) => {
     requestAnimationFrame(() => {
@@ -75,6 +82,34 @@ export function MarkdownEditor({
     restore(urlPos, urlPos + 8);
   };
 
+  const insertAtCaret = (text: string) => {
+    const ta = ref.current;
+    if (!ta) {
+      onChange(value + text);
+      return;
+    }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const next = value.slice(0, start) + text + value.slice(end);
+    onChange(next);
+    restore(start + text.length, start + text.length);
+  };
+
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !uploaderId) return;
+    setImgError(null);
+    setUploading(true);
+    const res = await uploadRteImage(file, uploaderId);
+    setUploading(false);
+    if (res.error || !res.url) {
+      setImgError(res.error ?? "Image upload failed.");
+      return;
+    }
+    insertAtCaret(`\n![image](${res.url})\n`);
+  };
+
   const tools = [
     { label: "Bold", icon: Bold, run: () => wrap("**") },
     { label: "Italic", icon: Italic, run: () => wrap("*") },
@@ -104,6 +139,27 @@ export function MarkdownEditor({
               </button>
             );
           })}
+          {uploaderId && (
+            <>
+              <button
+                type="button"
+                title="Embed image"
+                aria-label="Embed image"
+                onClick={() => fileRef.current?.click()}
+                disabled={tab === "preview" || uploading}
+                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={onPickImage}
+              />
+            </>
+          )}
         </div>
         <div className="flex items-center gap-0.5 text-xs">
           <button
@@ -144,8 +200,10 @@ export function MarkdownEditor({
         </div>
       )}
 
+      {imgError && <p className="border-t border-border px-3 py-1 text-xs text-destructive">{imgError}</p>}
+
       <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
-        Markdown supported — **bold**, *italic*, lists, `code`, &gt; quotes, [links](url)
+        Markdown supported — **bold**, *italic*, lists, `code`, &gt; quotes, [links](url), and image embeds
       </div>
     </div>
   );

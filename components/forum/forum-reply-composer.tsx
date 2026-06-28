@@ -13,6 +13,8 @@ interface ForumReplyComposerProps {
   parentReplyId?: string | null;
   /** When the thread is a lesson Q&A, pass the video id so the lesson page revalidates too. */
   videoId?: string | null;
+  /** Current user's id — enables image embeds in the editor. */
+  uploaderId?: string;
   placeholder?: string;
   autoFocus?: boolean;
   compact?: boolean;
@@ -25,6 +27,7 @@ export function ForumReplyComposer({
   postId,
   parentReplyId = null,
   videoId = null,
+  uploaderId,
   placeholder = "Write a reply…",
   autoFocus = false,
   compact = false,
@@ -59,6 +62,7 @@ export function ForumReplyComposer({
         minRows={compact ? 2 : 3}
         autoFocus={autoFocus}
         placeholder={placeholder}
+        uploaderId={uploaderId}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex items-center justify-end gap-2">

@@ -250,8 +250,15 @@ export interface Announcement {
   link_url: string | null;
   image_alt: string | null;
   image_url: string | null;
+  event_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AnnouncementRead {
+  user_id: string;
+  announcement_id: string;
+  created_at: string;
 }
 
 export interface ForumPost {

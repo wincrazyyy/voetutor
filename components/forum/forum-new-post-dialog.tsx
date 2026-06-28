@@ -14,9 +14,10 @@ import type { ForumPostType } from "@/lib/types/database";
 interface ForumNewPostDialogProps {
   classId: string;
   videos: Array<{ id: string; title: string }>;
+  uploaderId: string;
 }
 
-export function ForumNewPostDialog({ classId, videos }: ForumNewPostDialogProps) {
+export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPostDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<ForumPostType>("general");
@@ -149,6 +150,7 @@ export function ForumNewPostDialog({ classId, videos }: ForumNewPostDialogProps)
               onChange={setContent}
               minRows={6}
               placeholder="Add the details…"
+              uploaderId={uploaderId}
             />
           </div>
 

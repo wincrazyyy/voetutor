@@ -1,72 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AnnouncementType } from "@/lib/types/database";
+import { MarkdownEditor } from "@/components/forum/markdown-editor";
+import { ANNOUNCEMENT_LIMITS } from "@/lib/announcements/limits";
+import { createAnnouncementAction, updateAnnouncementAction } from "@/app/actions/announcements";
+import type { Announcement, AnnouncementType } from "@/lib/types/database";
 
 interface AnnouncementFormProps {
   classId: string;
   authorId: string;
+  /** Present → edit mode; absent → create. */
+  announcement?: Announcement;
 }
 
-export function AnnouncementForm({ classId, authorId }: AnnouncementFormProps) {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [type, setType] = useState<AnnouncementType>("standard");
-  const [linkTitle, setLinkTitle] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageAlt, setImageAlt] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+/** ISO instant → a `datetime-local` value in the browser's timezone (YYYY-MM-DDTHH:mm). */
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
+export function AnnouncementForm({ classId, authorId, announcement }: AnnouncementFormProps) {
+  const router = useRouter();
+  const isEdit = Boolean(announcement);
+  const [title, setTitle] = useState(announcement?.title ?? "");
+  const [content, setContent] = useState(announcement?.content ?? "");
+  const [type, setType] = useState<AnnouncementType>(announcement?.type ?? "standard");
+  const [linkTitle, setLinkTitle] = useState(announcement?.link_title ?? "");
+  const [linkUrl, setLinkUrl] = useState(announcement?.link_url ?? "");
+  const [eventLocal, setEventLocal] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  /* Prefill the picker post-mount (client timezone) to avoid an SSR/hydration mismatch on the value. */
+  useEffect(() => {
+    if (announcement?.event_at) setEventLocal(toLocalInputValue(announcement.event_at));
+  }, [announcement?.event_at]);
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const trimmedTitle = title.trim();
-    const trimmedContent = content.trim();
-    if (!trimmedTitle || !trimmedContent) {
-      setError("Title and content are required.");
-      return;
-    }
-    if (linkUrl && !/^https:\/\//i.test(linkUrl)) {
-      setError("Link URL must start with https://");
-      return;
-    }
-    if (imageUrl && !/^https:\/\//i.test(imageUrl)) {
-      setError("Image URL must start with https://");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const supabase = createClient();
-    const { error: insertError } = await supabase.from("announcements").insert({
-      class_id: classId,
-      author_id: authorId,
-      title: trimmedTitle,
-      content: trimmedContent,
-      type,
-      link_title: linkTitle.trim() || null,
-      link_url: linkUrl.trim() || null,
-      image_url: imageUrl.trim() || null,
-      image_alt: imageAlt.trim() || null,
+    const eventAt = type === "event" && eventLocal ? new Date(eventLocal).toISOString() : null;
+    const input = { classId, title, content, type, linkTitle: linkTitle || null, linkUrl: linkUrl || null, eventAt };
+    startTransition(async () => {
+      const res = isEdit
+        ? await updateAnnouncementAction(announcement!.id, input)
+        : await createAnnouncementAction(input);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      router.push(`/class/${classId}`);
+      router.refresh();
     });
-    setIsSubmitting(false);
-
-    if (insertError) {
-      setError(insertError.message);
-      return;
-    }
-
-    router.push(`/class/${classId}`);
-    router.refresh();
   };
 
   return (
@@ -80,20 +73,19 @@ export function AnnouncementForm({ classId, authorId }: AnnouncementFormProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            maxLength={255}
+            maxLength={ANNOUNCEMENT_LIMITS.titleMax}
           />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="ann-content">Content</Label>
-          <textarea
+          <MarkdownEditor
             id="ann-content"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            rows={6}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-            placeholder="Share details, instructions, or context for your students."
+            onChange={setContent}
+            minRows={6}
+            uploaderId={authorId}
+            placeholder="Share details, instructions, or context for your students. Markdown + image embeds supported."
           />
         </div>
 
@@ -110,6 +102,19 @@ export function AnnouncementForm({ classId, authorId }: AnnouncementFormProps) {
             <option value="event">Event</option>
           </select>
         </div>
+
+        {type === "event" && (
+          <div className="grid gap-2">
+            <Label htmlFor="ann-event">Event date &amp; time</Label>
+            <Input
+              id="ann-event"
+              type="datetime-local"
+              value={eventLocal}
+              onChange={(e) => setEventLocal(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Optional. Shown to students in their local time.</p>
+          </div>
+        )}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-2">
@@ -135,38 +140,14 @@ export function AnnouncementForm({ classId, authorId }: AnnouncementFormProps) {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="ann-image-alt">Image alt text (optional)</Label>
-            <Input
-              id="ann-image-alt"
-              value={imageAlt}
-              onChange={(e) => setImageAlt(e.target.value)}
-              maxLength={255}
-              placeholder="Diagram showing leftward shift"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="ann-image-url">Image URL (optional)</Label>
-            <Input
-              id="ann-image-url"
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://..."
-              pattern="https://.*"
-            />
-          </div>
-        </div>
-
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex items-center justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={() => router.back()} disabled={isSubmitting}>
+          <Button type="button" variant="ghost" onClick={() => router.back()} disabled={pending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Posting..." : "Post Announcement"}
+          <Button type="submit" disabled={pending || !title.trim() || !content.trim()}>
+            {pending ? "Saving…" : isEdit ? "Save Changes" : "Post Announcement"}
           </Button>
         </div>
       </form>

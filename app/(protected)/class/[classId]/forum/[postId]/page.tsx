@@ -58,7 +58,7 @@ export default async function ForumThreadPage({
           {replyCount} {replyCount === 1 ? "Reply" : "Replies"}
         </h2>
 
-        <ForumReplyComposer classId={classId} postId={postId} videoId={post.video_id} placeholder="Add to the discussion…" />
+        <ForumReplyComposer classId={classId} postId={postId} videoId={post.video_id} uploaderId={profile.id} placeholder="Add to the discussion…" />
 
         <ForumReplyTree
           classId={classId}

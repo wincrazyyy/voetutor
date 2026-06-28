@@ -77,7 +77,7 @@ export default async function ClassForumPage({
               Discuss concepts, ask questions, and collaborate with your peers and educators.
             </p>
           </div>
-          <ForumNewPostDialog classId={classId} videos={videos} />
+          <ForumNewPostDialog classId={classId} videos={videos} uploaderId={profile.id} />
         </div>
       </div>
 

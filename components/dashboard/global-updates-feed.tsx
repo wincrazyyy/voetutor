@@ -1,15 +1,15 @@
-import Link from "next/link";
-import { Megaphone, ExternalLink, Image as ImageIcon, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import type { AnnouncementWithAuthor } from "@/lib/queries/announcements";
-import { getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { AnnouncementCard } from "@/components/announcements/announcement-card";
 
 interface GlobalUpdatesFeedProps {
   announcements: AnnouncementWithAuthor[];
+  viewerId: string;
+  viewerIsAdmin: boolean;
 }
 
-export function GlobalUpdatesFeed({ announcements }: GlobalUpdatesFeedProps) {
+export function GlobalUpdatesFeed({ announcements, viewerId, viewerIsAdmin }: GlobalUpdatesFeedProps) {
   return (
     <div className="lg:col-span-8 space-y-6">
       <div className="flex items-center justify-between mb-2">
@@ -25,86 +25,16 @@ export function GlobalUpdatesFeed({ announcements }: GlobalUpdatesFeedProps) {
         </Card>
       ) : (
         <div className="flex flex-col gap-6">
-          {announcements.map((ann) => {
-            const isImportant = ann.type === "important";
-            const authorName = getDisplayName(
-              ann.author?.first_name ?? null,
-              ann.author?.last_name ?? null,
-              ann.author?.display_name ?? null,
-            );
-            const authorInitials = getInitials(
-              ann.author?.first_name ?? null,
-              ann.author?.last_name ?? null,
-              ann.author?.display_name ?? null,
-            );
-
-            return (
-              <Card
-                key={ann.id}
-                className={`p-6 bg-card border shadow-sm transition-all hover:shadow-md ${isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border"}`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                      {authorInitials}
-                    </div>
-                    <div>
-                      <div className="font-bold text-sm text-foreground flex items-center gap-2">
-                        {authorName}
-                        {ann.class_code && (
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                            {ann.class_code}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-medium mt-0.5">{relativeTime(ann.created_at)}</div>
-                    </div>
-                  </div>
-                  {isImportant && (
-                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10 border-transparent pointer-events-none shrink-0">
-                      Important
-                    </Badge>
-                  )}
-                  {ann.type === "event" && (
-                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent pointer-events-none shrink-0">
-                      Event
-                    </Badge>
-                  )}
-                </div>
-
-                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
-                  <Megaphone className="w-5 h-5 text-primary" />
-                  {ann.title}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{ann.content}</p>
-
-                {ann.link_url && (
-                  <Link
-                    href={ann.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors group"
-                  >
-                    <div className="p-2 bg-background rounded-md text-primary group-hover:bg-primary/10 transition-colors shadow-sm">
-                      <ExternalLink className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors flex-1 truncate">
-                      {ann.link_title ?? ann.link_url}
-                    </span>
-                  </Link>
-                )}
-
-                {ann.image_url && (
-                  <div className="mt-4 rounded-xl border border-border bg-muted/20 flex flex-col items-center justify-center aspect-video overflow-hidden">
-                    <ImageIcon className="w-10 h-10 text-muted-foreground/30 mb-2" />
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                      {ann.image_alt ?? "Attachment"}
-                    </span>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+          {announcements.map((ann) => (
+            <AnnouncementCard
+              key={ann.id}
+              announcement={ann}
+              viewerId={viewerId}
+              viewerIsAdmin={viewerIsAdmin}
+              showClassCode
+              unread={!ann.has_read}
+            />
+          ))}
         </div>
       )}
     </div>

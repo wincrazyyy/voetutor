@@ -9,6 +9,8 @@ import { getDisplayName } from "@/lib/utils/format";
 import { StatCards } from "@/components/dashboard/stat-cards";
 import { ContinueWatchingHero } from "@/components/dashboard/continue-watching-hero";
 import { GlobalUpdatesFeed } from "@/components/dashboard/global-updates-feed";
+import { MarkAnnouncementsRead } from "@/components/announcements/mark-announcements-read";
+import { TableRefresh } from "@/components/realtime/table-refresh";
 import { EnrolledClassesList } from "@/components/dashboard/enrolled-classes-list";
 import { EducatorHub } from "@/components/dashboard/educator-hub";
 
@@ -34,8 +36,13 @@ export default async function DashboardHubPage() {
 
   const firstName = profile.first_name ?? getDisplayName(profile.first_name, profile.last_name, profile.display_name);
 
+  const unreadAnnouncementIds = announcements.filter((a) => !a.has_read).map((a) => a.id);
+
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
+      <MarkAnnouncementsRead unreadIds={unreadAnnouncementIds} />
+      <TableRefresh channel={`announcements:dashboard:${profile.id}`} subscriptions={[{ table: "announcements" }]} />
+
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">
           Welcome back, {firstName}!
@@ -49,7 +56,7 @@ export default async function DashboardHubPage() {
       <ContinueWatchingHero item={continueWatching[0] ?? null} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
-        <GlobalUpdatesFeed announcements={announcements} />
+        <GlobalUpdatesFeed announcements={announcements} viewerId={profile.id} viewerIsAdmin={false} />
         <EnrolledClassesList classes={classes} />
       </div>
     </div>

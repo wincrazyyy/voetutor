@@ -2,6 +2,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { cn } from "@/lib/utils";
+import { isRteImageUrl } from "@/lib/forum/rte-image";
 
 interface ForumMarkdownProps {
   content: string;
@@ -64,18 +65,26 @@ const COMPONENTS: Components = {
   ),
   th: ({ children }) => <th className="border border-border px-2 py-1 text-left font-semibold">{children}</th>,
   td: ({ children }) => <td className="border border-border px-2 py-1">{children}</td>,
+  img({ src, alt }) {
+    /* Only render images we host (origin-pinned to the rte-images bucket); an arbitrary external
+       `![](url)` is dropped, so embeds can't smuggle tracking pixels or mixed content. */
+    if (typeof src !== "string" || !isRteImageUrl(src)) return null;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt ?? ""}
+        loading="lazy"
+        className="my-2 max-h-96 w-auto max-w-full rounded-md border border-border"
+      />
+    );
+  },
 };
 
 export function ForumMarkdown({ content, className }: ForumMarkdownProps) {
   return (
     <div className={cn("text-sm text-foreground/90 break-words", className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={COMPONENTS}
-        disallowedElements={["img"]}
-        unwrapDisallowed
-        skipHtml
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS} skipHtml>
         {content}
       </ReactMarkdown>
     </div>

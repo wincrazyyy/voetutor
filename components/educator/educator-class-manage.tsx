@@ -16,6 +16,8 @@ import { getEducatorClassStats } from "@/lib/queries/educator";
 import { getVideoLibrary } from "@/lib/queries/video-library";
 import { getNoteLibrary } from "@/lib/queries/note-library";
 import { getAnnouncementsForClass } from "@/lib/queries/announcements";
+import { AnnouncementsPanel } from "@/components/announcements/announcements-panel";
+import { TableRefresh } from "@/components/realtime/table-refresh";
 import type { Class } from "@/lib/types/database";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,10 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
 
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
+      <TableRefresh
+        channel={`announcements:educatorclass:${classId}`}
+        subscriptions={[{ table: "announcements", filter: `class_id=eq.${classId}` }]}
+      />
       <div>
         <Link href="/dashboard">
           <Button variant="ghost" size="sm" className="mb-6 gap-2 text-muted-foreground hover:text-foreground -ml-2">
@@ -121,24 +127,11 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
         </div>
 
         <div className="xl:col-span-4 space-y-6 sticky top-24">
-          <Card className="p-5 border-border shadow-sm bg-card">
-            <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-primary" />
-              Recent Announcements
-            </h2>
-            {announcements.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No announcements yet for this class.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {announcements.map((ann) => (
-                  <li key={ann.id} className="text-sm border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                    <div className="font-semibold leading-tight">{ann.title}</div>
-                    <div className="text-xs text-muted-foreground capitalize mt-0.5">{ann.type}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+          <AnnouncementsPanel
+            classId={classId}
+            latest={announcements[0] ?? null}
+            hasUnread={announcements.some((a) => !a.has_read)}
+          />
 
           <Card className="p-5 border-border shadow-sm bg-card">
             <h2 className="text-lg font-bold mb-2 flex items-center gap-2">

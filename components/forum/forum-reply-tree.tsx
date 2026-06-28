@@ -171,7 +171,7 @@ function ReplyNode({
 
           {editing ? (
             <div className="mt-2 flex flex-col gap-2">
-              <MarkdownEditor value={draft} onChange={setDraft} minRows={3} />
+              <MarkdownEditor value={draft} onChange={setDraft} minRows={3} uploaderId={currentUserId} />
               {error && <p className="text-xs text-destructive">{error}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setDraft(reply.content); }} disabled={pending}>
@@ -233,6 +233,7 @@ function ReplyNode({
                 postId={postId}
                 parentReplyId={reply.id}
                 videoId={videoId}
+                uploaderId={currentUserId}
                 autoFocus
                 compact
                 placeholder={`Reply to ${authorName}…`}

@@ -418,10 +418,13 @@ CREATE TABLE announcements (
     link_url TEXT CHECK (link_url IS NULL OR (char_length(link_url) <= 2048 AND link_url ~* '^https://')),
     image_alt TEXT CHECK (image_alt IS NULL OR char_length(image_alt) <= 255),
     image_url TEXT CHECK (image_url IS NULL OR (char_length(image_url) <= 2048 AND image_url ~* '^https://')),
+    event_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    CONSTRAINT chk_announcement_event_at CHECK (event_at IS NULL OR type = 'event'::announcement_type)
 );
 COMMENT ON TABLE announcements IS 'Unidirectional broadcast payloads distributed from administrators/educators to enrolled users.';
+COMMENT ON COLUMN announcements.event_at IS 'When the event happens (event-type announcements only — chk_announcement_event_at enforces NULL for standard/important). Stored as TIMESTAMPTZ; rendered in the viewer''s local timezone client-side.';
 COMMENT ON COLUMN announcements.link_url IS 'Optional outbound link. Inline CHECK enforces both 2048-char cap and HTTPS-only transport.';
 COMMENT ON COLUMN announcements.image_url IS 'Optional inline image. Inline CHECK enforces both 2048-char cap and HTTPS-only transport.';
 
@@ -431,6 +434,18 @@ CREATE INDEX idx_announcements_author_id ON announcements(author_id);
 CREATE TRIGGER set_announcements_updated_at
     BEFORE UPDATE ON announcements
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+/* ----------------------------------------- */
+
+CREATE TABLE announcement_reads (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    PRIMARY KEY (user_id, announcement_id)
+);
+COMMENT ON TABLE announcement_reads IS 'Per-user read receipts for announcements. Composite PK ⇒ one receipt per user; no UPDATE policy ⇒ immutable (no immutability trigger needed). Unread = announcements in the user''s classes with no matching row here.';
+
+CREATE INDEX idx_announcement_reads_announcement_id ON announcement_reads(announcement_id);
 
 /* ----------------------------------------- */
 

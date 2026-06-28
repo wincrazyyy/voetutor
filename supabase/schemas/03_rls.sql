@@ -18,6 +18,7 @@ ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resource_placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcement_reads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes ENABLE ROW LEVEL SECURITY;
@@ -37,6 +38,7 @@ ALTER TABLE resources FORCE ROW LEVEL SECURITY;
 ALTER TABLE resource_placements FORCE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress FORCE ROW LEVEL SECURITY;
 ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
+ALTER TABLE announcement_reads FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes FORCE ROW LEVEL SECURITY;
@@ -314,6 +316,23 @@ CREATE POLICY announcements_delete_author ON announcements
     FOR DELETE TO authenticated
     USING ((SELECT internal.is_admin()) OR author_id = (SELECT auth.uid()));
 COMMENT ON POLICY announcements_delete_author ON announcements IS 'Grants broadcast deletion rights strictly to the original authoring educator or global administrators.';
+
+/* ----- ANNOUNCEMENT READS ----- */
+CREATE POLICY announcement_reads_select_self ON announcement_reads
+    FOR SELECT TO authenticated
+    USING ((SELECT internal.is_admin()) OR user_id = (SELECT auth.uid()));
+COMMENT ON POLICY announcement_reads_select_self ON announcement_reads IS 'A user sees only their own read receipts (admins all). Drives the unread/"new" affordance.';
+
+CREATE POLICY announcement_reads_insert_self ON announcement_reads
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        user_id = (SELECT auth.uid())
+        AND EXISTS (
+            SELECT 1 FROM public.announcements a
+            WHERE a.id = announcement_reads.announcement_id AND a.class_id IN (SELECT internal.get_user_class_ids())
+        )
+    );
+COMMENT ON POLICY announcement_reads_insert_self ON announcement_reads IS 'A user may mark an announcement read only for themselves and only if the announcement is in one of their classes. No UPDATE/DELETE policy ⇒ receipts are immutable.';
 
 /* ----- FORUM POSTS ----- */
 CREATE POLICY forum_posts_select_authorized ON forum_posts

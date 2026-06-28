@@ -24,13 +24,15 @@ interface ForumLessonQAProps {
   threads: QAThread[];
   /** The class owner's id — used to badge the educator. Admin status is never surfaced. */
   classEducatorId: string | null;
+  /** Current user's id — enables image embeds in the ask/reply composers. */
+  currentUserId: string;
 }
 
-export function ForumLessonQA({ classId, lessonId, threads, classEducatorId }: ForumLessonQAProps) {
+export function ForumLessonQA({ classId, lessonId, threads, classEducatorId, currentUserId }: ForumLessonQAProps) {
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border bg-muted/20 sticky top-0 z-10 flex flex-col gap-3">
-        <AskQuestion classId={classId} lessonId={lessonId} />
+        <AskQuestion classId={classId} lessonId={lessonId} uploaderId={currentUserId} />
         <Link href={`/class/${classId}/forum`} className="group self-end">
           <span className="text-xs font-medium text-primary flex items-center gap-1 hover:underline">
             View all class discussions
@@ -48,6 +50,7 @@ export function ForumLessonQA({ classId, lessonId, threads, classEducatorId }: F
               lessonId={lessonId}
               thread={thread}
               classEducatorId={classEducatorId}
+              currentUserId={currentUserId}
             />
           ))
         ) : (
@@ -61,7 +64,7 @@ export function ForumLessonQA({ classId, lessonId, threads, classEducatorId }: F
   );
 }
 
-function AskQuestion({ classId, lessonId }: { classId: string; lessonId: string }) {
+function AskQuestion({ classId, lessonId, uploaderId }: { classId: string; lessonId: string; uploaderId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -115,7 +118,7 @@ function AskQuestion({ classId, lessonId }: { classId: string; lessonId: string 
         placeholder="Your question"
         className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
-      <MarkdownEditor value={content} onChange={setContent} minRows={3} placeholder="Add any details…" />
+      <MarkdownEditor value={content} onChange={setContent} minRows={3} placeholder="Add any details…" uploaderId={uploaderId} />
       {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={pending}>
@@ -134,11 +137,13 @@ function LessonThread({
   lessonId,
   thread,
   classEducatorId,
+  currentUserId,
 }: {
   classId: string;
   lessonId: string;
   thread: QAThread;
   classEducatorId: string | null;
+  currentUserId: string;
 }) {
   const [replying, setReplying] = useState(false);
 
@@ -251,6 +256,7 @@ function LessonThread({
             classId={classId}
             postId={thread.id}
             videoId={lessonId}
+            uploaderId={currentUserId}
             autoFocus
             compact
             placeholder={`Reply to ${studentName}…`}
