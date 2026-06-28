@@ -444,6 +444,7 @@ CREATE TABLE forum_posts (
     content TEXT NOT NULL,
     upvotes INTEGER DEFAULT 0 NOT NULL CHECK (upvotes >= 0),
     is_resolved BOOLEAN DEFAULT FALSE NOT NULL,
+    is_pinned BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT chk_forum_post_video_context CHECK (
@@ -452,6 +453,7 @@ CREATE TABLE forum_posts (
     )
 );
 COMMENT ON TABLE forum_posts IS 'Primary asynchronous discussion nodes establishing the root of a conversation thread.';
+COMMENT ON COLUMN forum_posts.is_pinned IS 'Educator/admin sticky flag. Pinned threads float to the top of the forum list across all sorts. Only the class educator or an admin may toggle it (internal.protect_forum_post_ownership guards it against the post author).';
 COMMENT ON CONSTRAINT chk_forum_post_video_context ON forum_posts IS 'Enforces the presence of a target video reference exclusively when the thread context demands it.';
 
 CREATE INDEX idx_forum_posts_class_id ON forum_posts(class_id);
@@ -470,10 +472,14 @@ CREATE TABLE forum_replies (
     parent_reply_id UUID REFERENCES forum_replies(id) ON DELETE CASCADE ON UPDATE CASCADE,
     author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
     content TEXT NOT NULL,
+    upvotes INTEGER DEFAULT 0 NOT NULL CHECK (upvotes >= 0),
+    is_deleted BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 COMMENT ON TABLE forum_replies IS 'Conversational appendages supporting infinite nesting via an adjacency list architecture.';
+COMMENT ON COLUMN forum_replies.upvotes IS 'Denormalized endorsement counter fed by the forum_reply_upvotes ledger via internal.maintain_forum_reply_upvote_count. Never written directly by non-admins (internal.protect_forum_reply_upvotes guards it).';
+COMMENT ON COLUMN forum_replies.is_deleted IS 'Soft-delete tombstone. A deleted reply that still has children is flagged here (content blanked in the UI as "[deleted]") so the comment tree below it survives; leaf replies are hard-deleted instead.';
 COMMENT ON COLUMN forum_replies.post_id IS 'Binds the reply to the root discussion thread. Retained on all nested replies to prevent expensive recursive lookups when fetching a flat thread count.';
 COMMENT ON COLUMN forum_replies.parent_reply_id IS 'Self-referencing constraint enabling hierarchical, threaded comment trees. A NULL value indicates a top-level reply directly to the main post.';
 
@@ -483,7 +489,7 @@ CREATE INDEX idx_forum_replies_author_id ON forum_replies(author_id);
 
 CREATE TRIGGER set_forum_replies_updated_at
     BEFORE UPDATE ON forum_replies
-    FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+    FOR EACH ROW EXECUTE PROCEDURE internal.set_forum_reply_updated_at();
 
 /* ----------------------------------------- */
 
@@ -504,6 +510,26 @@ CREATE TRIGGER maintain_upvote_count_on_insert
 CREATE TRIGGER maintain_upvote_count_on_delete
     AFTER DELETE ON forum_post_upvotes
     FOR EACH ROW EXECUTE PROCEDURE internal.maintain_forum_post_upvote_count();
+
+/* ----------------------------------------- */
+
+CREATE TABLE forum_reply_upvotes (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    reply_id UUID NOT NULL REFERENCES forum_replies(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    PRIMARY KEY (user_id, reply_id)
+);
+COMMENT ON TABLE forum_reply_upvotes IS 'Reply analogue of forum_post_upvotes. One-vote-per-user ledger (composite primary key) feeding the denormalized forum_replies.upvotes counter.';
+
+CREATE INDEX idx_forum_reply_upvotes_reply_id ON forum_reply_upvotes(reply_id);
+
+CREATE TRIGGER maintain_reply_upvote_count_on_insert
+    AFTER INSERT ON forum_reply_upvotes
+    FOR EACH ROW EXECUTE PROCEDURE internal.maintain_forum_reply_upvote_count();
+
+CREATE TRIGGER maintain_reply_upvote_count_on_delete
+    AFTER DELETE ON forum_reply_upvotes
+    FOR EACH ROW EXECUTE PROCEDURE internal.maintain_forum_reply_upvote_count();
 
 /* ==========  ANTI-TAMPERING TRIGGER BINDINGS  ========== */
 /* The functions live in the internal schema (see 01_functions.sql).
@@ -526,7 +552,9 @@ CREATE TRIGGER enforce_immutability_resource_placements BEFORE UPDATE ON resourc
 
 CREATE TRIGGER enforce_role_security BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE internal.protect_profile_role();
 CREATE TRIGGER enforce_forum_post_security BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_post_ownership();
+CREATE TRIGGER enforce_forum_reply_security BEFORE UPDATE ON forum_replies FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_reply_integrity();
 CREATE TRIGGER enforce_upvote_count_integrity BEFORE UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_post_upvotes();
+CREATE TRIGGER enforce_reply_upvote_count_integrity BEFORE UPDATE ON forum_replies FOR EACH ROW EXECUTE PROCEDURE internal.protect_forum_reply_upvotes();
 CREATE TRIGGER enforce_forum_post_video_class BEFORE INSERT OR UPDATE ON forum_posts FOR EACH ROW EXECUTE PROCEDURE internal.validate_forum_post_video_class();
 CREATE TRIGGER enforce_placement_class_lineage BEFORE UPDATE ON video_placements FOR EACH ROW EXECUTE PROCEDURE internal.protect_placement_forum_lineage();
 CREATE TRIGGER enforce_subtopic_class_lineage BEFORE UPDATE ON subtopics FOR EACH ROW EXECUTE PROCEDURE internal.protect_subtopic_class_lineage();

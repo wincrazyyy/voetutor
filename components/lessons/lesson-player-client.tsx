@@ -12,7 +12,6 @@ import {
   Download,
   Clock,
   Paperclip,
-  ArrowRight,
   Lock,
   Loader2,
   AlertTriangle,
@@ -21,10 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stream, type StreamPlayerApi } from "@cloudflare/stream-react";
 import { useVideoProgress } from "@/components/lessons/use-video-progress";
+import { ForumLessonQA } from "@/components/forum/forum-lesson-qa";
 import type { TopicWithChildren } from "@/lib/queries/curriculum";
 import type { ForumPostListItem, ForumReplyWithAuthor } from "@/lib/queries/forum";
 import type { Video } from "@/lib/types/database";
-import { formatBytes, formatShortDuration, getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { formatBytes, formatShortDuration } from "@/lib/utils/format";
 
 type QAThread = ForumPostListItem & { replies: ForumReplyWithAuthor[] };
 
@@ -41,6 +41,7 @@ interface LessonPlayerClientProps {
   initialWatchSeconds: number;
   initialCompleted: boolean;
   userId: string;
+  classEducatorId: string | null;
 }
 
 export function LessonPlayerClient({
@@ -56,6 +57,7 @@ export function LessonPlayerClient({
   initialWatchSeconds,
   initialCompleted,
   userId,
+  classEducatorId,
 }: LessonPlayerClientProps) {
   const flatVideos = curriculum.flatMap((topic) => [
     ...topic.videos.map((v) => v.id),
@@ -327,95 +329,7 @@ export function LessonPlayerClient({
             </TabsContent>
 
             <TabsContent value="discussion" className="m-0 flex flex-col h-full outline-none">
-              <div className="p-4 border-b border-border bg-muted/20 sticky top-0 z-10 flex flex-col gap-3">
-                <Link href={`/class/${classId}/forum`} className="group self-end">
-                  <span className="text-xs font-medium text-primary flex items-center gap-1 hover:underline">
-                    View all class discussions
-                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                  </span>
-                </Link>
-              </div>
-
-              <div className="flex flex-col p-4 gap-6">
-                {qaThreads.length > 0 ? (
-                  qaThreads.map((thread) => {
-                    const studentName = getDisplayName(
-                      thread.author?.first_name ?? null,
-                      thread.author?.last_name ?? null,
-                      thread.author?.display_name ?? null,
-                    );
-                    const studentInitials = getInitials(
-                      thread.author?.first_name ?? null,
-                      thread.author?.last_name ?? null,
-                      thread.author?.display_name ?? null,
-                    );
-                    return (
-                      <div key={thread.id} className="flex flex-col gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0 text-muted-foreground">
-                            {studentInitials}
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <span className="text-sm font-bold text-foreground">{studentName}</span>
-                              <span className="text-[10px] text-muted-foreground">{relativeTime(thread.created_at)}</span>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground leading-relaxed">{thread.title}</p>
-                            <p className="text-sm text-muted-foreground leading-relaxed">{thread.content}</p>
-                          </div>
-                        </div>
-
-                        {thread.replies.length > 0 && (
-                          <div className="flex flex-col gap-4 pl-11 mt-1 border-l-2 border-muted/50 ml-[15px]">
-                            {thread.replies.map((reply) => {
-                              const replyName = getDisplayName(
-                                reply.author?.first_name ?? null,
-                                reply.author?.last_name ?? null,
-                                reply.author?.display_name ?? null,
-                              );
-                              const replyInitials = getInitials(
-                                reply.author?.first_name ?? null,
-                                reply.author?.last_name ?? null,
-                                reply.author?.display_name ?? null,
-                              );
-                              const isEducator = reply.author?.role === "educator";
-                              return (
-                                <div
-                                  key={reply.id}
-                                  className="flex items-start gap-3 relative before:absolute before:left-[-18px] before:top-4 before:w-3 before:h-px before:bg-muted/50"
-                                >
-                                  <div
-                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                      isEducator ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                                    }`}
-                                  >
-                                    {replyInitials}
-                                  </div>
-                                  <div className="flex flex-col gap-0.5">
-                                    <div className="flex items-baseline gap-2">
-                                      <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                        {replyName}
-                                        {isEducator && <CheckCircle2 className="w-3 h-3 text-primary" />}
-                                      </span>
-                                      <span className="text-[10px] text-muted-foreground">{relativeTime(reply.created_at)}</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">{reply.content}</p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center text-muted-foreground text-sm py-12">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                    No questions yet for this lesson.
-                  </div>
-                )}
-              </div>
+              <ForumLessonQA classId={classId} lessonId={lessonId} threads={qaThreads} classEducatorId={classEducatorId} />
             </TabsContent>
           </div>
         </Tabs>

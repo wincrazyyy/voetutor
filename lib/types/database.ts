@@ -264,6 +264,7 @@ export interface ForumPost {
   content: string;
   upvotes: number;
   is_resolved: boolean;
+  is_pinned: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -274,6 +275,8 @@ export interface ForumReply {
   parent_reply_id: string | null;
   author_id: string;
   content: string;
+  upvotes: number;
+  is_deleted: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -281,5 +284,11 @@ export interface ForumReply {
 export interface ForumPostUpvote {
   user_id: string;
   post_id: string;
+  created_at: string;
+}
+
+export interface ForumReplyUpvote {
+  user_id: string;
+  reply_id: string;
   created_at: string;
 }

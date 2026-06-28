@@ -37,6 +37,18 @@ END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION internal.set_forum_post_updated_at() IS 'Variant of set_current_timestamp_updated_at scoped to forum_posts. Skips the timestamp bump when the update originates inside a nested trigger chain (i.e., the upvote-ledger maintenance trigger), so endorsements do not pollute the post modification timestamp. User-issued edits still arrive at depth 1 and bump updated_at as expected.';
 
+CREATE OR REPLACE FUNCTION internal.set_forum_reply_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.set_forum_reply_updated_at() IS 'Reply analogue of set_forum_post_updated_at. Skips the timestamp bump when fired inside a nested trigger chain (the forum_reply_upvotes ledger maintenance), so comment endorsements never mark a reply as edited. User-issued content edits and soft-deletes arrive at depth 1 and bump updated_at.';
+
 CREATE OR REPLACE FUNCTION internal.maintain_class_published_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -106,6 +118,21 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 COMMENT ON FUNCTION internal.maintain_forum_post_upvote_count() IS 'Maintains the denormalized forum_posts.upvotes counter in lockstep with the forum_post_upvotes ledger. Runs as SECURITY DEFINER (search_path empty, fully-qualified references) so the upvoter (who is typically not the post owner) can mutate the counter despite forum_posts RLS.';
 
+CREATE OR REPLACE FUNCTION internal.maintain_forum_reply_upvote_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.forum_replies SET upvotes = upvotes + 1 WHERE id = NEW.reply_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.forum_replies SET upvotes = GREATEST(upvotes - 1, 0) WHERE id = OLD.reply_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.maintain_forum_reply_upvote_count() IS 'Reply analogue of maintain_forum_post_upvote_count. Keeps forum_replies.upvotes in lockstep with the forum_reply_upvotes ledger. SECURITY DEFINER (empty search_path, fully-qualified references) so the upvoter can mutate the counter despite forum_replies RLS.';
+
 /* ==========  ANTI-TAMPERING TRIGGER FUNCTIONS  ========== */
 
 CREATE OR REPLACE FUNCTION internal.prevent_immutable_modifications()
@@ -167,11 +194,14 @@ BEGIN
         IF NEW.class_id IS DISTINCT FROM OLD.class_id THEN
             RAISE EXCEPTION 'SECURITY VIOLATION: Posts cannot be moved between classes.';
         END IF;
+        IF NEW.is_pinned IS DISTINCT FROM OLD.is_pinned AND NOT internal.is_class_educator(OLD.class_id) THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: Only the class educator or an admin can pin or unpin a thread.';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-COMMENT ON FUNCTION internal.protect_forum_post_ownership() IS 'Prevents users and educators from tampering with the original authorship or class association of a forum post.';
+COMMENT ON FUNCTION internal.protect_forum_post_ownership() IS 'Prevents users (incl. the post author) from tampering with a forum post''s authorship, class association, or pin state. The pin flag is reserved to the class educator (internal.is_class_educator) or an admin; authorship/class moves are admin-only.';
 
 CREATE OR REPLACE FUNCTION internal.protect_forum_post_upvotes()
 RETURNS TRIGGER AS $$
@@ -188,6 +218,46 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION internal.protect_forum_post_upvotes() IS 'Hard-rejects direct UPDATEs to the denormalized forum_posts.upvotes column by non-admins. Legitimate increments and decrements flow through the forum_post_upvotes ledger and are detected via pg_trigger_depth().';
+
+CREATE OR REPLACE FUNCTION internal.protect_forum_reply_upvotes()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+
+    IF NEW.upvotes IS DISTINCT FROM OLD.upvotes AND NOT internal.is_admin() THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: Direct manipulation of reply upvote counts is prohibited. Insert into forum_reply_upvotes instead.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.protect_forum_reply_upvotes() IS 'Reply analogue of protect_forum_post_upvotes. Hard-rejects direct UPDATEs to the denormalized forum_replies.upvotes column by non-admins; legitimate changes flow through the forum_reply_upvotes ledger and are detected via pg_trigger_depth().';
+
+CREATE OR REPLACE FUNCTION internal.protect_forum_reply_integrity()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+    IF NOT internal.is_admin() THEN
+        IF NEW.author_id IS DISTINCT FROM OLD.author_id THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: Reply authorship cannot be reassigned.';
+        END IF;
+        IF NEW.post_id IS DISTINCT FROM OLD.post_id OR NEW.parent_reply_id IS DISTINCT FROM OLD.parent_reply_id THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: Replies cannot be moved between threads.';
+        END IF;
+        IF NEW.content IS DISTINCT FROM OLD.content
+           AND OLD.author_id <> auth.uid()
+           AND NOT (OLD.is_deleted = FALSE AND NEW.is_deleted = TRUE) THEN
+            RAISE EXCEPTION 'SECURITY VIOLATION: Only the author may edit a reply (moderators may only remove it).';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.protect_forum_reply_integrity() IS 'Anti-tampering guard for forum_replies UPDATEs. Non-admins cannot reassign authorship or move a reply to another thread/parent, and may not rewrite a body that is not their own — except a class educator (or the author) may blank the content while tombstoning it (is_deleted false -> true), which backs the soft-delete moderation path. Depth-guarded so the upvote-ledger maintenance write passes.';
 
 CREATE OR REPLACE FUNCTION internal.validate_forum_post_video_class()
 RETURNS TRIGGER AS $$

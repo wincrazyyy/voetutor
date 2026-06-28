@@ -21,6 +21,7 @@ ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forum_reply_upvotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE educator_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE educator_reviews ENABLE ROW LEVEL SECURITY;
 
@@ -39,6 +40,7 @@ ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_replies FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_post_upvotes FORCE ROW LEVEL SECURITY;
+ALTER TABLE forum_reply_upvotes FORCE ROW LEVEL SECURITY;
 ALTER TABLE educator_profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE educator_reviews FORCE ROW LEVEL SECURITY;
 
@@ -377,10 +379,18 @@ CREATE POLICY forum_replies_insert_authorized ON forum_replies
     );
 COMMENT ON POLICY forum_replies_insert_authorized ON forum_replies IS 'Permits reply creation by enforcing author identity and validating access to the parent post context.';
 
-CREATE POLICY forum_replies_update_author ON forum_replies
+CREATE POLICY forum_replies_update_authorized ON forum_replies
     FOR UPDATE TO authenticated
-    USING ((SELECT internal.is_admin()) OR author_id = (SELECT auth.uid()));
-COMMENT ON POLICY forum_replies_update_author ON forum_replies IS 'Strictly isolates reply editing capabilities to the original author, preventing educators from modifying student discourse.';
+    USING (
+        (SELECT internal.is_admin())
+        OR author_id = (SELECT auth.uid())
+        OR EXISTS (
+            SELECT 1 FROM public.forum_posts fp
+            JOIN public.classes c ON c.id = fp.class_id
+            WHERE fp.id = forum_replies.post_id AND c.educator_id = (SELECT auth.uid())
+        )
+    );
+COMMENT ON POLICY forum_replies_update_authorized ON forum_replies IS 'Authors edit their own replies; class educators and admins may UPDATE to moderate. internal.protect_forum_reply_integrity restricts what each role can change — educators can only tombstone (set is_deleted + blank content), never rewrite a member''s words.';
 
 CREATE POLICY forum_replies_delete_authorized ON forum_replies
     FOR DELETE TO authenticated
@@ -422,6 +432,36 @@ CREATE POLICY forum_post_upvotes_delete_self ON forum_post_upvotes
     FOR DELETE TO authenticated
     USING ((SELECT internal.is_admin()) OR user_id = (SELECT auth.uid()));
 COMMENT ON POLICY forum_post_upvotes_delete_self ON forum_post_upvotes IS 'Permits self-rescission of an endorsement, alongside administrative override for moderation.';
+
+/* ----- FORUM REPLY UPVOTES ----- */
+CREATE POLICY forum_reply_upvotes_select_authorized ON forum_reply_upvotes
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR EXISTS (
+            SELECT 1 FROM public.forum_replies fr
+            JOIN public.forum_posts fp ON fp.id = fr.post_id
+            WHERE fr.id = forum_reply_upvotes.reply_id AND fp.class_id IN (SELECT internal.get_user_class_ids())
+        )
+    );
+COMMENT ON POLICY forum_reply_upvotes_select_authorized ON forum_reply_upvotes IS 'Mirrors reply visibility — endorsements are visible only to users authorised to access the parent post''s class context.';
+
+CREATE POLICY forum_reply_upvotes_insert_self ON forum_reply_upvotes
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        user_id = (SELECT auth.uid())
+        AND EXISTS (
+            SELECT 1 FROM public.forum_replies fr
+            JOIN public.forum_posts fp ON fp.id = fr.post_id
+            WHERE fr.id = forum_reply_upvotes.reply_id AND fp.class_id IN (SELECT internal.get_user_class_ids())
+        )
+    );
+COMMENT ON POLICY forum_reply_upvotes_insert_self ON forum_reply_upvotes IS 'Permits a user to register a single endorsement against a reply within their authorisation perimeter. The composite primary key structurally prevents duplicate votes.';
+
+CREATE POLICY forum_reply_upvotes_delete_self ON forum_reply_upvotes
+    FOR DELETE TO authenticated
+    USING ((SELECT internal.is_admin()) OR user_id = (SELECT auth.uid()));
+COMMENT ON POLICY forum_reply_upvotes_delete_self ON forum_reply_upvotes IS 'Permits self-rescission of a reply endorsement, alongside administrative override for moderation.';
 
 /* ----- EDUCATOR PROFILES ----- */
 CREATE POLICY educator_profiles_select_self_or_admin ON educator_profiles

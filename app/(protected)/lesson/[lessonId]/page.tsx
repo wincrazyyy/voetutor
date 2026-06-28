@@ -59,11 +59,13 @@ export default async function LessonPlayerPage({
     (profile.role === "admin" || isOwner ? classIds[0] : null);
   if (!classId) notFound();
 
-  const [curriculum, qaThreads, progress] = await Promise.all([
+  const [curriculum, qaThreads, progress, clsRow] = await Promise.all([
     getCurriculumForClass(classId, profile.id),
-    getQAThreadsForVideo(lessonId, classId),
+    getQAThreadsForVideo(lessonId, classId, profile.id),
     getVideoProgress(profile.id, lessonId),
+    supabase.from("classes").select("educator_id").eq("id", classId).maybeSingle(),
   ]);
+  const classEducatorId = (clsRow.data as { educator_id: string | null } | null)?.educator_id ?? null;
 
   /* A playback token is minted only for a fully encoded video. If Cloudflare
      is not configured the token mint fails softly and the player shows a
@@ -97,6 +99,7 @@ export default async function LessonPlayerPage({
       initialWatchSeconds={intervalToSeconds(progress?.total_watch_time ?? null)}
       initialCompleted={progress?.is_completed ?? false}
       userId={profile.id}
+      classEducatorId={classEducatorId}
     />
   );
 }
