@@ -5,14 +5,19 @@ import { createClient } from "@supabase/supabase-js";
  * Service-role Supabase client. Bypasses ALL row-level security.
  *
  * SECURITY BOUNDARY: this module may be imported ONLY by trusted server
- * route handlers that perform their own authorization first:
+ * code that performs its own authorization FIRST:
  *   1. the Cloudflare Stream webhook route (authenticates by HMAC signature);
  *   2. the note download route (app/api/resources/[id]/download), which
  *      RLS-checks the caller's access to the resources row with the regular
  *      user client BEFORE using this client to mint a signed URL — the
  *      service-role client is used only for the storage mint, never to read
  *      rows on the user's behalf.
- * It must never be imported by a client component, a user-facing server
+ *   3. deleteEducatorAccountAction (app/actions/educators.ts), which verifies
+ *      the caller is an admin (and not deleting themselves) with the regular
+ *      user session BEFORE constructing this client — it then needs the
+ *      service role both to delete the auth.users row (auth admin API) and to
+ *      DELETE rows that have no profiles DELETE policy under FORCE RLS.
+ * It must never be imported by a client component, an UNAUTHORIZED server
  * action, a page, or a layout. The `server-only` import turns any such
  * misuse into a build error.
  */

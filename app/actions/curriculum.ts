@@ -405,6 +405,87 @@ export async function reorderPlacedNotesAction(
   return reorderPlacements("resource_placements", classId, parent, orderedPlacementIds, auth.profile);
 }
 
+/** Persists the class's topic order — each id's order_index becomes its position in the list. */
+export async function reorderTopicsAction(
+  classId: string,
+  orderedTopicIds: string[],
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+
+  const supabase = await createClient();
+  if (!(await ownsClass(supabase, classId, auth.profile))) {
+    return { error: "You don't have permission to edit this class." };
+  }
+  if (orderedTopicIds.length === 0) return { ok: true };
+
+  const { data: rows } = await supabase
+    .from("topics")
+    .select("id")
+    .eq("class_id", classId)
+    .in("id", orderedTopicIds);
+  if (((rows ?? []) as Array<{ id: string }>).length !== orderedTopicIds.length) {
+    return { error: "Some topics are not in this class." };
+  }
+
+  const results = await Promise.all(
+    orderedTopicIds.map((id, index) => supabase.from("topics").update({ order_index: index }).eq("id", id)),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
+
+  revalidatePath(`/class/${classId}`);
+  return { ok: true };
+}
+
+/**
+ * Persists a topic's ordered subtopic membership — each id is set to (topic_id = topicId, order_index =
+ * position). Covers reordering within a topic AND moving a subtopic into another topic of the same class
+ * (same-class reparent, so internal.protect_subtopic_class_lineage early-exits).
+ */
+export async function reorderSubtopicsAction(
+  classId: string,
+  topicId: string,
+  orderedSubtopicIds: string[],
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+
+  const supabase = await createClient();
+  if (!(await ownsClass(supabase, classId, auth.profile))) {
+    return { error: "You don't have permission to edit this class." };
+  }
+
+  const { data: topicRow } = await supabase
+    .from("topics")
+    .select("id")
+    .eq("id", topicId)
+    .eq("class_id", classId)
+    .maybeSingle();
+  if (!topicRow) return { error: "That topic is not in this class." };
+  if (orderedSubtopicIds.length === 0) return { ok: true };
+
+  const { data: subRows } = await supabase
+    .from("subtopics")
+    .select("id, topics!inner(class_id)")
+    .in("id", orderedSubtopicIds)
+    .eq("topics.class_id", classId);
+  if (((subRows ?? []) as unknown as Array<{ id: string }>).length !== orderedSubtopicIds.length) {
+    return { error: "Some subtopics are not in this class." };
+  }
+
+  const results = await Promise.all(
+    orderedSubtopicIds.map((id, index) =>
+      supabase.from("subtopics").update({ topic_id: topicId, order_index: index }).eq("id", id),
+    ),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
+
+  revalidatePath(`/class/${classId}`);
+  return { ok: true };
+}
+
 export async function renameVideoAction(
   videoId: string,
   classId: string | null,

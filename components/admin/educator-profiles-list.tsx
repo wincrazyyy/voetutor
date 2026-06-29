@@ -6,6 +6,7 @@ import { ExternalLink, Inbox, Pencil, Search, ShieldCheck, Star } from "lucide-r
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DeleteEducatorButton } from "@/components/admin/delete-educator-button";
 import type { EducatorProfile, Profile } from "@/lib/types/database";
 import { getDisplayName, getInitials } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 interface EducatorProfilesListProps {
   educators: Profile[];
   educatorProfiles: Record<string, EducatorProfile>;
+  currentUserId: string;
 }
 
 type ProfileState = "live" | "draft" | "none";
@@ -35,7 +37,7 @@ const STATE_PILL: Record<ProfileState, { label: string; className: string }> = {
   none: { label: "No profile yet", className: "bg-muted text-muted-foreground" },
 };
 
-export function EducatorProfilesList({ educators, educatorProfiles }: EducatorProfilesListProps) {
+export function EducatorProfilesList({ educators, educatorProfiles, currentUserId }: EducatorProfilesListProps) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -185,6 +187,9 @@ export function EducatorProfilesList({ educators, educatorProfiles }: EducatorPr
                     <Pencil className="h-4 w-4" />
                   </Link>
                 </Button>
+                {educator.id !== currentUserId ? (
+                  <DeleteEducatorButton educatorId={educator.id} educatorName={name} />
+                ) : null}
               </div>
             </Card>
           );

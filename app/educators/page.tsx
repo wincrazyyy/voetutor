@@ -58,7 +58,11 @@ export default async function EducatorsDirectoryPage({
                 .
               </p>
             </div>
-            <EducatorProfilesList educators={educators} educatorProfiles={educatorProfiles} />
+            <EducatorProfilesList
+              educators={educators}
+              educatorProfiles={educatorProfiles}
+              currentUserId={profile.id}
+            />
           </div>
         </main>
       </div>
