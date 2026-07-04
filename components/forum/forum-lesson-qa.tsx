@@ -8,7 +8,8 @@ import { ArrowRight, MessageSquare, Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FORUM_LIMITS } from "@/lib/forum/limits";
-import { getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { getDisplayName, relativeTime } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { ForumPostListItem, ForumReplyWithAuthor } from "@/lib/queries/forum";
 import { ForumReplyComposer } from "@/components/forum/forum-reply-composer";
 import { ForumUpvoteButton } from "@/components/forum/forum-upvote-button";
@@ -152,11 +153,6 @@ function LessonThread({
     thread.author?.last_name ?? null,
     thread.author?.display_name ?? null,
   );
-  const studentInitials = getInitials(
-    thread.author?.first_name ?? null,
-    thread.author?.last_name ?? null,
-    thread.author?.display_name ?? null,
-  );
   const threadByEducator = Boolean(classEducatorId) && thread.author?.id === classEducatorId;
 
   return (
@@ -171,9 +167,13 @@ function LessonThread({
             size="sm"
           />
         </div>
-        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0 text-muted-foreground">
-          {studentInitials}
-        </div>
+        <UserAvatar
+          avatarUrl={thread.author?.avatar_url ?? null}
+          firstName={thread.author?.first_name ?? null}
+          lastName={thread.author?.last_name ?? null}
+          displayName={thread.author?.display_name ?? null}
+          size={32}
+        />
         <div className="flex flex-col gap-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
@@ -199,11 +199,6 @@ function LessonThread({
             const replyName = reply.is_deleted
               ? "[deleted]"
               : getDisplayName(reply.author?.first_name ?? null, reply.author?.last_name ?? null, reply.author?.display_name ?? null);
-            const replyInitials = getInitials(
-              reply.author?.first_name ?? null,
-              reply.author?.last_name ?? null,
-              reply.author?.display_name ?? null,
-            );
             const replyByEducator = Boolean(classEducatorId) && reply.author?.id === classEducatorId;
             return (
               <div key={reply.id} className="flex items-start gap-2">
@@ -219,13 +214,19 @@ function LessonThread({
                     />
                   </div>
                 )}
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                    replyByEducator ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {reply.is_deleted ? "–" : replyInitials}
-                </div>
+                {reply.is_deleted ? (
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-primary/10 text-[10px] font-bold text-primary">
+                    –
+                  </div>
+                ) : (
+                  <UserAvatar
+                    avatarUrl={reply.author?.avatar_url ?? null}
+                    firstName={reply.author?.first_name ?? null}
+                    lastName={reply.author?.last_name ?? null}
+                    displayName={reply.author?.display_name ?? null}
+                    size={24}
+                  />
+                )}
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <div className="flex items-baseline gap-2">
                     <span className="text-sm font-bold text-foreground flex items-center gap-1.5">

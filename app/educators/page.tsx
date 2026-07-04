@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search, UserCheck, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
-import { Sidebar } from "@/components/layout/sidebar";
 import { EducatorCard } from "@/components/educators/educator-card";
-import { EducatorProfilesList } from "@/components/admin/educator-profiles-list";
 import { listPublishedEducators } from "@/lib/queries/educators-directory";
-import { getCurrentProfile } from "@/lib/queries/profile";
-import { getAllPlatformEducators } from "@/lib/queries/educator-approvals";
-import { getEducatorProfilesByIds } from "@/lib/queries/educator-profiles";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -25,50 +20,14 @@ function matches(text: string | null | undefined, q: string): boolean {
   return Boolean(text && text.toLowerCase().includes(q));
 }
 
+/* PUBLIC directory — the same view for everyone (anon, students, educators, and admins). Admins manage
+   educator profiles in the separate /admin/educators console (reached from the sidebar), so this route
+   no longer role-resolves. */
 export default async function EducatorsDirectoryPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; subject?: string }>;
 }) {
-  const profile = await getCurrentProfile();
-
-  /* Role-resolved: the same /educators URL is the public directory for everyone, but admins get the
-     management console (edit any educator's profile + reviews) rendered inside the app sidebar chrome. */
-  if (profile?.role === "admin") {
-    const educators = await getAllPlatformEducators();
-    const educatorProfiles = await getEducatorProfilesByIds(educators.map((e) => e.id));
-
-    return (
-      <div className="flex h-screen w-full overflow-hidden bg-background">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-muted/20">
-          <div className="p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
-                <Users className="w-7 h-7 text-primary" />
-                Educator Profiles
-              </h1>
-              <p className="text-muted-foreground">
-                View and edit any educator&apos;s public profile and reviews. To approve pending
-                educators, use{" "}
-                <Link href="/approvals" className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-2">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Approvals
-                </Link>
-                .
-              </p>
-            </div>
-            <EducatorProfilesList
-              educators={educators}
-              educatorProfiles={educatorProfiles}
-              currentUserId={profile.id}
-            />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   const { q, subject } = await searchParams;
   const query = (q ?? "").trim().toLowerCase();
   const subjectFilter = (subject ?? "").trim().toLowerCase();

@@ -9,6 +9,7 @@ import {
   manageReviewsToPublic,
 } from "@/lib/queries/educator-reviews";
 import { getCurrentProfile } from "@/lib/queries/profile";
+import { isClassBrowseEnabled } from "@/lib/config/features";
 import { VoeWordmark } from "@/components/brand/vault-mark";
 import { ProfileHeader } from "@/components/profile/public/profile-header";
 import { ReviewsSection } from "@/components/profile/public/reviews-section";
@@ -76,6 +77,7 @@ export default async function EducatorPublicProfilePage({ params }: PageProps) {
   if (!loaded) notFound();
 
   const { profile, isOwnerPreview } = loaded;
+  const browseEnabled = isClassBrowseEnabled();
   const name = getDisplayName(profile.first_name, profile.last_name, profile.display_name);
   const hasBody = (profile.profile_doc?.sections?.length ?? 0) > 0;
   /* Published page reads the public RPC; an owner previewing a draft reads their own rows (the RPC
@@ -91,9 +93,11 @@ export default async function EducatorPublicProfilePage({ params }: PageProps) {
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <VoeWordmark />
           </Link>
-          <Link href="/classes" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Browse classes
-          </Link>
+          {browseEnabled ? (
+            <Link href="/classes" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+              Browse classes
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -112,7 +116,7 @@ export default async function EducatorPublicProfilePage({ params }: PageProps) {
       ) : null}
 
       <main className="mx-auto flex max-w-3xl flex-col px-5 sm:px-8">
-        <ProfileHeader profile={profile} />
+        <ProfileHeader profile={profile} showClassesCta={browseEnabled} />
 
         <div className="h-px w-full bg-primary/40" aria-hidden />
 

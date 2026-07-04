@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 function VerifyForm() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const next = safeNext(searchParams.get("next"), "/dashboard");
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +43,7 @@ function VerifyForm() {
       });
       
       if (error) throw error;
-      router.push("/dashboard"); 
+      router.push(next);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

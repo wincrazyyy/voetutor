@@ -6,7 +6,8 @@ import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } fro
 import { ArrowRight, BadgeCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { getDisplayName, getInitials, formatPrice } from "@/lib/utils/format";
+import { getDisplayName, formatPrice } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { PublicEducatorCard } from "@/lib/types/database";
 
 function clamp(v: number, lo: number, hi: number) {
@@ -34,25 +35,19 @@ function rateLabel(cents: number | null): string {
  *  `translateZ` so the 3D variant gets real depth-parallax as the card tilts (preserve-3d on parent). */
 function CardInner({ educator }: { educator: PublicEducatorCard }) {
   const name = getDisplayName(educator.first_name, educator.last_name, educator.display_name);
-  const initials = getInitials(educator.first_name, educator.last_name, educator.display_name);
   const tags = (educator.subject_tags ?? []).filter(Boolean);
 
   return (
     <div className="relative flex h-full flex-col gap-4 rounded-[var(--radius)] bg-card p-5">
       <div className="flex items-start gap-3">
         <div style={{ transform: "translateZ(40px)" }} className="shrink-0">
-          {educator.avatar_url ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={educator.avatar_url}
-              alt=""
-              className="h-14 w-14 rounded-full border border-border object-cover"
-            />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-primary/10 text-base font-bold text-primary">
-              {initials}
-            </div>
-          )}
+          <UserAvatar
+            avatarUrl={educator.avatar_url}
+            firstName={educator.first_name}
+            lastName={educator.last_name}
+            displayName={educator.display_name}
+            size="lg"
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

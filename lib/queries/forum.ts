@@ -12,10 +12,10 @@ export interface ForumPostListItem extends ForumPost {
 }
 
 const POST_SELECT =
-  "id, class_id, author_id, type, video_id, title, content, upvotes, is_resolved, is_pinned, created_at, updated_at, author:profiles_public!forum_posts_author_id_fkey(id, first_name, last_name, display_name, role, is_approved), videos(id, title)";
+  "id, class_id, author_id, type, video_id, title, content, upvotes, is_resolved, is_pinned, created_at, updated_at, author:profiles_public!forum_posts_author_id_fkey(id, first_name, last_name, display_name, role, is_approved, avatar_url), videos(id, title)";
 
 const REPLY_SELECT =
-  "id, post_id, parent_reply_id, author_id, content, upvotes, is_deleted, created_at, updated_at, author:profiles_public!forum_replies_author_id_fkey(id, first_name, last_name, display_name, role, is_approved)";
+  "id, post_id, parent_reply_id, author_id, content, upvotes, is_deleted, created_at, updated_at, author:profiles_public!forum_replies_author_id_fkey(id, first_name, last_name, display_name, role, is_approved, avatar_url)";
 
 type RawPostRow = ForumPost & {
   author: ProfilePublic | null;

@@ -145,6 +145,7 @@ export async function deleteEducatorAccountAction(
 
   revalidatePath("/", "layout");
   revalidatePath("/educators");
+  revalidatePath("/admin/educators");
   revalidatePath("/classes");
   revalidatePath("/dashboard");
   revalidatePath("/reports");

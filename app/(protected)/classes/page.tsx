@@ -3,6 +3,7 @@ import { Store } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getPublishedClasses } from "@/lib/queries/marketplace";
+import { isClassBrowseEnabled } from "@/lib/config/features";
 import { Card } from "@/components/ui/card";
 import { MarketplaceList } from "@/components/classes/marketplace-list";
 import { AdminClassesList } from "@/components/admin/admin-classes-list";
@@ -17,6 +18,7 @@ export default async function ClassesPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/auth/login");
   if (profile.role === "educator" && !profile.is_approved) redirect("/pending");
+  if (profile.role !== "admin" && !isClassBrowseEnabled()) redirect("/dashboard");
 
   if (profile.role === "admin") {
     const classes = await getAllClassesForAdmin();

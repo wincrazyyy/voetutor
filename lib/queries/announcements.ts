@@ -8,7 +8,7 @@ export interface AnnouncementWithAuthor extends Announcement {
 }
 
 const ANNOUNCEMENT_SELECT =
-  "id, class_id, author_id, title, content, type, link_title, link_url, image_alt, image_url, event_at, created_at, updated_at, classes!inner(code), author:profiles_public!announcements_author_id_fkey(id, first_name, last_name, display_name, role, is_approved)";
+  "id, class_id, author_id, title, content, type, link_title, link_url, image_alt, image_url, event_at, created_at, updated_at, classes!inner(code), author:profiles_public!announcements_author_id_fkey(id, first_name, last_name, display_name, role, is_approved, avatar_url)";
 
 type RawRow = Announcement & {
   classes: { code: string } | null;

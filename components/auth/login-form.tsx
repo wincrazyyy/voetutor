@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
+  const searchParams = useSearchParams();
+  /** Same-origin-guarded return path (e.g. an invite link); empty when absent or unsafe. */
+  const next = safeNext(searchParams.get("next"), "");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +31,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
-      router.push("/dashboard");
+      router.push(next || "/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
     } finally {
@@ -79,7 +84,10 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
       <div className="text-center text-sm text-muted-foreground">
         New to VOETutor?{" "}
-        <Link href="/auth/sign-up" className="text-primary font-semibold hover:underline">
+        <Link
+          href={next ? `/auth/sign-up?next=${encodeURIComponent(next)}` : "/auth/sign-up"}
+          className="text-primary font-semibold hover:underline"
+        >
           Create an account
         </Link>
       </div>

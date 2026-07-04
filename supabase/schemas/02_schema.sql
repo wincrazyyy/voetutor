@@ -12,6 +12,7 @@ CREATE TABLE profiles (
     first_name TEXT CHECK (first_name IS NULL OR char_length(first_name) <= 100),
     last_name TEXT CHECK (last_name IS NULL OR char_length(last_name) <= 100),
     display_name TEXT CHECK (display_name IS NULL OR char_length(display_name) <= 100),
+    avatar_url TEXT CHECK (avatar_url IS NULL OR (char_length(avatar_url) <= 2048 AND avatar_url ~* '^https://')),
     role user_role DEFAULT 'student'::user_role NOT NULL,
     is_approved BOOLEAN DEFAULT TRUE NOT NULL,
     approved_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -23,6 +24,7 @@ COMMENT ON TABLE profiles IS 'Extended user profile data maintaining a strict 1:
 COMMENT ON COLUMN profiles.role IS 'Literal role declared at signup. Note: this is NOT the effective authorisation level — read internal.get_user_role() instead, which folds unapproved educators back to ''student''.';
 COMMENT ON COLUMN profiles.is_approved IS 'Approval gate. Defaults to TRUE for students (no review needed) and is forced to FALSE by internal.handle_new_user when intended_role is educator. Only an admin may flip this column (enforced by internal.protect_profile_role).';
 COMMENT ON COLUMN profiles.approved_by IS 'The admin who flipped is_approved from FALSE to TRUE, captured for audit trail. Set automatically by approve_educator().';
+COMMENT ON COLUMN profiles.avatar_url IS 'The universal account avatar for ANY user (students included), set in Settings and uploaded to the public owner-keyed `avatars` bucket. This is the identity chip shown app-wide (navbar, forum, announcements) via profiles_public. Distinct from educator_profiles.avatar_url, which is the public sales-page masthead photo; profiles_public COALESCEs this first so a Settings avatar wins but an educator with only a masthead photo still shows it. Self-updatable (not locked by protect_profile_role); origin-pinned to the caller''s avatars/{uid}/ prefix by updateAvatarAction.';
 
 CREATE INDEX idx_profiles_approved_by ON profiles(approved_by);
 
@@ -43,14 +45,6 @@ CREATE TRIGGER on_auth_user_created
 CREATE TRIGGER set_profiles_updated_at
     BEFORE UPDATE ON profiles
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
-
-CREATE VIEW public.profiles_public
-WITH (security_invoker = off) AS
-SELECT id, first_name, last_name, display_name, role, is_approved
-FROM public.profiles;
-COMMENT ON VIEW public.profiles_public IS 'Sanctioned cross-user projection of the profiles table. Runs with security_invoker = off (deliberate — the supabase security checklist flags this as the default to avoid, but here it is the design): the view bypasses RLS on profiles and returns the listed columns regardless of who is asking. Safety comes from (a) the column list itself being the access boundary, deliberately omitting created_at/updated_at and any future sensitive fields, and (b) the SELECT GRANT being limited to the authenticated role. App code MUST JOIN against this view (not the underlying table) when rendering another user''s identity in forums, Q&A, marketplace, etc. Any column added here becomes universally readable to every authenticated user — gate via a SECURITY DEFINER function instead if per-row filtering is needed.';
-
-GRANT SELECT ON public.profiles_public TO authenticated;
 
 CREATE TABLE educator_profiles (
     educator_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -104,6 +98,16 @@ CREATE TRIGGER set_educator_profile_published_at
 CREATE TRIGGER enforce_educator_admin_fields
     BEFORE INSERT OR UPDATE ON educator_profiles
     FOR EACH ROW EXECUTE PROCEDURE internal.protect_educator_admin_fields();
+
+CREATE VIEW public.profiles_public
+WITH (security_invoker = off) AS
+SELECT p.id, p.first_name, p.last_name, p.display_name, p.role, p.is_approved,
+       COALESCE(p.avatar_url, ep.avatar_url) AS avatar_url
+FROM public.profiles p
+LEFT JOIN public.educator_profiles ep ON ep.educator_id = p.id;
+COMMENT ON VIEW public.profiles_public IS 'Sanctioned cross-user projection of the profiles table (LEFT JOINed to educator_profiles for the public avatar_url). Runs with security_invoker = off (deliberate — the supabase security checklist flags this as the default to avoid, but here it is the design): the view bypasses RLS on profiles AND educator_profiles and returns the listed columns regardless of who is asking. Safety comes from (a) the column list itself being the access boundary, deliberately omitting created_at/updated_at and any future sensitive fields, and (b) the SELECT GRANT being limited to the authenticated role. avatar_url is COALESCE(profiles.avatar_url, educator_profiles.avatar_url) — the Settings account avatar (public `avatars` bucket, any user) wins, falling back to the educator masthead photo; non-sensitive (already public and served from public buckets); NULL when neither is set. App code MUST JOIN against this view (not the underlying table) when rendering another user''s identity in forums, Q&A, marketplace, etc. Any column added here becomes universally readable to every authenticated user — gate via a SECURITY DEFINER function instead if per-row filtering is needed. Defined AFTER educator_profiles so db diff''s in-order rebuild can resolve the join.';
+
+GRANT SELECT ON public.profiles_public TO authenticated;
 
 /* ----------------------------------------- */
 
@@ -215,6 +219,41 @@ COMMENT ON TABLE class_enrollments IS 'Resolves the many-to-many relationship be
 COMMENT ON COLUMN class_enrollments.user_id IS 'Acts as the leading column in the primary key B-tree, implicitly indexing queries filtering strictly by user_id.';
 
 CREATE INDEX idx_class_enrollments_class_id ON class_enrollments(class_id);
+
+/* ----------------------------------------- */
+
+CREATE TABLE class_invites (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(24), 'hex')
+        CHECK (char_length(token) BETWEEN 16 AND 128),
+    class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    email TEXT CHECK (email IS NULL OR char_length(email) <= 255),
+    note TEXT CHECK (note IS NULL OR char_length(note) <= 200),
+    expires_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    redeemed_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    redeemed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+COMMENT ON TABLE class_invites IS 'Single-use, per-student invite links for manual (off-platform payment) enrollment. An educator or admin generates a secret token URL for one class and hands it to the student manually; the student redeems it via the redeem_class_invite RPC, which enrols them bypassing the marketplace. Optional email binding, optional expiry, revocable via revoked_at. Students never touch this table directly — the anon-callable get_class_invite_preview RPC and the authenticated redeem_class_invite RPC are the only student-facing surfaces.';
+COMMENT ON COLUMN class_invites.token IS 'The invite secret: 24 random bytes hex-encoded (48 chars, 192 bits) generated by the DB default. Mirrors the classes.code gen_random_bytes pattern but secret-grade and non-enumerable. The create action inserts and reads it back via RETURNING token.';
+COMMENT ON COLUMN class_invites.email IS 'Optional binding to the invitee''s email, stored lowercased by the action. NULL means anyone holding the link may redeem it — the default expectation for a manually shared secret link.';
+COMMENT ON COLUMN class_invites.created_by IS 'ON DELETE SET NULL is non-essential bookkeeping: deleting an educator account deletes their classes first (deleteEducatorAccountAction), which cascades the invites away before the profile row goes.';
+COMMENT ON COLUMN class_invites.redeemed_at IS 'Single-use marker. redeemed_by / redeemed_at are written only by the redeem_class_invite RPC; set means the invite is spent (idempotent for the same redeemer, rejected for anyone else).';
+
+CREATE INDEX idx_class_invites_class_id ON class_invites(class_id);
+CREATE INDEX idx_class_invites_created_by ON class_invites(created_by);
+CREATE INDEX idx_class_invites_redeemed_by ON class_invites(redeemed_by);
+
+CREATE TRIGGER set_class_invites_updated_at
+    BEFORE UPDATE ON class_invites
+    FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+CREATE TRIGGER enforce_immutability_class_invites
+    BEFORE UPDATE ON class_invites
+    FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
 
 /* ----------------------------------------- */
 

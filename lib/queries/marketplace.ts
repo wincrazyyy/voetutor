@@ -38,7 +38,7 @@ export async function getPublishedClasses(excludeUserId?: string): Promise<Marke
   if (educatorIds.length > 0) {
     const { data: educators } = await supabase
       .from("profiles_public")
-      .select("id, first_name, last_name, display_name, role, is_approved")
+      .select("id, first_name, last_name, display_name, role, is_approved, avatar_url")
       .in("id", educatorIds);
     educatorMap = new Map(
       ((educators ?? []) as ProfilePublic[]).map((e) => [e.id, e]),

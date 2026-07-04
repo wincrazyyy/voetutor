@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { EducatorProfile, Profile } from "@/lib/types/database";
-import { getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { getDisplayName, relativeTime } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface EducatorsListProps {
   educators: Profile[];
@@ -61,7 +62,6 @@ function EducatorCard({
   const [expanded, setExpanded] = useState(filter === "pending");
 
   const name = getDisplayName(educator.first_name, educator.last_name, educator.display_name);
-  const initials = getInitials(educator.first_name, educator.last_name, educator.display_name);
 
   const handleApprove = () => {
     setError(null);
@@ -94,9 +94,13 @@ function EducatorCard({
     <Card className="p-5 border-border bg-card shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-            {initials}
-          </div>
+          <UserAvatar
+            avatarUrl={extra?.avatar_url ?? null}
+            firstName={educator.first_name}
+            lastName={educator.last_name}
+            displayName={educator.display_name}
+            size="md"
+          />
           <div>
             <div className="font-semibold">{name}</div>
             <div className="text-xs text-muted-foreground mt-0.5">

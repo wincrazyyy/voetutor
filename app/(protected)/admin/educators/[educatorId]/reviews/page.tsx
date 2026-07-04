@@ -4,11 +4,13 @@ import { ArrowLeft } from "lucide-react";
 
 import { getCurrentProfile, getProfileById } from "@/lib/queries/profile";
 import { getEducatorProfile } from "@/lib/queries/educator-profiles";
+import { getReviewsForEducatorManage } from "@/lib/queries/educator-reviews";
+import { capabilitiesFor } from "@/lib/tiers/capabilities";
 import { Button } from "@/components/ui/button";
-import { ProfileBuilder } from "@/components/educator/profile-builder/profile-builder";
-import { EMPTY_EDUCATOR_PROFILE_DOC } from "@/lib/types/profile-doc";
+import { ReviewsManager } from "@/components/educator/reviews-manager";
+import { getDisplayName } from "@/lib/utils/format";
 
-export default async function AdminEditEducatorProfilePage({
+export default async function AdminEducatorReviewsPage({
   params,
 }: {
   params: Promise<{ educatorId: string }>;
@@ -23,35 +25,29 @@ export default async function AdminEditEducatorProfilePage({
   if (!target || (target.role !== "educator" && target.role !== "admin")) notFound();
 
   const ep = await getEducatorProfile(educatorId);
-  const initialDoc =
-    ep?.profile_doc && Array.isArray(ep.profile_doc.sections) ? ep.profile_doc : EMPTY_EDUCATOR_PROFILE_DOC;
+  const reviews = await getReviewsForEducatorManage(educatorId);
+  const maxReviews = capabilitiesFor(ep?.tier).maxReviews;
+  const name = getDisplayName(target.first_name, target.last_name, target.display_name);
 
   return (
     <div className="flex flex-col">
       <div className="mx-auto w-full max-w-3xl px-4 pt-4 sm:px-6">
-        <Link href="/educators">
+        <Link href="/admin/educators">
           <Button variant="ghost" size="sm" className="-ml-2 gap-2 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
             Back to educators
           </Button>
         </Link>
       </div>
-      <ProfileBuilder
-        adminEdit
-        educatorId={educatorId}
-        firstName={target.first_name}
-        lastName={target.last_name}
-        displayName={target.display_name}
-        isVerified={ep?.is_verified ?? false}
-        tier={ep?.tier ?? "basic"}
-        initialAvatarUrl={ep?.avatar_url ?? null}
-        initialRoleLabel={ep?.role_label ?? ""}
-        initialHeadline={ep?.headline ?? ""}
-        initialHourlyRateCents={ep?.hourly_rate_cents ?? null}
-        initialSubjectTags={ep?.subject_tags ?? []}
-        initialDoc={initialDoc}
-        initialPublished={ep?.is_published ?? false}
-      />
+      <div className="mx-auto w-full max-w-3xl p-4 sm:p-6">
+        <div className="mb-6">
+          <h1 className="text-xl font-black text-foreground">Reviews — {name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Add, edit, hide, or remove this educator&apos;s reviews.
+          </p>
+        </div>
+        <ReviewsManager reviews={reviews} educatorId={educatorId} maxReviews={maxReviews} adminEdit />
+      </div>
     </div>
   );
 }

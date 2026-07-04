@@ -1,0 +1,121 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Camera, Loader2, Trash2 } from "lucide-react";
+
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { Button } from "@/components/ui/button";
+import { uploadUserAvatar } from "@/lib/avatar/upload-avatar";
+import { updateAvatarAction } from "@/app/actions/avatar";
+
+interface AvatarUploaderProps {
+  userId: string;
+  /** The avatar shown today (account avatar, falling back to the educator masthead) — for display. */
+  avatarUrl: string | null;
+  /** Whether an account-level avatar is set (profiles.avatar_url) — gates the Remove button. */
+  hasCustomAvatar: boolean;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+}
+
+export function AvatarUploader({
+  userId,
+  avatarUrl,
+  hasCustomAvatar,
+  firstName,
+  lastName,
+  displayName,
+}: AvatarUploaderProps) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    const uploaded = await uploadUserAvatar(file, userId);
+    if (uploaded.error || !uploaded.url) {
+      setBusy(false);
+      setError(uploaded.error ?? "Upload failed. Please try again.");
+      return;
+    }
+    const saved = await updateAvatarAction(uploaded.url);
+    setBusy(false);
+    if (saved.error) {
+      setError(saved.error);
+      return;
+    }
+    router.refresh();
+  };
+
+  const onRemove = async () => {
+    setError(null);
+    setBusy(true);
+    const saved = await updateAvatarAction(null);
+    setBusy(false);
+    if (saved.error) {
+      setError(saved.error);
+      return;
+    }
+    router.refresh();
+  };
+
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0">
+        <UserAvatar
+          avatarUrl={avatarUrl}
+          firstName={firstName}
+          lastName={lastName}
+          displayName={displayName}
+          size={72}
+        />
+        {busy && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
+            <Camera className="h-4 w-4" />
+            {avatarUrl ? "Change photo" : "Upload photo"}
+          </Button>
+          {hasCustomAvatar && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={onRemove}
+              disabled={busy}
+              className="text-muted-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+              Remove
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          PNG, JPG, or WEBP, up to 5 MB. Shown next to your name across VOETutor.
+        </p>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={onFile}
+      />
+    </div>
+  );
+}

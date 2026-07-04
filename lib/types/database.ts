@@ -120,6 +120,7 @@ export interface Profile {
   first_name: string | null;
   last_name: string | null;
   display_name: string | null;
+  avatar_url: string | null;
   role: UserRole;
   is_approved: boolean;
   approved_by: string | null;
@@ -135,6 +136,7 @@ export interface ProfilePublic {
   display_name: string | null;
   role: UserRole;
   is_approved: boolean;
+  avatar_url: string | null;
 }
 
 export interface Class {
@@ -155,6 +157,35 @@ export interface ClassEnrollment {
   user_id: string;
   class_id: string;
   enrolled_at: string;
+}
+
+/** A row of the class_invites table — a single-use, per-student invite link for manual
+ *  (off-platform payment) enrollment into one class. Readable only by the class educator / admin. */
+export interface ClassInvite {
+  id: string;
+  token: string;
+  class_id: string;
+  created_by: string | null;
+  email: string | null;
+  note: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  redeemed_by: string | null;
+  redeemed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClassInvitePreviewReason = "revoked" | "redeemed" | "expired" | "valid";
+
+/** Return shape of the public.get_class_invite_preview RPC — the anon-safe summary shown on the
+ *  invite landing page (class title + educator name only; never email/note/created_by). */
+export interface ClassInvitePreview {
+  class_id: string;
+  class_title: string;
+  educator_name: string;
+  redeemable: boolean;
+  reason: ClassInvitePreviewReason;
 }
 
 export interface Topic {

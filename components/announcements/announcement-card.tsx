@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { AnnouncementWithAuthor } from "@/lib/queries/announcements";
-import { getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { getDisplayName, relativeTime } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { ForumMarkdown } from "@/components/forum/forum-markdown";
 import { AnnouncementActions } from "@/components/announcements/announcement-actions";
 import { EventDate } from "@/components/announcements/event-date";
@@ -33,20 +34,18 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
     ann.author?.last_name ?? null,
     ann.author?.display_name ?? null,
   );
-  const authorInitials = getInitials(
-    ann.author?.first_name ?? null,
-    ann.author?.last_name ?? null,
-    ann.author?.display_name ?? null,
-  );
-
   return (
     <Card className={cn("p-6 bg-card border shadow-sm transition-all hover:shadow-md", isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border")}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           {unread && <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-label="Unread" />}
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-            {authorInitials}
-          </div>
+          <UserAvatar
+            avatarUrl={ann.author?.avatar_url ?? null}
+            firstName={ann.author?.first_name ?? null}
+            lastName={ann.author?.last_name ?? null}
+            displayName={ann.author?.display_name ?? null}
+            size={40}
+          />
           <div>
             <div className="font-bold text-sm text-foreground flex items-center gap-2">
               {authorName}

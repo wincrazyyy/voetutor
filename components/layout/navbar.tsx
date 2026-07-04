@@ -13,7 +13,7 @@ export function Navbar() {
           </Link>
         </div>
         <div className="flex items-center gap-4">
-          <Suspense fallback={<div className="h-8 w-20 bg-muted animate-pulse rounded-md" />}>
+          <Suspense fallback={<div className="h-9 w-32 bg-muted animate-pulse rounded-full" />}>
             <AuthButton />
           </Suspense>
         </div>

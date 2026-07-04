@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ForumPostListItem } from "@/lib/queries/forum";
-import { getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { getDisplayName, relativeTime } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { stripMarkdown } from "@/lib/forum/strip-markdown";
 import { ForumUpvoteButton } from "@/components/forum/forum-upvote-button";
 
@@ -35,12 +36,6 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
           post.author?.last_name ?? null,
           post.author?.display_name ?? null,
         );
-        const authorInitials = getInitials(
-          post.author?.first_name ?? null,
-          post.author?.last_name ?? null,
-          post.author?.display_name ?? null,
-        );
-
         return (
           <Card
             key={post.id}
@@ -62,9 +57,13 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
               <div className="flex-1 p-4 sm:p-5 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[9px]">
-                      {authorInitials}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={post.author?.avatar_url ?? null}
+                      firstName={post.author?.first_name ?? null}
+                      lastName={post.author?.last_name ?? null}
+                      displayName={post.author?.display_name ?? null}
+                      size={20}
+                    />
                     <span className="font-semibold text-foreground">{authorName}</span>
                     {classEducatorId && post.author?.id === classEducatorId && (
                       <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">

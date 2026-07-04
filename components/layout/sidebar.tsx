@@ -8,6 +8,7 @@ import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
 import { getPendingReportCount } from "@/lib/queries/class-reports";
 import { getUnreadAnnouncementCountsByClass } from "@/lib/queries/announcements";
+import { isClassBrowseEnabled } from "@/lib/config/features";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
@@ -75,6 +76,7 @@ export async function Sidebar() {
         pendingReportCount={pendingReportCount}
         isPendingEducator={isPendingEducator}
         isPremium={isPremium}
+        browseEnabled={isClassBrowseEnabled()}
       />
 
       <div className="p-4 border-t border-border flex items-center gap-2 shrink-0">

@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FORUM_LIMITS } from "@/lib/forum/limits";
-import { getDisplayName, getInitials, relativeTime } from "@/lib/utils/format";
+import { getDisplayName, relativeTime } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { ForumReplyWithAuthor } from "@/lib/queries/forum";
 import { ForumUpvoteButton } from "@/components/forum/forum-upvote-button";
 import { ForumReplyComposer } from "@/components/forum/forum-reply-composer";
@@ -96,12 +97,6 @@ function ReplyNode({
   const authorName = reply.is_deleted
     ? "[deleted]"
     : getDisplayName(reply.author?.first_name ?? null, reply.author?.last_name ?? null, reply.author?.display_name ?? null);
-  const authorInitials = getInitials(
-    reply.author?.first_name ?? null,
-    reply.author?.last_name ?? null,
-    reply.author?.display_name ?? null,
-  );
-
   const saveEdit = () => {
     setError(null);
     startTransition(async () => {
@@ -148,9 +143,19 @@ function ReplyNode({
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[9px]">
-              {reply.is_deleted ? "–" : authorInitials}
-            </div>
+            {reply.is_deleted ? (
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-primary/10 text-[9px] font-bold text-primary">
+                –
+              </div>
+            ) : (
+              <UserAvatar
+                avatarUrl={reply.author?.avatar_url ?? null}
+                firstName={reply.author?.first_name ?? null}
+                lastName={reply.author?.last_name ?? null}
+                displayName={reply.author?.display_name ?? null}
+                size={20}
+              />
+            )}
             <span className={cn("font-semibold", reply.is_deleted ? "text-muted-foreground italic" : "text-foreground")}>
               {authorName}
             </span>

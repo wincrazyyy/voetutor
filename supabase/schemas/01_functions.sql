@@ -568,6 +568,96 @@ COMMENT ON FUNCTION public.enroll_in_free_class(UUID) IS 'Self-enrolment path fo
 REVOKE EXECUTE ON FUNCTION public.enroll_in_free_class(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.enroll_in_free_class(UUID) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.get_class_invite_preview(p_token TEXT)
+RETURNS TABLE (class_id UUID, class_title TEXT, educator_name TEXT, redeemable BOOLEAN, reason TEXT)
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        c.id,
+        c.title,
+        COALESCE(NULLIF(TRIM(COALESCE(pp.display_name, CONCAT_WS(' ', pp.first_name, pp.last_name))), ''), 'An educator'),
+        (ci.revoked_at IS NULL
+            AND ci.redeemed_at IS NULL
+            AND (ci.expires_at IS NULL OR ci.expires_at > NOW())),
+        CASE
+            WHEN ci.revoked_at IS NOT NULL THEN 'revoked'
+            WHEN ci.redeemed_at IS NOT NULL THEN 'redeemed'
+            WHEN ci.expires_at IS NOT NULL AND ci.expires_at <= NOW() THEN 'expired'
+            ELSE 'valid'
+        END
+    FROM public.class_invites ci
+    JOIN public.classes c ON c.id = ci.class_id
+    LEFT JOIN public.profiles_public pp ON pp.id = c.educator_id
+    WHERE ci.token = p_token;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.get_class_invite_preview(TEXT) IS 'Public (anon-callable) read boundary for the invite landing page: given the secret token, returns the class title, the educator''s display name, and whether the invite is still redeemable (with a reason of revoked / redeemed / expired / valid). Leaks nothing beyond the title + name — never email, note, or issuer — and returns zero rows for unknown tokens, so there is no existence oracle without holding the 192-bit secret. SECURITY DEFINER with empty search_path; the WHERE clause and column list ARE the boundary, following the get_public_educator_profile pattern.';
+
+REVOKE EXECUTE ON FUNCTION public.get_class_invite_preview(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_class_invite_preview(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.redeem_class_invite(p_token TEXT)
+RETURNS UUID AS $$
+DECLARE
+    v_uid       UUID := (SELECT auth.uid());
+    v_invite    public.class_invites%ROWTYPE;
+    v_educator  UUID;
+    v_caller_email TEXT;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'AUTH REQUIRED: Sign in to accept this invite.';
+    END IF;
+
+    SELECT * INTO v_invite FROM public.class_invites WHERE token = p_token FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'This invite link is not valid.';
+    END IF;
+    IF v_invite.revoked_at IS NOT NULL THEN
+        RAISE EXCEPTION 'This invite has been revoked.';
+    END IF;
+    IF v_invite.expires_at IS NOT NULL AND v_invite.expires_at <= NOW() THEN
+        RAISE EXCEPTION 'This invite has expired.';
+    END IF;
+
+    /* Idempotent: the same user re-opening their already-redeemed link just lands in the class. */
+    IF v_invite.redeemed_at IS NOT NULL THEN
+        IF v_invite.redeemed_by = v_uid THEN
+            INSERT INTO public.class_enrollments (user_id, class_id)
+            VALUES (v_uid, v_invite.class_id) ON CONFLICT (user_id, class_id) DO NOTHING;
+            RETURN v_invite.class_id;
+        END IF;
+        RAISE EXCEPTION 'This invite has already been used.';
+    END IF;
+
+    /* Optional email binding. */
+    IF v_invite.email IS NOT NULL THEN
+        SELECT email INTO v_caller_email FROM auth.users WHERE id = v_uid;
+        IF LOWER(v_caller_email) IS DISTINCT FROM LOWER(v_invite.email) THEN
+            RAISE EXCEPTION 'This invite was issued for a different email address.';
+        END IF;
+    END IF;
+
+    SELECT educator_id INTO v_educator FROM public.classes WHERE id = v_invite.class_id;
+    IF v_educator = v_uid THEN
+        RAISE EXCEPTION 'You teach this class — you cannot enrol as a student.';
+    END IF;
+
+    INSERT INTO public.class_enrollments (user_id, class_id)
+    VALUES (v_uid, v_invite.class_id) ON CONFLICT (user_id, class_id) DO NOTHING;
+
+    UPDATE public.class_invites
+    SET redeemed_by = v_uid, redeemed_at = NOW()
+    WHERE id = v_invite.id;
+
+    RETURN v_invite.class_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.redeem_class_invite(TEXT) IS 'The manual-payment enrollment writer. Validates the secret invite token (exists, not revoked, not expired), enforces single use (idempotent for the same caller — re-opening a redeemed link just re-lands them in the class; anyone else is rejected), honors the optional email binding against auth.users, and blocks the class educator from self-enrolling, then inserts the class_enrollments row and stamps redeemed_by / redeemed_at. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments, exactly like enroll_in_free_class. Deliberately does NOT require is_published or price_cents = 0 — the invite is an explicit grant for an externally-paid (possibly draft) class. SELECT ... FOR UPDATE locks the invite row so two concurrent redeems cannot both win the single use. Returns the class_id for the post-join redirect.';
+
+REVOKE EXECUTE ON FUNCTION public.redeem_class_invite(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.redeem_class_invite(TEXT) TO authenticated;
+
 /* ==========  EDUCATOR PUBLIC PROFILE  ==========
    Trigger functions, the tier helper, and the public / admin RPCs backing the educator public
    profile feature. The two trigger functions are PLAIN (no SECURITY DEFINER, no search_path pin),

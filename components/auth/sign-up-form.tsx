@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,12 @@ import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { validatePassword } from "@/lib/utils/password";
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
+  const searchParams = useSearchParams();
+  /** Same-origin-guarded return path (e.g. an invite link); empty when absent or unsafe. */
+  const next = safeNext(searchParams.get("next"), "");
+  /** Invite signups are always students — the role selector is hidden and the role forced. */
+  const isInviteFlow = next.startsWith("/invite/");
+
   const [role, setRole] = useState<SignUpRole>("student");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -42,20 +49,26 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
     setIsLoading(true);
     try {
       const supabase = createClient();
+      const effectiveRole: SignUpRole = isInviteFlow ? "student" : role;
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: next
+            ? `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`
+            : undefined,
           data: {
             first_name: firstName,
             last_name: lastName,
             display_name: `${firstName} ${lastName}`.trim(),
-            intended_role: role,
+            intended_role: effectiveRole,
           },
         },
       });
       if (signUpError) throw signUpError;
-      router.push(`/auth/verify?email=${encodeURIComponent(email)}&intent=${role}`);
+      const verifyParams = new URLSearchParams({ email, intent: effectiveRole });
+      if (next) verifyParams.set("next", next);
+      router.push(`/auth/verify?${verifyParams.toString()}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong while creating your account.");
     } finally {
@@ -68,15 +81,17 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
 
   return (
     <form onSubmit={handleSignUp} className={cn("flex flex-col gap-6", className)} {...props}>
-      <fieldset className="space-y-3" disabled={isLoading}>
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">I am signing up as</Label>
-        <RoleSelector value={role} onChange={setRole} disabled={isLoading} />
-        {isEducator && (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            After verifying your email, your account will sit in a pending state until an administrator approves it. You&apos;ll see a short notice page in the meantime.
-          </p>
-        )}
-      </fieldset>
+      {!isInviteFlow && (
+        <fieldset className="space-y-3" disabled={isLoading}>
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">I am signing up as</Label>
+          <RoleSelector value={role} onChange={setRole} disabled={isLoading} />
+          {isEducator && (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              After verifying your email, your account will sit in a pending state until an administrator approves it. You&apos;ll see a short notice page in the meantime.
+            </p>
+          )}
+        </fieldset>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1.5">
@@ -164,7 +179,10 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
 
       <div className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/auth/login" className="text-primary font-semibold hover:underline">
+        <Link
+          href={next ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login"}
+          className="text-primary font-semibold hover:underline"
+        >
           Log in
         </Link>
       </div>

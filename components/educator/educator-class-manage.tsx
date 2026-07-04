@@ -8,6 +8,7 @@ import {
   MessageSquare,
   PlayCircle,
   Settings,
+  UserPlus,
   Users,
 } from "lucide-react";
 
@@ -66,6 +67,12 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
             <p className="text-muted-foreground">Manage curriculum, post announcements, and track engagement.</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href={`/class/${classId}/invite`}>
+              <Button variant="outline" className="gap-2">
+                <UserPlus className="w-4 h-4" />
+                Invite Students
+              </Button>
+            </Link>
             <Link href={`/class/${classId}/edit`}>
               <Button variant="outline" className="gap-2">
                 <Settings className="w-4 h-4" />

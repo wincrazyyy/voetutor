@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
-import { Settings as SettingsIcon, User } from "lucide-react";
+import { Settings as SettingsIcon } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
+import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AvatarUploader } from "@/components/settings/avatar-uploader";
 import { getDisplayName } from "@/lib/utils/format";
 
 export default async function SettingsPage() {
@@ -11,6 +13,11 @@ export default async function SettingsPage() {
   if (!profile) redirect("/auth/login");
 
   const displayName = getDisplayName(profile.first_name, profile.last_name, profile.display_name);
+  const educatorProfile =
+    profile.role === "educator" || profile.role === "admin" ? await getEducatorProfile(profile.id) : null;
+  /* The account avatar (profiles.avatar_url) is what Settings manages; fall back to the educator
+     masthead photo for display so the chip here matches what shows in the navbar. */
+  const effectiveAvatarUrl = profile.avatar_url ?? educatorProfile?.avatar_url ?? null;
 
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
@@ -24,15 +31,24 @@ export default async function SettingsPage() {
 
       <Card className="p-6 border border-border shadow-sm bg-card">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="w-7 h-7 text-primary" />
-          </div>
           <div>
             <h2 className="text-lg font-bold">{displayName}</h2>
             <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-bold mt-1">
               {profile.role}
             </Badge>
           </div>
+        </div>
+
+        <div className="mb-6 border-b border-border pb-6">
+          <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-3">Avatar</div>
+          <AvatarUploader
+            userId={profile.id}
+            avatarUrl={effectiveAvatarUrl}
+            hasCustomAvatar={!!profile.avatar_url}
+            firstName={profile.first_name}
+            lastName={profile.last_name}
+            displayName={profile.display_name}
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 text-sm">

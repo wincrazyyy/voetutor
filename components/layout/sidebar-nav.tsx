@@ -36,6 +36,9 @@ interface SidebarNavProps {
   /** Admin or premium-tier educator. Premium-only nav (Content Library, Question Bank, the classes
    *  section) is **hidden entirely** for basic-tier educators — premium is admin-granted, never advertised. */
   isPremium?: boolean;
+  /** CLASS_BROWSE_ENABLED flag — when false the student "Browse Classes" item is removed entirely
+   *  (not shown locked). The admin "Classes" management item is unaffected. */
+  browseEnabled?: boolean;
 }
 
 interface NavItem {
@@ -63,6 +66,7 @@ export function SidebarNav({
   pendingReportCount = 0,
   isPendingEducator = false,
   isPremium = true,
+  browseEnabled = true,
 }: SidebarNavProps) {
   const pathname = usePathname();
 
@@ -104,7 +108,7 @@ export function SidebarNav({
       lockable: false,
       badge: pendingApplicationCount,
     },
-    { name: "Educators", href: "/educators", icon: Users, lockable: false },
+    { name: "Educators", href: "/admin/educators", icon: Users, lockable: false },
     {
       name: "Reports",
       href: "/reports",
@@ -135,7 +139,9 @@ export function SidebarNav({
       ? [{ label: "Pending Approval", items: pendingEducatorLinks }]
       : [{ label: "Educator", items: educatorLinks.filter((l) => isPremium || !l.premium) }];
   } else {
-    sections = [{ label: "Menu", items: studentLinks }];
+    sections = [
+      { label: "Menu", items: studentLinks.filter((l) => browseEnabled || l.href !== "/classes") },
+    ];
   }
 
   const classSectionLabel = role === "educator" || role === "admin" ? "Your Classes" : "Enrolled Classes";

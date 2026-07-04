@@ -8,7 +8,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, display_name, role, is_approved, approved_by, approved_at, created_at, updated_at")
+    .select("id, first_name, last_name, display_name, avatar_url, role, is_approved, approved_by, approved_at, created_at, updated_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -25,7 +25,7 @@ export async function getProfileById(id: string): Promise<Profile | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, display_name, role, is_approved, approved_by, approved_at, created_at, updated_at")
+    .select("id, first_name, last_name, display_name, avatar_url, role, is_approved, approved_by, approved_at, created_at, updated_at")
     .eq("id", id)
     .maybeSingle();
 

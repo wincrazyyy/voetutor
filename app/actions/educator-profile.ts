@@ -189,7 +189,8 @@ export async function adminSaveEducatorProfileAction(
      branch on the educator-assets storage policies. */
   await cleanupEducatorAssetOrphans(supabase, educatorId, collectReferencedAssetUrls(doc, avatarUrl));
 
-  revalidatePath(`/educators/${educatorId}/edit`);
+  revalidatePath(`/admin/educators/${educatorId}/edit`);
+  revalidatePath("/admin/educators");
   revalidatePath("/educators");
   revalidatePath(`/educators/${educatorId}`);
   return {};
@@ -211,7 +212,8 @@ export async function adminSetProfilePublishedAction(
 
   if (error) return { error: "Profile visibility could not be updated." };
 
-  revalidatePath(`/educators/${educatorId}/edit`);
+  revalidatePath(`/admin/educators/${educatorId}/edit`);
+  revalidatePath("/admin/educators");
   revalidatePath("/educators");
   revalidatePath(`/educators/${educatorId}`);
   return {};

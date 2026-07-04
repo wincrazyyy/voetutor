@@ -3,7 +3,7 @@
 import { CheckCircle2, CircleDashed, PlayCircle, Clock } from "lucide-react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { getInitials } from "@/lib/utils/format";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { StudentRosterEntry, StudentVideoProgress } from "@/lib/queries/educator";
 
 type StudentEntry = StudentRosterEntry & { videos: StudentVideoProgress[] };
@@ -34,9 +34,7 @@ export function StudentProgressList({ students }: { students: StudentEntry[] }) 
           <AccordionItem key={student.user_id} value={student.user_id} className="border-border">
             <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30">
               <div className="flex items-center gap-4 w-full pr-4">
-                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                  {getInitials(null, null, student.name)}
-                </div>
+                <UserAvatar avatarUrl={null} firstName={null} lastName={null} displayName={student.name} size="sm" />
                 <div className="flex flex-col items-start min-w-0">
                   <span className="text-sm font-bold text-foreground truncate">{student.name}</span>
                   <span className="text-xs text-muted-foreground">

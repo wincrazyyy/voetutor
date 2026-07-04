@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EnrollFreeButton } from "@/components/classes/enroll-free-button";
 import { ReportClassButton } from "@/components/classes/report-class-button";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { formatPrice, getDisplayName } from "@/lib/utils/format";
 import type { MarketplaceClass } from "@/lib/queries/marketplace";
 
@@ -32,19 +33,30 @@ export function MarketplaceCard({ cls }: MarketplaceCardProps) {
           </Badge>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Taught by{" "}
-          {cls.educatorProfilePublished && cls.educator_id ? (
-            <Link
-              href={`/educators/${cls.educator_id}`}
-              className="font-semibold text-primary hover:underline"
-            >
-              {educatorName}
-            </Link>
-          ) : (
-            <span className="font-semibold text-foreground">{educatorName}</span>
+        <div className="flex items-center gap-2">
+          {cls.educator && (
+            <UserAvatar
+              avatarUrl={cls.educator.avatar_url}
+              firstName={cls.educator.first_name}
+              lastName={cls.educator.last_name}
+              displayName={cls.educator.display_name}
+              size={28}
+            />
           )}
-        </p>
+          <p className="text-xs text-muted-foreground">
+            Taught by{" "}
+            {cls.educatorProfilePublished && cls.educator_id ? (
+              <Link
+                href={`/educators/${cls.educator_id}`}
+                className="font-semibold text-primary hover:underline"
+              >
+                {educatorName}
+              </Link>
+            ) : (
+              <span className="font-semibold text-foreground">{educatorName}</span>
+            )}
+          </p>
+        </div>
 
         {cls.description && (
           <p className="text-sm text-muted-foreground line-clamp-3">{cls.description}</p>

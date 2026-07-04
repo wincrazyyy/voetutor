@@ -63,7 +63,7 @@ export default async function AdminHubPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Link href="/educators">
+        <Link href="/admin/educators">
           <Card className="p-5 border-border bg-card shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
             <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <Users className="w-5 h-5 text-primary" />

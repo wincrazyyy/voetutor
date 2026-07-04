@@ -7,8 +7,9 @@ import { ExternalLink, Inbox, Pencil, Search, ShieldCheck, Star } from "lucide-r
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteEducatorButton } from "@/components/admin/delete-educator-button";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { EducatorProfile, Profile } from "@/lib/types/database";
-import { getDisplayName, getInitials } from "@/lib/utils/format";
+import { getDisplayName } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 
 interface EducatorProfilesListProps {
@@ -106,23 +107,17 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
           const state = profileState(ep);
           const pill = STATE_PILL[state];
           const name = getDisplayName(educator.first_name, educator.last_name, educator.display_name);
-          const initials = getInitials(educator.first_name, educator.last_name, educator.display_name);
 
           return (
             <Card key={educator.id} className="flex flex-row items-center gap-4 border-border bg-card p-4 shadow-sm">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                {ep?.avatar_url ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={ep.avatar_url}
-                    alt=""
-                    className="h-11 w-11 shrink-0 rounded-full border border-border object-cover"
-                  />
-                ) : (
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
-                    {initials}
-                  </div>
-                )}
+                <UserAvatar
+                  avatarUrl={ep?.avatar_url ?? null}
+                  firstName={educator.first_name}
+                  lastName={educator.last_name}
+                  displayName={educator.display_name}
+                  size="md"
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-semibold">{name}</span>
@@ -178,12 +173,12 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
                   </span>
                 )}
                 <Button variant="outline" size="icon-sm" asChild title="Manage reviews" aria-label="Manage reviews">
-                  <Link href={`/educators/${educator.id}/reviews`}>
+                  <Link href={`/admin/educators/${educator.id}/reviews`}>
                     <Star className="h-4 w-4" />
                   </Link>
                 </Button>
                 <Button size="icon-sm" asChild title="Edit profile" aria-label="Edit profile">
-                  <Link href={`/educators/${educator.id}/edit`}>
+                  <Link href={`/admin/educators/${educator.id}/edit`}>
                     <Pencil className="h-4 w-4" />
                   </Link>
                 </Button>

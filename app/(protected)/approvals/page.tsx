@@ -40,7 +40,7 @@ export default async function ApprovalsPage({
         <p className="text-muted-foreground">
           Approve educators to grant them platform access. To view or edit any educator&apos;s public
           profile, use{" "}
-          <Link href="/educators" className="font-medium text-foreground underline underline-offset-2">
+          <Link href="/admin/educators" className="font-medium text-foreground underline underline-offset-2">
             Educators
           </Link>
           .

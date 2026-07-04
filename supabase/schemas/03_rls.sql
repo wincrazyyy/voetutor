@@ -9,6 +9,7 @@
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subtopics ENABLE ROW LEVEL SECURITY;
@@ -29,6 +30,7 @@ ALTER TABLE educator_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE classes FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments FORCE ROW LEVEL SECURITY;
+ALTER TABLE class_invites FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_reports FORCE ROW LEVEL SECURITY;
 ALTER TABLE topics FORCE ROW LEVEL SECURITY;
 ALTER TABLE subtopics FORCE ROW LEVEL SECURITY;
@@ -121,6 +123,38 @@ CREATE POLICY enrollments_delete_authorized ON class_enrollments
         OR (SELECT internal.is_class_educator(class_id))
     );
 COMMENT ON POLICY enrollments_delete_authorized ON class_enrollments IS 'Permits self-unenrollment by students, and roster management by educators/administrators.';
+
+/* ----- CLASS INVITES ----- */
+
+/* Educators see/manage invites for classes they teach; admins see all. Students NEVER read this table
+   directly — they go through the SECURITY DEFINER preview/redeem RPCs. */
+CREATE POLICY class_invites_select_owner_or_admin ON class_invites
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (SELECT internal.is_class_educator(class_id))
+        OR created_by = (SELECT auth.uid())
+    );
+COMMENT ON POLICY class_invites_select_owner_or_admin ON class_invites IS 'Owner-or-admin read of the invite ledger. The created_by branch keeps an issuer''s rows visible even if class ownership ever moves; students hit the SECURITY DEFINER RPCs instead, never this table.';
+
+CREATE POLICY class_invites_insert_owner_or_admin ON class_invites
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        created_by = (SELECT auth.uid())
+        AND ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)))
+    );
+COMMENT ON POLICY class_invites_insert_owner_or_admin ON class_invites IS 'Only the educator of the target class or an admin may mint an invite, and the issuer must stamp themselves as created_by.';
+
+CREATE POLICY class_invites_update_owner_or_admin ON class_invites
+    FOR UPDATE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)))
+    WITH CHECK ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY class_invites_update_owner_or_admin ON class_invites IS 'Class educator or admin may mutate their own class''s invites — the only UI-exposed mutation is revoke (revoked_at). No redeemed_* anti-spoof trigger by design: the worst an educator can do is mark/unmark their own invite, which grants no unauthorized access (enrollment is a separate RPC-gated write).';
+
+CREATE POLICY class_invites_delete_owner_or_admin ON class_invites
+    FOR DELETE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY class_invites_delete_owner_or_admin ON class_invites IS 'Class educator or admin may hard-delete an invite (housekeeping); redeemed enrollments are unaffected — the enrollment row lives in class_enrollments.';
 
 /* ----- CLASS REPORTS ----- */
 CREATE POLICY class_reports_select_own_or_admin ON class_reports

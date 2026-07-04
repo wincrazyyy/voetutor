@@ -15,8 +15,17 @@ import type { PublicEducatorProfile } from "@/lib/types/database";
  *   2. ENGAGEMENT — rate + "coming soon" booking on the left, the live "See classes" link on the
  *      right: one balanced counterweight row under a hairline, not a detached strip.
  * Degrades gracefully when avatar / tags / rate are absent. No "Free", no empty frame, no dead button.
+ * The "See classes" CTA is gated behind `showClassesCta` (the server page passes the
+ * CLASS_BROWSE_ENABLED flag; this component also renders inside the client builder preview, so it
+ * cannot read the server-only flag itself).
  */
-export function ProfileHeader({ profile }: { profile: PublicEducatorProfile }) {
+export function ProfileHeader({
+  profile,
+  showClassesCta = false,
+}: {
+  profile: PublicEducatorProfile;
+  showClassesCta?: boolean;
+}) {
   const name = getDisplayName(profile.first_name, profile.last_name, profile.display_name);
   const first = (profile.first_name ?? name).trim().split(/\s+/)[0];
   const classesLabel = first ? `See ${first}'s classes` : "See classes";
@@ -110,12 +119,14 @@ export function ProfileHeader({ profile }: { profile: PublicEducatorProfile }) {
                 </span>
               </div>
             </div>
-            <Link
-              href="/classes"
-              className="text-sm font-semibold text-primary hover:underline sm:text-right"
-            >
-              {classesLabel} →
-            </Link>
+            {showClassesCta ? (
+              <Link
+                href="/classes"
+                className="text-sm font-semibold text-primary hover:underline sm:text-right"
+              >
+                {classesLabel} →
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
