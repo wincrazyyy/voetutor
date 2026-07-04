@@ -66,17 +66,17 @@ function VerifyForm() {
             <Input
               id="token"
               type="text"
-              placeholder="Enter 8-digit code"
+              placeholder="Enter 6-digit code"
               required
               value={token}
               onChange={(e) => setToken(e.target.value)}
               className="text-center tracking-[0.5em] font-mono text-lg"
-              maxLength={8}
+              maxLength={6}
             />
           </div>
           
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-          <Button type="submit" className="w-full" disabled={isLoading || token.length < 8}>
+          <Button type="submit" className="w-full" disabled={isLoading || token.length < 6}>
             {isLoading ? "Verifying..." : "Verify Account"}
           </Button>
         </form>
