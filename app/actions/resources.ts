@@ -78,7 +78,7 @@ export async function createNoteUploadAction(input: {
     const resolved = await resolveOwnedParentClass(supabase, profile, parent);
     if ("error" in resolved) return { error: resolved.error };
     classId = resolved.classId;
-    orderIndex = await nextPlacementOrder(supabase, "resource_placements", parent);
+    orderIndex = await nextPlacementOrder(supabase, parent);
   }
 
   const { data: inserted, error: insertError } = await supabase
@@ -185,7 +185,7 @@ export async function setNotePlacementsAction(
   }
 
   for (const parent of toAdd) {
-    const orderIndex = await nextPlacementOrder(supabase, "resource_placements", parent);
+    const orderIndex = await nextPlacementOrder(supabase, parent);
     const { error } = await supabase
       .from("resource_placements")
       .insert({ resource_id: resourceId, ...parentColumns(parent), order_index: orderIndex });

@@ -45,6 +45,26 @@ export async function getEnrolledClasses(userId: string): Promise<EnrolledClassS
   return summaries;
 }
 
+/**
+ * Reads the caller's saved sidebar class ordering (class_id → zero-based position). Consumed only by
+ * components/layout/sidebar.tsx to sort the class list; classes without a row are ordered after the
+ * saved ones in their natural order. Not applied inside getEnrolledClasses / getClassesForEducator so
+ * the marketplace and other consumers stay unaffected.
+ */
+export async function getClassOrder(userId: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("user_class_order")
+    .select("class_id, position")
+    .eq("user_id", userId);
+
+  const order = new Map<string, number>();
+  for (const row of (data ?? []) as Array<{ class_id: string; position: number }>) {
+    order.set(row.class_id, row.position);
+  }
+  return order;
+}
+
 export async function getClassById(classId: string): Promise<Class | null> {
   const supabase = await createClient();
   const { data } = await supabase

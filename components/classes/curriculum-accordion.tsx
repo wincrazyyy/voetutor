@@ -78,7 +78,7 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
       <Accordion type="single" collapsible defaultValue={defaultValue} className="w-full flex flex-col gap-4">
         {curriculum.map((topic) => {
           const totalVideos = topic.total_videos;
-          const hasTopicMaterials = topic.videos.length > 0 || topic.notes.length > 0;
+          const hasTopicMaterials = topic.items.length > 0;
 
           return (
             <AccordionItem
@@ -116,43 +116,44 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
                   {hasTopicMaterials && (
                     <div className="p-4 bg-primary/5 border-b border-border/50 flex flex-col gap-2">
                       <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Materials</div>
-                      {topic.videos.map((video) => (
-                        <Link
-                          key={video.placement_id}
-                          href={`/lesson/${video.id}?from=${classId}`}
-                          className="flex items-center gap-3 p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
-                        >
-                          <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
-                            {video.is_completed ? <CheckCircle2 className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
-                          </div>
-                          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight flex-1 min-w-0 truncate">
-                            {video.title}
-                          </span>
-                          <span className="text-xs text-muted-foreground shrink-0">{formatShortDuration(video.duration)}</span>
-                        </Link>
-                      ))}
-                      {topic.notes.map((note) => (
-                        <a
-                          key={note.placement_id}
-                          href={`/api/resources/${note.id}/download`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
+                      {topic.items.map((item) =>
+                        item.kind === "video" ? (
+                          <Link
+                            key={item.placement_id}
+                            href={`/lesson/${item.id}?from=${classId}`}
+                            className="flex items-center gap-3 p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
+                          >
                             <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
-                              <FileText className="w-4 h-4" />
+                              {item.is_completed ? <CheckCircle2 className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
                             </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight truncate">
-                                {note.title}
-                              </span>
-                              <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(note.size_bytes)} • PDF</span>
+                            <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight flex-1 min-w-0 truncate">
+                              {item.title}
+                            </span>
+                            <span className="text-xs text-muted-foreground shrink-0">{formatShortDuration(item.duration)}</span>
+                          </Link>
+                        ) : (
+                          <a
+                            key={item.placement_id}
+                            href={`/api/resources/${item.id}/download`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight truncate">
+                                  {item.title}
+                                </span>
+                                <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(item.size_bytes)} • PDF</span>
+                              </div>
                             </div>
-                          </div>
-                          <Download className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2 shrink-0" />
-                        </a>
-                      ))}
+                            <Download className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2 shrink-0" />
+                          </a>
+                        ),
+                      )}
                     </div>
                   )}
 
@@ -163,19 +164,15 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
                       </div>
 
                       <div className="flex flex-col">
-                        {subtopic.notes.length > 0 && (
-                          <div className="flex flex-col bg-muted/5">
-                            {subtopic.notes.map((note) => (
-                              <NoteLink key={note.placement_id} note={note} />
-                            ))}
-                          </div>
-                        )}
-
-                        {subtopic.videos.map((video) => (
-                          <VideoLink key={video.placement_id} video={video} classId={classId} />
-                        ))}
-
-                        {subtopic.videos.length === 0 && subtopic.notes.length === 0 && (
+                        {subtopic.items.length > 0 ? (
+                          subtopic.items.map((item) =>
+                            item.kind === "video" ? (
+                              <VideoLink key={item.placement_id} video={item} classId={classId} />
+                            ) : (
+                              <NoteLink key={item.placement_id} note={item} />
+                            ),
+                          )
+                        ) : (
                           <div className="px-4 py-3 text-xs text-muted-foreground italic">No content yet.</div>
                         )}
                       </div>

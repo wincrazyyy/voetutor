@@ -47,6 +47,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type {
+  CurriculumItem,
   NoteWithPlacement,
   SubtopicWithChildren,
   TopicWithChildren,
@@ -57,8 +58,7 @@ import type { LibraryNote } from "@/lib/queries/note-library";
 import type { VideoStatus } from "@/lib/types/database";
 import { formatBytes, formatShortDuration } from "@/lib/utils/format";
 import {
-  reorderPlacedNotesAction,
-  reorderPlacedVideosAction,
+  reorderNodeContentAction,
   reorderSubtopicsAction,
   reorderTopicsAction,
 } from "@/app/actions/curriculum";
@@ -83,14 +83,14 @@ type Kind = "topic" | "subtopic" | "video" | "note";
 type PlacementNode = { kind: "topic" | "subtopic"; id: string };
 
 /* dnd id prefixes — the kind is decodable from the id (for collision gating); structured data on each
-   draggable/droppable carries the rest. Zones (SZ/VZ/NZ) catch drops onto empty lists. */
+   draggable/droppable carries the rest. Zones (SZ subtopics, CZ mixed content) catch drops onto empty
+   lists. Videos and notes share one interleaved content list per node, so both use the CZ zone. */
 const TID = "T#";
 const SID = "S#";
 const SZONE = "SZ#";
 const VID = "V#";
-const VZONE = "VZ#";
 const NID = "N#";
-const NZONE = "NZ#";
+const CZONE = "CZ#";
 /** Per-topic header droppable — present even when the topic is collapsed; hovering it during a content/
  *  subtopic drag opens the topic so its inner drop zones mount. Lowest collision priority. */
 const OPEN = "OPEN#";
@@ -114,14 +114,15 @@ function isRowId(id: string): boolean {
 }
 
 function isRealZoneId(id: string): boolean {
-  return id.startsWith(SZONE) || id.startsWith(VZONE) || id.startsWith(NZONE);
+  return id.startsWith(SZONE) || id.startsWith(CZONE);
 }
 
 function idAcceptsKind(id: string, kind: Kind): boolean {
   if (kind === "topic") return id.startsWith(TID);
   if (kind === "subtopic") return id.startsWith(SID) || id.startsWith(SZONE) || id.startsWith(OPEN);
-  if (kind === "video") return id.startsWith(VID) || id.startsWith(VZONE) || id.startsWith(OPEN);
-  return id.startsWith(NID) || id.startsWith(NZONE) || id.startsWith(OPEN);
+  /* video | note — content interleaves, so either lands on any content row, the content zone, or a topic
+     header to open it. */
+  return id.startsWith(VID) || id.startsWith(NID) || id.startsWith(CZONE) || id.startsWith(OPEN);
 }
 
 /* Only let a dragged item land on droppables of its own kind. Priority: a row, then a real list zone, then
@@ -148,26 +149,31 @@ function cloneTopics(topics: TopicWithChildren[]): TopicWithChildren[] {
     ...t,
     videos: [...t.videos],
     notes: [...t.notes],
-    subtopics: t.subtopics.map((s) => ({ ...s, videos: [...s.videos], notes: [...s.notes] })),
+    items: [...t.items],
+    subtopics: t.subtopics.map((s) => ({ ...s, videos: [...s.videos], notes: [...s.notes], items: [...s.items] })),
   }));
 }
 
-function nodeVideoList(topics: TopicWithChildren[], node: PlacementNode): VideoWithProgress[] | null {
-  if (node.kind === "topic") return topics.find((t) => t.id === node.id)?.videos ?? null;
+function nodeItemList(topics: TopicWithChildren[], node: PlacementNode): CurriculumItem[] | null {
+  if (node.kind === "topic") return topics.find((t) => t.id === node.id)?.items ?? null;
   for (const t of topics) {
     const s = t.subtopics.find((sub) => sub.id === node.id);
-    if (s) return s.videos;
+    if (s) return s.items;
   }
   return null;
 }
 
-function nodeNoteList(topics: TopicWithChildren[], node: PlacementNode): NoteWithPlacement[] | null {
-  if (node.kind === "topic") return topics.find((t) => t.id === node.id)?.notes ?? null;
+/** Re-derive each node's videos[]/notes[] from its (mutated) items[] so the counts, empty-state checks
+ *  and Add-dialog "already placed" ids stay consistent during the optimistic window before refresh. */
+function syncNodeArrays(topics: TopicWithChildren[]): void {
+  const apply = (node: { items: CurriculumItem[]; videos: VideoWithProgress[]; notes: NoteWithPlacement[] }) => {
+    node.videos = node.items.filter((i): i is Extract<CurriculumItem, { kind: "video" }> => i.kind === "video");
+    node.notes = node.items.filter((i): i is Extract<CurriculumItem, { kind: "note" }> => i.kind === "note");
+  };
   for (const t of topics) {
-    const s = t.subtopics.find((sub) => sub.id === node.id);
-    if (s) return s.notes;
+    apply(t);
+    t.subtopics.forEach(apply);
   }
-  return null;
 }
 
 function lookupTitle(topics: TopicWithChildren[], kind: Kind, rawId: string): string {
@@ -192,36 +198,31 @@ function lookupTitle(topics: TopicWithChildren[], kind: Kind, rawId: string): st
 
 interface MoveContentResult {
   nextTopics: TopicWithChildren[];
-  orderedPlacementIds: string[];
+  orderedItems: Array<{ kind: "video" | "note"; placementId: string }>;
 }
 
-/** Minimal shape the move logic needs — both VideoWithProgress and NoteWithPlacement satisfy it, which
- *  lets the tree manipulation stay one code path without union-of-array method-call gymnastics. */
-type Placed = { id: string; placement_id: string };
-
+/**
+ * Reorder/move a piece of content across the node's MERGED items list (videos + notes interleaved), so a
+ * video can land between two notes and vice-versa. Same-node = arrayMove on the original indices; cross-node
+ * = splice with a duplicate guard (backed by the partial unique indexes). Emits the destination node's full
+ * ordered membership as {kind, placementId}[] for reorderNodeContentAction.
+ */
 function moveContent(
-  kind: "video" | "note",
   topics: TopicWithChildren[],
   activePlacementId: string,
   targetNode: PlacementNode,
   overPlacementId: string | null,
 ): MoveContentResult | "duplicate" | null {
-  const listAt = (ts: TopicWithChildren[], node: PlacementNode): Placed[] | null =>
-    (kind === "video" ? nodeVideoList(ts, node) : nodeNoteList(ts, node)) as Placed[] | null;
-
   const next = cloneTopics(topics);
-  const target = listAt(next, targetNode);
+  const target = nodeItemList(next, targetNode);
   if (!target) return null;
 
   /* Find the list + index that currently holds the dragged placement. */
-  let source: Placed[] | null = null;
-  let moved: Placed | null = null;
+  let source: CurriculumItem[] | null = null;
+  let moved: CurriculumItem | null = null;
   let activeIndex = -1;
   for (const t of next) {
-    const lists: Placed[][] = [
-      (kind === "video" ? t.videos : t.notes) as Placed[],
-      ...t.subtopics.map((s) => (kind === "video" ? s.videos : s.notes) as Placed[]),
-    ];
+    const lists: CurriculumItem[][] = [t.items, ...t.subtopics.map((s) => s.items)];
     for (const list of lists) {
       const idx = list.findIndex((item) => item.placement_id === activePlacementId);
       if (idx !== -1) {
@@ -245,19 +246,23 @@ function moveContent(
     if (to === activeIndex) return null;
     const reordered = arrayMove(target, activeIndex, to);
     target.splice(0, target.length, ...reordered);
-    return { nextTopics: next, orderedPlacementIds: target.map((item) => item.placement_id) };
+  } else {
+    /* Cross-node move. Guard against the same underlying video/note already living in the target. */
+    if (target.some((item) => item.id === moved!.id)) return "duplicate";
+    source.splice(activeIndex, 1);
+    let insertIndex = target.length;
+    if (overPlacementId) {
+      const oi = target.findIndex((item) => item.placement_id === overPlacementId);
+      if (oi !== -1) insertIndex = oi;
+    }
+    target.splice(insertIndex, 0, moved);
   }
 
-  /* Cross-node move. */
-  if (target.some((item) => item.id === moved!.id)) return "duplicate";
-  source.splice(activeIndex, 1);
-  let insertIndex = target.length;
-  if (overPlacementId) {
-    const oi = target.findIndex((item) => item.placement_id === overPlacementId);
-    if (oi !== -1) insertIndex = oi;
-  }
-  target.splice(insertIndex, 0, moved);
-  return { nextTopics: next, orderedPlacementIds: target.map((item) => item.placement_id) };
+  syncNodeArrays(next);
+  return {
+    nextTopics: next,
+    orderedItems: target.map((item) => ({ kind: item.kind, placementId: item.placement_id })),
+  };
 }
 
 function moveSubtopic(
@@ -426,75 +431,55 @@ function SortableNoteRow({
   );
 }
 
-/* A node's content (videos then notes), each its own sortable list, each a drop target for its kind. */
+/* A node's content — videos and notes interleaved in one shared order, one sortable list, one drop zone. */
 function ContentArea({
   node,
-  videos,
-  notes,
+  items,
   classId,
   activeKind,
   onError,
 }: {
   node: PlacementNode;
-  videos: VideoWithProgress[];
-  notes: NoteWithPlacement[];
+  items: CurriculumItem[];
   classId: string;
   activeKind: Kind | null;
   onError: (message: string) => void;
 }) {
   const key = nodeKey(node);
-  const videoZone = useDroppable({ id: `${VZONE}${key}`, data: { type: "video", node } });
-  const noteZone = useDroppable({ id: `${NZONE}${key}`, data: { type: "note", node } });
+  const zone = useDroppable({ id: `${CZONE}${key}`, data: { type: "content", node } });
+  const isContentDrag = activeKind === "video" || activeKind === "note";
 
   return (
-    <>
-      <div
-        ref={videoZone.setNodeRef}
-        className={`transition-colors ${
-          activeKind === "video"
-            ? `outline-dashed outline-1 outline-offset-[-2px] ${videoZone.isOver ? "bg-primary/10 outline-primary/60" : "outline-primary/25"}`
-            : ""
-        }`}
+    <div
+      ref={zone.setNodeRef}
+      className={`transition-colors ${
+        isContentDrag
+          ? `outline-dashed outline-1 outline-offset-[-2px] ${zone.isOver ? "bg-primary/10 outline-primary/60" : "outline-primary/25"}`
+          : ""
+      }`}
+    >
+      <SortableContext
+        items={items.map((item) => `${item.kind === "video" ? VID : NID}${item.placement_id}`)}
+        strategy={verticalListSortingStrategy}
       >
-        <SortableContext items={videos.map((v) => `${VID}${v.placement_id}`)} strategy={verticalListSortingStrategy}>
-          {videos.map((video) => (
-            <SortableVideoRow key={video.placement_id} video={video} classId={classId} node={node} onError={onError} />
-          ))}
-        </SortableContext>
-        {videos.length === 0 && activeKind === "video" && (
-          <div
-            className={`m-2 flex min-h-[48px] items-center justify-center rounded-md border-2 border-dashed px-4 py-4 text-center text-xs italic transition-colors ${
-              videoZone.isOver ? "border-primary/40 bg-primary/5 text-primary" : "border-border/50 text-muted-foreground"
-            }`}
-          >
-            Drop a video here
-          </div>
+        {items.map((item) =>
+          item.kind === "video" ? (
+            <SortableVideoRow key={item.placement_id} video={item} classId={classId} node={node} onError={onError} />
+          ) : (
+            <SortableNoteRow key={item.placement_id} note={item} classId={classId} node={node} onError={onError} />
+          ),
         )}
-      </div>
-      <div
-        ref={noteZone.setNodeRef}
-        className={`transition-colors ${
-          activeKind === "note"
-            ? `outline-dashed outline-1 outline-offset-[-2px] ${noteZone.isOver ? "bg-primary/10 outline-primary/60" : "outline-primary/25"}`
-            : ""
-        }`}
-      >
-        <SortableContext items={notes.map((n) => `${NID}${n.placement_id}`)} strategy={verticalListSortingStrategy}>
-          {notes.map((note) => (
-            <SortableNoteRow key={note.placement_id} note={note} classId={classId} node={node} onError={onError} />
-          ))}
-        </SortableContext>
-        {notes.length === 0 && activeKind === "note" && (
-          <div
-            className={`m-2 flex min-h-[48px] items-center justify-center rounded-md border-2 border-dashed px-4 py-4 text-center text-xs italic transition-colors ${
-              noteZone.isOver ? "border-primary/40 bg-primary/5 text-primary" : "border-border/50 text-muted-foreground"
-            }`}
-          >
-            Drop a note here
-          </div>
-        )}
-      </div>
-    </>
+      </SortableContext>
+      {items.length === 0 && isContentDrag && (
+        <div
+          className={`m-2 flex min-h-[48px] items-center justify-center rounded-md border-2 border-dashed px-4 py-4 text-center text-xs italic transition-colors ${
+            zone.isOver ? "border-primary/40 bg-primary/5 text-primary" : "border-border/50 text-muted-foreground"
+          }`}
+        >
+          Drop content here
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -564,8 +549,7 @@ function SortableSubtopic({
 
       <ContentArea
         node={{ kind: "subtopic", id: subtopic.id }}
-        videos={subtopic.videos}
-        notes={subtopic.notes}
+        items={subtopic.items}
         classId={classId}
         activeKind={activeKind}
         onError={onError}
@@ -669,7 +653,7 @@ function SortableTopic({
               />
             </div>
           </div>
-          {topic.videos.length === 0 && topic.notes.length === 0 && activeKind !== "video" && activeKind !== "note" ? (
+          {topic.items.length === 0 && activeKind !== "video" && activeKind !== "note" ? (
             <div className="px-4 py-3 text-xs text-muted-foreground italic border-b border-border/50">
               No topic-level materials. Use Add videos / Add notes, or drag one here.
             </div>
@@ -677,8 +661,7 @@ function SortableTopic({
             <div className="border-b border-border/50">
               <ContentArea
                 node={{ kind: "topic", id: topic.id }}
-                videos={topic.videos}
-                notes={topic.notes}
+                items={topic.items}
                 classId={classId}
                 activeKind={activeKind}
                 onError={onError}
@@ -827,9 +810,9 @@ export function EducatorCurriculumOverview({
       return;
     }
 
-    /* video | note */
-    const prefix = kind === "video" ? VID : NID;
-    const activePlacementId = activeId.slice(prefix.length);
+    /* video | note — content interleaves, so the active kind (from its id prefix) only decides messaging;
+       the merged reducer + single reorderNodeContentAction handle either landing on either. */
+    const activePlacementId = activeId.slice(activeId.indexOf("#") + 1);
     let targetNode: PlacementNode | undefined;
     let overPlacementId: string | null = null;
     if (overId.startsWith(OPEN)) {
@@ -838,24 +821,20 @@ export function EducatorCurriculumOverview({
       targetNode = { kind: "topic", id: topicId };
     } else {
       targetNode = over.data.current?.node as PlacementNode | undefined;
-      if (overId.startsWith(prefix)) {
+      if (overId.startsWith(VID) || overId.startsWith(NID)) {
         if (overId === activeId) return;
-        overPlacementId = overId.slice(prefix.length);
+        overPlacementId = overId.slice(overId.indexOf("#") + 1);
       }
     }
     if (!targetNode) return;
-    const result = moveContent(kind, topics, activePlacementId, targetNode, overPlacementId);
+    const result = moveContent(topics, activePlacementId, targetNode, overPlacementId);
     if (result === "duplicate") {
       setError(`That ${kind} is already in the destination node.`);
       return;
     }
     if (!result) return;
     setTopics(result.nextTopics);
-    const persist =
-      kind === "video"
-        ? () => reorderPlacedVideosAction(classId, targetNode, result.orderedPlacementIds)
-        : () => reorderPlacedNotesAction(classId, targetNode, result.orderedPlacementIds);
-    runReorder(persist);
+    runReorder(() => reorderNodeContentAction(classId, targetNode, result.orderedItems));
   };
 
   return (

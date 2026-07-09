@@ -18,6 +18,7 @@ ALTER TABLE video_placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resource_placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_class_order ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcement_reads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
@@ -39,6 +40,7 @@ ALTER TABLE video_placements FORCE ROW LEVEL SECURITY;
 ALTER TABLE resources FORCE ROW LEVEL SECURITY;
 ALTER TABLE resource_placements FORCE ROW LEVEL SECURITY;
 ALTER TABLE user_video_progress FORCE ROW LEVEL SECURITY;
+ALTER TABLE user_class_order FORCE ROW LEVEL SECURITY;
 ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
 ALTER TABLE announcement_reads FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts FORCE ROW LEVEL SECURITY;
@@ -320,6 +322,34 @@ CREATE POLICY progress_update_self ON user_video_progress
     USING (user_id = (SELECT auth.uid()))
     WITH CHECK (user_id = (SELECT auth.uid()));
 COMMENT ON POLICY progress_update_self ON user_video_progress IS 'Restricts updating of playback telemetry strictly to the authenticated user generating the state.';
+
+/* ----- USER CLASS ORDER ----- */
+CREATE POLICY user_class_order_select_self ON user_class_order
+    FOR SELECT TO authenticated
+    USING ((SELECT internal.is_admin()) OR user_id = (SELECT auth.uid()));
+COMMENT ON POLICY user_class_order_select_self ON user_class_order IS 'A user reads only their own sidebar ordering (admins all).';
+
+CREATE POLICY user_class_order_insert_self ON user_class_order
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        user_id = (SELECT auth.uid())
+        AND class_id IN (SELECT internal.get_user_class_ids())
+    );
+COMMENT ON POLICY user_class_order_insert_self ON user_class_order IS 'A user may position only their own rows, and only for a class they are enrolled in or teach (internal.get_user_class_ids covers both roles).';
+
+CREATE POLICY user_class_order_update_self ON user_class_order
+    FOR UPDATE TO authenticated
+    USING (user_id = (SELECT auth.uid()))
+    WITH CHECK (
+        user_id = (SELECT auth.uid())
+        AND class_id IN (SELECT internal.get_user_class_ids())
+    );
+COMMENT ON POLICY user_class_order_update_self ON user_class_order IS 'A user may reorder only their own rows, still bound to a class they are enrolled in or teach.';
+
+CREATE POLICY user_class_order_delete_self ON user_class_order
+    FOR DELETE TO authenticated
+    USING (user_id = (SELECT auth.uid()));
+COMMENT ON POLICY user_class_order_delete_self ON user_class_order IS 'A user may drop only their own ordering rows.';
 
 /* ----- ANNOUNCEMENTS ----- */
 CREATE POLICY announcements_select_authorized ON announcements

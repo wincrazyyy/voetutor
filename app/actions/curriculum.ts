@@ -405,6 +405,83 @@ export async function reorderPlacedNotesAction(
   return reorderPlacements("resource_placements", classId, parent, orderedPlacementIds, auth.profile);
 }
 
+/** Confirms every placement id in one table currently belongs to `classId` (per-table membership check). */
+async function placementsAllInClass(
+  supabase: SupabaseServerClient,
+  table: "video_placements" | "resource_placements",
+  ids: string[],
+  classId: string,
+): Promise<boolean> {
+  if (ids.length === 0) return true;
+  const { data: rows } = await supabase
+    .from(table)
+    .select("id, topic_id, subtopic_id")
+    .in("id", ids);
+  const rowList = (rows ?? []) as Array<{ id: string; topic_id: string | null; subtopic_id: string | null }>;
+  if (rowList.length !== ids.length) return false;
+  const classByParent = await classesForPlacementRows(supabase, rowList);
+  return rowList.every((r) => {
+    const p = parentOf(r);
+    return p ? classByParent.get(parentKey(p)) === classId : false;
+  });
+}
+
+/**
+ * Persists a node's interleaved content order across BOTH placement tables at once. orderedItems is the
+ * full destination-node membership (videos + notes mixed); each entry gets a single shared order_index =
+ * its position in the list, written to video_placements (kind "video") or resource_placements
+ * (kind "note"), with the parent columns spread in so cross-node moves re-parent in the same write.
+ * This is the board's single reorder writer, replacing the per-kind reorderPlaced{Videos,Notes}Actions
+ * for mixed reorders. Same-class moves keep the placement's class, so the lineage guards early-exit.
+ */
+export async function reorderNodeContentAction(
+  classId: string,
+  parent: PlacementParent,
+  orderedItems: Array<{ kind: "video" | "note"; placementId: string }>,
+): Promise<CurriculumActionState> {
+  const auth = await requireEducator();
+  if ("error" in auth) return { error: auth.error };
+  const { profile } = auth;
+
+  const supabase = await createClient();
+  if (!(await ownsClass(supabase, classId, profile))) {
+    return { error: "You don't have permission to edit this class." };
+  }
+
+  const resolved = await resolveOwnedParentClass(supabase, profile, parent);
+  if ("error" in resolved) return { error: resolved.error };
+  if (resolved.classId !== classId) return { error: "That node is not in this class." };
+
+  if (orderedItems.length === 0) return { ok: true };
+
+  const videoIds = orderedItems.filter((i) => i.kind === "video").map((i) => i.placementId);
+  const noteIds = orderedItems.filter((i) => i.kind === "note").map((i) => i.placementId);
+
+  const [videosOk, notesOk] = await Promise.all([
+    placementsAllInClass(supabase, "video_placements", videoIds, classId),
+    placementsAllInClass(supabase, "resource_placements", noteIds, classId),
+  ]);
+  if (!videosOk || !notesOk) return { error: "Some items are not in this class." };
+
+  const cols = parentColumns(parent);
+  const results = await Promise.all(
+    orderedItems.map((item, index) => {
+      const table = item.kind === "video" ? "video_placements" : "resource_placements";
+      return supabase.from(table).update({ ...cols, order_index: index }).eq("id", item.placementId);
+    }),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    if (failed.error.code === "23505") {
+      return { error: "That item is already in the destination node." };
+    }
+    return { error: failed.error.message };
+  }
+
+  revalidatePath(`/class/${classId}`);
+  return { ok: true };
+}
+
 /** Persists the class's topic order — each id's order_index becomes its position in the list. */
 export async function reorderTopicsAction(
   classId: string,

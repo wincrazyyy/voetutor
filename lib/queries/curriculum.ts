@@ -16,9 +16,20 @@ export interface NoteWithPlacement extends Resource {
   order_index: number;
 }
 
+/**
+ * A curriculum node's videos and notes merged into one interleaved sequence, discriminated by `kind`.
+ * Both `video_placements` and `resource_placements` share a single per-node `order_index` sequence, so
+ * a note can sit between two videos. Consumers that need videos-only still read the `videos[]` array.
+ */
+export type CurriculumItem =
+  | ({ kind: "video" } & VideoWithProgress)
+  | ({ kind: "note" } & NoteWithPlacement);
+
 export interface SubtopicWithChildren extends Subtopic {
   videos: VideoWithProgress[];
   notes: NoteWithPlacement[];
+  /** Videos + notes merged and sorted by the shared order_index (interleaved). */
+  items: CurriculumItem[];
 }
 
 export interface TopicWithChildren extends Topic {
@@ -26,6 +37,8 @@ export interface TopicWithChildren extends Topic {
   /** Topic-level materials (e.g. an intro video / a topic-wide note), placed directly on the topic. */
   videos: VideoWithProgress[];
   notes: NoteWithPlacement[];
+  /** Topic-level videos + notes merged and sorted by the shared order_index (interleaved). */
+  items: CurriculumItem[];
   total_videos: number;
   watched_videos: number;
 }
@@ -124,17 +137,38 @@ export async function getCurriculumForClass(classId: string, userId: string): Pr
   });
   const byOrder = <T extends { order_index: number }>(a: T, b: T) => a.order_index - b.order_index;
 
+  /**
+   * Merge a node's videos + notes into one interleaved list ordered by the shared order_index, with a
+   * stable tiebreak (order_index, videos-before-notes, created_at) so any legacy ties are deterministic.
+   */
+  const buildItems = (videos: VideoWithProgress[], notes: NoteWithPlacement[]): CurriculumItem[] => {
+    const merged: CurriculumItem[] = [
+      ...videos.map((v): CurriculumItem => ({ kind: "video", ...v })),
+      ...notes.map((n): CurriculumItem => ({ kind: "note", ...n })),
+    ];
+    return merged.sort((a, b) => {
+      if (a.order_index !== b.order_index) return a.order_index - b.order_index;
+      if (a.kind !== b.kind) return a.kind === "video" ? -1 : 1;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+  };
+
   return topics.map((topic) => {
     const topicVideos = videoPlacements.filter((p) => p.topic_id === topic.id).map(toVideo).sort(byOrder);
     const topicNotes = resourcePlacements.filter((p) => p.topic_id === topic.id).map(toNote).sort(byOrder);
 
     const mySubtopics = subtopics
       .filter((s) => s.topic_id === topic.id)
-      .map<SubtopicWithChildren>((sub) => ({
-        ...sub,
-        videos: videoPlacements.filter((p) => p.subtopic_id === sub.id).map(toVideo).sort(byOrder),
-        notes: resourcePlacements.filter((p) => p.subtopic_id === sub.id).map(toNote).sort(byOrder),
-      }));
+      .map<SubtopicWithChildren>((sub) => {
+        const subVideos = videoPlacements.filter((p) => p.subtopic_id === sub.id).map(toVideo).sort(byOrder);
+        const subNotes = resourcePlacements.filter((p) => p.subtopic_id === sub.id).map(toNote).sort(byOrder);
+        return {
+          ...sub,
+          videos: subVideos,
+          notes: subNotes,
+          items: buildItems(subVideos, subNotes),
+        };
+      });
 
     const allVideos = [...topicVideos, ...mySubtopics.flatMap((s) => s.videos)];
     const watched = allVideos.filter((v) => v.is_completed).length;
@@ -144,6 +178,7 @@ export async function getCurriculumForClass(classId: string, userId: string): Pr
       subtopics: mySubtopics,
       videos: topicVideos,
       notes: topicNotes,
+      items: buildItems(topicVideos, topicNotes),
       total_videos: allVideos.length,
       watched_videos: watched,
     };

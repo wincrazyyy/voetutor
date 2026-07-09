@@ -32,15 +32,21 @@ export interface VideoActionState {
   ok?: boolean;
 }
 
-/** The app's hostname, used to scope a video's allowed embedding origins. */
-function appHost(): string | null {
-  const raw = process.env.NEXT_PUBLIC_APP_URL;
-  if (!raw) return null;
-  try {
-    return new URL(raw).host;
-  } catch {
-    return null;
-  }
+/**
+ * Origins allowed to embed the Stream player, read from a runtime server env
+ * (comma-separated). Unlike NEXT_PUBLIC_* — which bakes in at build time and
+ * only ever carried a single host — this lists every platform origin at once
+ * (dev plus apex and www), so a video is never locked to just one of them.
+ * Defaults to the known-good set; override with CLOUDFLARE_STREAM_ALLOWED_ORIGINS
+ * (e.g. to add voe.com during the rebrand).
+ */
+function allowedPlaybackOrigins(): string[] {
+  const raw =
+    process.env.CLOUDFLARE_STREAM_ALLOWED_ORIGINS ?? "localhost,voetutor.com,*.voetutor.com";
+  return raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -95,17 +101,17 @@ export async function createVideoUploadAction(input: {
     const resolved = await resolveOwnedParentClass(supabase, profile, parent);
     if ("error" in resolved) return { error: resolved.error };
     classId = resolved.classId;
-    orderIndex = await nextPlacementOrder(supabase, "video_placements", parent);
+    orderIndex = await nextPlacementOrder(supabase, parent);
   }
 
-  const host = appHost();
+  const allowedOrigins = allowedPlaybackOrigins();
   let upload;
   try {
     upload = await createTusUpload({
       uploadLength: fileSizeBytes,
       name: title,
       maxDurationSeconds: MAX_DURATION_SECONDS,
-      allowedOrigins: host ? [host] : undefined,
+      allowedOrigins: allowedOrigins.length ? allowedOrigins : undefined,
     });
   } catch {
     return { error: "Could not start the upload. Please try again." };
@@ -295,7 +301,7 @@ export async function setVideoPlacementsAction(
   }
 
   for (const parent of toAdd) {
-    const orderIndex = await nextPlacementOrder(supabase, "video_placements", parent);
+    const orderIndex = await nextPlacementOrder(supabase, parent);
     const { error } = await supabase
       .from("video_placements")
       .insert({ video_id: videoId, ...parentColumns(parent), order_index: orderIndex });

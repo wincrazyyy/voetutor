@@ -201,55 +201,57 @@ export function LessonPlayerClient({
                 <h2 className="font-bold text-sm">{activeTopic?.title ?? "Course Content"}</h2>
               </div>
               <div className="flex flex-col">
-                {activeTopic && (activeTopic.videos.length > 0 || activeTopic.notes.length > 0) && (
+                {activeTopic && activeTopic.items.length > 0 && (
                   <div className="p-4 bg-primary/5 border-b border-border/50 flex flex-col gap-2">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Materials</div>
-                    {activeTopic.videos.map((v) => {
-                      const isActive = v.id === lessonId;
+                    {activeTopic.items.map((item) => {
+                      if (item.kind === "video") {
+                        const isActive = item.id === lessonId;
+                        return (
+                          <Link
+                            key={item.placement_id}
+                            href={`/lesson/${item.id}?from=${classId}`}
+                            className={`flex items-center gap-3 p-3 bg-card border rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group ${
+                              isActive ? "border-primary" : "border-primary/20"
+                            }`}
+                          >
+                            <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
+                              {item.is_completed || (isActive && completed) ? (
+                                <CheckCircle2 className="w-4 h-4" />
+                              ) : (
+                                <FileText className="w-4 h-4" />
+                              )}
+                            </div>
+                            <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight flex-1 min-w-0 truncate">
+                              {item.title}
+                            </span>
+                            <span className="text-xs text-muted-foreground shrink-0">{formatShortDuration(item.duration)}</span>
+                          </Link>
+                        );
+                      }
                       return (
-                        <Link
-                          key={v.placement_id}
-                          href={`/lesson/${v.id}?from=${classId}`}
-                          className={`flex items-center gap-3 p-3 bg-card border rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group ${
-                            isActive ? "border-primary" : "border-primary/20"
-                          }`}
+                        <a
+                          key={item.placement_id}
+                          href={`/api/resources/${item.id}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
                         >
-                          <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
-                            {v.is_completed || (isActive && completed) ? (
-                              <CheckCircle2 className="w-4 h-4" />
-                            ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
                               <FileText className="w-4 h-4" />
-                            )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight">
+                                {item.title}
+                              </span>
+                              <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(item.size_bytes)} • PDF</span>
+                            </div>
                           </div>
-                          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight flex-1 min-w-0 truncate">
-                            {v.title}
-                          </span>
-                          <span className="text-xs text-muted-foreground shrink-0">{formatShortDuration(v.duration)}</span>
-                        </Link>
+                          <Download className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2" />
+                        </a>
                       );
                     })}
-                    {activeTopic.notes.map((res) => (
-                      <a
-                        key={res.id}
-                        href={`/api/resources/${res.id}/download`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-between p-3 bg-card border border-primary/20 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:bg-primary/20 transition-colors">
-                            <FileText className="w-4 h-4" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight">
-                              {res.title}
-                            </span>
-                            <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(res.size_bytes)} • PDF</span>
-                          </div>
-                        </div>
-                        <Download className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2" />
-                      </a>
-                    ))}
                   </div>
                 )}
 
@@ -260,35 +262,32 @@ export function LessonPlayerClient({
                     </div>
 
                     <div className="flex flex-col">
-                      {subtopic.notes.length > 0 && (
-                        <div className="flex flex-col border-b border-border/50 bg-muted/5">
-                          {subtopic.notes.map((res) => (
+                      {subtopic.items.map((item) => {
+                        if (item.kind === "note") {
+                          return (
                             <a
-                              key={res.id}
-                              href={`/api/resources/${res.id}/download`}
+                              key={item.placement_id}
+                              href={`/api/resources/${item.id}/download`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-3 p-3 px-5 hover:bg-muted/50 transition-colors group"
+                              className="flex items-center gap-3 p-3 px-5 hover:bg-muted/50 transition-colors group border-b border-border/50 last:border-0"
                             >
                               <Paperclip className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors truncate">
-                                {res.title}
+                                {item.title}
                               </span>
                               <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
-                                {formatBytes(res.size_bytes)}
+                                {formatBytes(item.size_bytes)}
                               </span>
                             </a>
-                          ))}
-                        </div>
-                      )}
-
-                      {subtopic.videos.map((v) => {
-                        const isActive = v.id === lessonId;
-                        const isVideoCompleted = v.is_completed || (isActive && completed);
+                          );
+                        }
+                        const isActive = item.id === lessonId;
+                        const isVideoCompleted = item.is_completed || (isActive && completed);
                         return (
                           <Link
-                            key={v.id}
-                            href={`/lesson/${v.id}?from=${classId}`}
+                            key={item.placement_id}
+                            href={`/lesson/${item.id}?from=${classId}`}
                             className={`flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 ${
                               isActive ? "bg-primary/5 border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
                             }`}
@@ -304,10 +303,10 @@ export function LessonPlayerClient({
                               <span
                                 className={`text-sm font-semibold leading-tight ${isActive ? "text-foreground" : "text-muted-foreground"}`}
                               >
-                                {v.title}
+                                {item.title}
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground font-medium ml-7">{formatShortDuration(v.duration)}</span>
+                            <span className="text-xs text-muted-foreground font-medium ml-7">{formatShortDuration(item.duration)}</span>
                           </Link>
                         );
                       })}

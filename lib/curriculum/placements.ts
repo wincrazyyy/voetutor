@@ -67,21 +67,31 @@ export async function resolveOwnedParentClass(
   return { classId: row.topics.class_id };
 }
 
-/** Next order_index (max + 1) for a placement table within a given parent node. */
+/**
+ * Next order_index (max + 1) within a parent node, spanning BOTH video_placements and
+ * resource_placements. Videos and notes share one per-node sequence, so newly-added content of either
+ * kind appends after all existing content (video OR note) in the node.
+ */
 export async function nextPlacementOrder(
   supabase: SupabaseServerClient,
-  table: PlacementTable,
   parent: PlacementParent,
 ): Promise<number> {
   const column = parent.kind === "topic" ? "topic_id" : "subtopic_id";
-  const { data } = await supabase
-    .from(table)
-    .select("order_index")
-    .eq(column, parent.id)
-    .order("order_index", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return ((data as { order_index: number } | null)?.order_index ?? -1) + 1;
+  const maxFor = async (table: PlacementTable): Promise<number> => {
+    const { data } = await supabase
+      .from(table)
+      .select("order_index")
+      .eq(column, parent.id)
+      .order("order_index", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return (data as { order_index: number } | null)?.order_index ?? -1;
+  };
+  const [maxVideo, maxNote] = await Promise.all([
+    maxFor("video_placements"),
+    maxFor("resource_placements"),
+  ]);
+  return Math.max(maxVideo, maxNote) + 1;
 }
 
 /** The topic ids + subtopic ids that make up a class — the two parent kinds a placement can hang off. */

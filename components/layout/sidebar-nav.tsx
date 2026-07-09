@@ -1,13 +1,32 @@
 "use client";
 
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   type LucideIcon,
   LayoutDashboard,
   Settings,
   BookMarked,
   BookOpen,
+  GripVertical,
   Library,
   ClipboardList,
   Flag,
@@ -24,6 +43,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
+import { reorderSidebarClassesAction } from "@/app/actions/class-order";
+
+type ClassItem = { id: string; code: string; title: string };
 
 interface SidebarNavProps {
   role: UserRole;
@@ -227,45 +249,150 @@ export function SidebarNav({
                 {role === "educator" || role === "admin" ? "No classes assigned yet." : "No enrolments yet."}
               </p>
             ) : (
-              classes.map((cls) => {
-                const href = `${classHrefPrefix}/${cls.id}`;
-                const isActive = pathname.startsWith(href);
-                return (
-                  <Link
-                    key={cls.id}
-                    href={href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
-                      isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-5 h-5 flex items-center justify-center rounded-md border shrink-0",
-                        isActive
-                          ? "border-primary bg-primary/20 text-primary"
-                          : "border-muted-foreground/30 text-muted-foreground group-hover:border-foreground",
-                      )}
-                    >
-                      {role === "educator" || role === "admin" ? (
-                        <ClipboardList className="w-3 h-3" />
-                      ) : (
-                        <BookMarked className="w-3 h-3" />
-                      )}
-                    </div>
-                    <span className="flex-1 truncate">{cls.title}</span>
-                    {(classUnread[cls.id] ?? 0) > 0 && (
-                      <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5 shrink-0">
-                        {classUnread[cls.id]}
-                      </Badge>
-                    )}
-                  </Link>
-                );
-              })
+              <SortableClassList role={role} classes={classes} classUnread={classUnread} classHrefPrefix={classHrefPrefix} />
             )}
           </div>
         </div>
       )}
     </nav>
+  );
+}
+
+function SortableClassList({
+  role,
+  classes,
+  classUnread,
+  classHrefPrefix,
+}: {
+  role: UserRole;
+  classes: ClassItem[];
+  classUnread: Record<string, number>;
+  classHrefPrefix: string;
+}) {
+  const router = useRouter();
+  const [items, setItems] = useState<ClassItem[]>(classes);
+  const [, startTransition] = useTransition();
+
+  /* Re-sync when the server hands down a new ordering / membership (e.g. after a reorder revalidate,
+     an enrolment, or a class delete). */
+  useEffect(() => {
+    setItems(classes);
+  }, [classes]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = items.findIndex((c) => c.id === active.id);
+    const newIndex = items.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const previous = items;
+    const next = arrayMove(items, oldIndex, newIndex);
+    setItems(next);
+
+    startTransition(async () => {
+      const result = await reorderSidebarClassesAction(next.map((c) => c.id));
+      if (result.error) {
+        setItems(previous);
+      } else {
+        router.refresh();
+      }
+    });
+  }
+
+  return (
+    <DndContext
+      id="sidebar-classes"
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={items.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+        {items.map((cls) => (
+          <SortableClassRow
+            key={cls.id}
+            role={role}
+            cls={cls}
+            unread={classUnread[cls.id] ?? 0}
+            classHrefPrefix={classHrefPrefix}
+          />
+        ))}
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableClassRow({
+  role,
+  cls,
+  unread,
+  classHrefPrefix,
+}: {
+  role: UserRole;
+  cls: ClassItem;
+  unread: number;
+  classHrefPrefix: string;
+}) {
+  const pathname = usePathname();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cls.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  const href = `${classHrefPrefix}/${cls.id}`;
+  const isActive = pathname.startsWith(href);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center rounded-lg group",
+        isActive ? "bg-primary/10" : "hover:bg-muted",
+        isDragging ? "opacity-40" : "",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={`Drag to reorder ${cls.title}`}
+        className="pl-2 py-2.5 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <Link
+        href={href}
+        className={cn(
+          "flex items-center gap-3 pr-3 pl-1 py-2.5 rounded-lg text-sm font-medium transition-colors flex-1 min-w-0",
+          isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+        )}
+      >
+        <div
+          className={cn(
+            "w-5 h-5 flex items-center justify-center rounded-md border shrink-0",
+            isActive
+              ? "border-primary bg-primary/20 text-primary"
+              : "border-muted-foreground/30 text-muted-foreground group-hover:border-foreground",
+          )}
+        >
+          {role === "educator" || role === "admin" ? (
+            <ClipboardList className="w-3 h-3" />
+          ) : (
+            <BookMarked className="w-3 h-3" />
+          )}
+        </div>
+        <span className="flex-1 truncate">{cls.title}</span>
+        {unread > 0 && (
+          <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5 shrink-0">
+            {unread}
+          </Badge>
+        )}
+      </Link>
+    </div>
   );
 }

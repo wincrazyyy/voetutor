@@ -444,6 +444,25 @@ CREATE TRIGGER set_user_video_progress_updated_at
     BEFORE UPDATE ON user_video_progress
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
 
+/* ----------------------------------------- */
+
+CREATE TABLE user_class_order (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    PRIMARY KEY (user_id, class_id)
+);
+COMMENT ON TABLE user_class_order IS 'Per-user preferred ordering of the sidebar class list (enrolled students AND teaching educators). Separate from the immutable class_enrollments so ordering stays mutable and role-agnostic; consumed only by the sidebar, never the marketplace.';
+COMMENT ON COLUMN user_class_order.position IS 'Zero-based sort key for the caller''s sidebar class list; classes lacking a row sort after positioned ones in their natural order.';
+
+CREATE INDEX idx_user_class_order_class_id ON user_class_order(class_id);
+
+CREATE TRIGGER set_user_class_order_updated_at
+    BEFORE UPDATE ON user_class_order
+    FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
 /* ==========  COMMUNICATIONS & FORUM  ========== */
 
 CREATE TABLE announcements (

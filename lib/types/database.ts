@@ -270,6 +270,14 @@ export interface UserVideoProgress {
   updated_at: string;
 }
 
+export interface UserClassOrder {
+  user_id: string;
+  class_id: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Announcement {
   id: string;
   class_id: string;

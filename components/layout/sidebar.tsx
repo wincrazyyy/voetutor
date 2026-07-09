@@ -2,7 +2,7 @@ import Link from "next/link";
 import { VoeWordmark } from "@/components/brand/vault-mark";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
-import { getEnrolledClasses } from "@/lib/queries/classes";
+import { getEnrolledClasses, getClassOrder } from "@/lib/queries/classes";
 import { getClassesForEducator } from "@/lib/queries/educator";
 import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
@@ -38,6 +38,24 @@ export async function Sidebar() {
     } else {
       const enrolled = await getEnrolledClasses(profile.id);
       classes = enrolled.map((c) => ({ id: c.id, code: c.code, title: c.title }));
+    }
+
+    /* Apply the caller's saved sidebar ordering here only (not inside the queries) so the marketplace
+       and other consumers are unaffected. Classes with a saved position sort ascending; classes lacking
+       one keep their existing natural order after the positioned ones (stable). */
+    const order = await getClassOrder(profile.id);
+    if (order.size > 0) {
+      classes = classes
+        .map((c, index) => ({ c, index, position: order.get(c.id) }))
+        .sort((a, b) => {
+          const aHas = a.position !== undefined;
+          const bHas = b.position !== undefined;
+          if (aHas && bHas) return a.position! - b.position!;
+          if (aHas) return -1;
+          if (bHas) return 1;
+          return a.index - b.index;
+        })
+        .map((entry) => entry.c);
     }
   }
 
