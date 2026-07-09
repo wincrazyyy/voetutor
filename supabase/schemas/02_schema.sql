@@ -384,14 +384,14 @@ CREATE TABLE resources (
     title TEXT NOT NULL CHECK (char_length(title) <= 255),
     description TEXT,
     size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),
-    file_url TEXT NOT NULL CHECK (char_length(file_url) <= 2048 AND file_url ~* '^https://'),
+    file_url TEXT NOT NULL CHECK (char_length(file_url) <= 2048),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 COMMENT ON TABLE resources IS 'Educator-owned library of PDF notes, keyed by owner_id (FK to profiles) — a note exists independently of the curriculum and is surfaced inside classes through resource_placements (many-to-many), so one note can appear in several topics/subtopics across several of the owning educator''s classes. Mirrors the videos / video_placements library model. Branded "Notes" in the UI.';
 COMMENT ON COLUMN resources.owner_id IS 'The educator who owns this library note. Edit/delete and placement rights resolve directly from this column rather than through the curriculum hierarchy, since a note may be placed into many classes or none.';
 COMMENT ON COLUMN resources.size_bytes IS 'Enforces BIGINT to prevent overflow issues common with large file representations in 32-bit integers.';
-COMMENT ON COLUMN resources.file_url IS 'Required HTTPS URL up to 2048 characters; the inline CHECK enforces both the length cap and the protocol restriction. Points at an owner-keyed object class-resources/{owner_id}/{uuid}.pdf; downloads go through /api/resources/[id]/download (signed URL minted server-side after a placement-membership check), never a direct public read.';
+COMMENT ON COLUMN resources.file_url IS 'The Cloudflare R2 object KEY for the notes PDF, of the form {owner_id}/{uuid}.pdf (an owner-keyed object in the app-gated R2 notes bucket — R2 has no per-user RLS, so the app is the sole gatekeeper). Length-capped at 2048; the protocol CHECK was dropped when the bytes moved off Supabase Storage to R2. Downloads go through /api/resources/[id]/download, which RLS-checks the row then 302s to a short-lived R2 presigned GET — never a direct public read. Legacy rows may still hold a full Supabase Storage https URL during the R2 migration; the download route serves either shape. See plans/r2-notes-migration.md.';
 
 CREATE INDEX idx_resources_owner_id ON resources(owner_id);
 

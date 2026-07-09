@@ -13,7 +13,12 @@ import {
   resolveOwnedParentClass,
   classesForPlacementRows,
 } from "@/lib/curriculum/placements";
-import { NOTES_BUCKET, notePathFromUrl } from "@/lib/storage/notes";
+import {
+  LEGACY_NOTES_BUCKET,
+  isLegacySupabaseNote,
+  noteKeyFromFileUrl,
+} from "@/lib/storage/notes";
+import { deleteNoteObjects } from "@/lib/storage/r2";
 import type { Profile } from "@/lib/types/database";
 
 export interface CurriculumActionState {
@@ -115,11 +120,19 @@ async function gcOrphanedResources(
     .select("file_url")
     .in("id", orphanIds);
   await supabase.from("resources").delete().in("id", orphanIds);
-  const paths = ((orphanRows ?? []) as Array<{ file_url: string }>)
-    .map((row) => notePathFromUrl(row.file_url))
-    .filter((path): path is string => Boolean(path));
-  if (paths.length > 0) {
-    await supabase.storage.from(NOTES_BUCKET).remove(paths).catch(() => undefined);
+
+  /* Reap the bytes from whichever backend holds them (dual-read window). */
+  const r2Keys: string[] = [];
+  const legacyPaths: string[] = [];
+  for (const row of (orphanRows ?? []) as Array<{ file_url: string }>) {
+    const key = noteKeyFromFileUrl(row.file_url);
+    if (!key) continue;
+    if (isLegacySupabaseNote(row.file_url)) legacyPaths.push(key);
+    else r2Keys.push(key);
+  }
+  if (r2Keys.length > 0) await deleteNoteObjects(r2Keys);
+  if (legacyPaths.length > 0) {
+    await supabase.storage.from(LEGACY_NOTES_BUCKET).remove(legacyPaths).catch(() => undefined);
   }
 }
 

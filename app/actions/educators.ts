@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile, getProfileById } from "@/lib/queries/profile";
 import { deleteVideo } from "@/lib/cloudflare/client";
+import { wipeNotePrefix } from "@/lib/storage/r2";
 
 export interface DeleteEducatorState {
   error?: string;
@@ -13,10 +14,14 @@ export interface DeleteEducatorState {
 }
 
 /**
- * Every storage bucket keyed by the user's id as the first path segment: profile images, note PDFs,
+ * Every SUPABASE storage bucket keyed by the user's id as the first path segment: profile images,
  * forum/announcement RTE images, and the account avatar. The DB cascade never reaches Storage, so
- * these are reaped out-of-band. See lib/profile/asset-cleanup.ts (educator-assets), lib/storage/notes.ts
- * (class-resources), lib/forum/rte-image.ts (rte-images), lib/avatar/upload-avatar.ts (avatars).
+ * these are reaped out-of-band. See lib/profile/asset-cleanup.ts (educator-assets),
+ * lib/forum/rte-image.ts (rte-images), lib/avatar/upload-avatar.ts (avatars).
+ *
+ * Note PDFs now live in Cloudflare R2, reaped separately via wipeNotePrefix (step 5). "class-resources"
+ * stays in this list only to sweep any LEGACY note bytes not yet migrated off Supabase — a harmless
+ * no-op once the bucket is emptied/retired; drop it then.
  */
 const ASSET_BUCKETS = ["educator-assets", "class-resources", "rte-images", "avatars"] as const;
 const PAGE = 100;
@@ -111,6 +116,7 @@ async function deleteAccountAndAssets(
   for (const bucket of ASSET_BUCKETS) {
     await wipeStoragePrefix(admin, bucket, userId);
   }
+  await wipeNotePrefix(userId);
 
   return {};
 }

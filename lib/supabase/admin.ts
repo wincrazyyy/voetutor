@@ -11,7 +11,10 @@ import { createClient } from "@supabase/supabase-js";
  *      RLS-checks the caller's access to the resources row with the regular
  *      user client BEFORE using this client to mint a signed URL — the
  *      service-role client is used only for the storage mint, never to read
- *      rows on the user's behalf.
+ *      rows on the user's behalf. (Only for LEGACY notes still on Supabase
+ *      Storage during the R2 migration; migrated notes serve from Cloudflare
+ *      R2 and don't touch this client. Drop this item once the dual-read
+ *      window closes.)
  *   3. deleteEducatorAccountAction (app/actions/educators.ts), which verifies
  *      the caller is an admin (and not deleting themselves) with the regular
  *      user session BEFORE constructing this client — it then needs the

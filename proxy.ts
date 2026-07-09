@@ -16,8 +16,10 @@ export const config = {
      *   HMAC signature; must bypass the auth gate, not be redirected to login)
      * - api/cron/reap-uploads (scheduled upload reaper — authenticated by its
      *   own CRON_SECRET bearer; has no user session, so must bypass the gate)
+     * - api/cron/reap-r2-notes (scheduled R2 orphan-note reaper — same
+     *   CRON_SECRET bearer, no user session)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/stream/webhook|api/cron/reap-uploads|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/stream/webhook|api/cron/reap-uploads|api/cron/reap-r2-notes|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

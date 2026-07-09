@@ -21,6 +21,9 @@ const PROFILE_CSP = [
   .join("; ");
 
 const nextConfig: NextConfig = {
+  /* Keep the AWS S3 SDK (used for Cloudflare R2 note storage) external to the server bundle — it has
+     dynamic requires that Next's bundler can choke on. Server actions + route handlers only. */
+  serverExternalPackages: ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner"],
   async headers() {
     return [
       {

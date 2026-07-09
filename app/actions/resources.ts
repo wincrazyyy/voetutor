@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getEducatorAccess } from "@/lib/tiers/gate";
+import type { Profile } from "@/lib/types/database";
 import {
   type PlacementParent,
   parentColumns,
@@ -14,7 +15,14 @@ import {
   nextPlacementOrder,
   classesForPlacementRows,
 } from "@/lib/curriculum/placements";
-import { NOTES_BUCKET, isOwnNotePath, noteFileUrl, notePathFromUrl } from "@/lib/storage/notes";
+import {
+  LEGACY_NOTES_BUCKET,
+  isLegacySupabaseNote,
+  isOwnNoteKey,
+  noteFileUrl,
+  noteKeyFromFileUrl,
+} from "@/lib/storage/notes";
+import { deleteNoteObjects, headNoteSize, presignNotePut } from "@/lib/storage/r2";
 
 const MAX_BYTES = 100 * 1024 * 1024;
 
@@ -23,20 +31,8 @@ export interface ResourceActionState {
   ok?: boolean;
 }
 
-/**
- * Registers a `resources` (note) row for a PDF the client already uploaded to the owner-keyed
- * class-resources bucket. The bytes never pass through this action (the browser uploads straight to
- * storage under the educator's own RLS prefix), so the Next.js body limit is irrelevant. The note
- * lands in the educator's LIBRARY; an optional `parent` (topic or subtopic) also places it there.
- * Premium-gated, mirroring video uploads.
- */
-export async function createNoteUploadAction(input: {
-  parent?: PlacementParent | null;
-  title: string;
-  description: string;
-  storagePath: string;
-  sizeBytes: number;
-}): Promise<ResourceActionState> {
+/** Shared auth + premium gate for note writes — the same block the create/reap actions run. */
+async function requirePremiumEducator(): Promise<{ profile: Profile } | { error: string }> {
   const access = await getEducatorAccess();
   if (!access.profile) return { error: "Sign in required." };
   const { profile, isPremium } = access;
@@ -49,6 +45,63 @@ export async function createNoteUploadAction(input: {
   if (!isPremium) {
     return { error: "Notes are a premium feature. Upgrade to add notes." };
   }
+  return { profile };
+}
+
+/**
+ * Mints a presigned R2 PUT URL so the browser can upload a note PDF directly to Cloudflare R2
+ * (bypassing the Vercel body limit). Authorizes + premium-gates BEFORE minting — R2 has no per-user
+ * RLS, so this action is the gatekeeper. Returns the object key (under the caller's own owner prefix)
+ * and the one-time PUT URL. The row is registered separately by createNoteUploadAction.
+ */
+export async function createNotePresignAction(): Promise<
+  { key: string; putUrl: string } | { error: string }
+> {
+  const gate = await requirePremiumEducator();
+  if ("error" in gate) return gate;
+
+  try {
+    const key = noteFileUrl(gate.profile.id, crypto.randomUUID());
+    const putUrl = await presignNotePut(key);
+    return { key, putUrl };
+  } catch {
+    return { error: "Note storage is not configured on this deployment." };
+  }
+}
+
+/**
+ * Deletes a just-uploaded R2 object when row registration fails (the browser has no R2 credentials, so
+ * it calls this instead of reaping directly). Only the caller's own object — or an admin's anything.
+ */
+export async function reapNoteObjectAction(key: string): Promise<ResourceActionState> {
+  const gate = await requirePremiumEducator();
+  if ("error" in gate) return gate;
+  if (gate.profile.role !== "admin" && !isOwnNoteKey(key, gate.profile.id)) {
+    return { error: "Invalid object key." };
+  }
+  await deleteNoteObjects([key]);
+  return { ok: true };
+}
+
+/**
+ * Registers a `resources` (note) row for a PDF the client already uploaded to Cloudflare R2 under the
+ * caller's owner-keyed object key. The bytes never pass through this action, so the Next.js body limit
+ * is irrelevant. The note lands in the educator's LIBRARY; an optional `parent` (topic or subtopic)
+ * also places it there. Premium-gated, mirroring video uploads.
+ *
+ * The size cap is enforced authoritatively from R2 (HeadObject), never the client-reported size — a
+ * client can't smuggle an oversized file past the cap, and the true byte length is what we persist.
+ */
+export async function createNoteUploadAction(input: {
+  parent?: PlacementParent | null;
+  title: string;
+  description: string;
+  storagePath: string;
+  sizeBytes: number;
+}): Promise<ResourceActionState> {
+  const gate = await requirePremiumEducator();
+  if ("error" in gate) return gate;
+  const { profile } = gate;
 
   const title = input.title.trim();
   if (!title) return { error: "A title is required." };
@@ -57,17 +110,23 @@ export async function createNoteUploadAction(input: {
   const description = input.description.trim();
   if (description.length > 5000) return { error: "Description must be 5000 characters or fewer." };
 
-  const sizeBytes = Math.round(input.sizeBytes);
-  if (!Number.isFinite(sizeBytes) || sizeBytes < 0) return { error: "Invalid file." };
-  if (sizeBytes > MAX_BYTES) return { error: "File must be 100 MB or smaller." };
-
   /* The object must live under the caller's OWN owner-keyed prefix. */
-  if (!isOwnNotePath(input.storagePath, profile.id)) {
+  if (!isOwnNoteKey(input.storagePath, profile.id)) {
     return { error: "Invalid upload path." };
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!baseUrl) return { error: "Storage is not configured." };
+  /* Authoritative size from R2 — never trust the client. A missing object (null) means the upload
+     didn't land (or a transient head failure); reject and reap so nothing is stranded. Oversize is
+     rejected + reaped here even though the client also caps, so the cap can't be bypassed. */
+  const trueSize = await headNoteSize(input.storagePath);
+  if (trueSize === null) {
+    await deleteNoteObjects([input.storagePath]);
+    return { error: "Upload could not be verified. Please try again." };
+  }
+  if (trueSize > MAX_BYTES) {
+    await deleteNoteObjects([input.storagePath]);
+    return { error: "File must be 100 MB or smaller." };
+  }
 
   const supabase = await createClient();
 
@@ -76,7 +135,10 @@ export async function createNoteUploadAction(input: {
   let orderIndex = 0;
   if (parent) {
     const resolved = await resolveOwnedParentClass(supabase, profile, parent);
-    if ("error" in resolved) return { error: resolved.error };
+    if ("error" in resolved) {
+      await deleteNoteObjects([input.storagePath]);
+      return { error: resolved.error };
+    }
     classId = resolved.classId;
     orderIndex = await nextPlacementOrder(supabase, parent);
   }
@@ -87,14 +149,14 @@ export async function createNoteUploadAction(input: {
       owner_id: profile.id,
       title,
       description: description || null,
-      size_bytes: sizeBytes,
-      file_url: noteFileUrl(baseUrl, input.storagePath),
+      size_bytes: trueSize,
+      file_url: input.storagePath,
     })
     .select("id")
     .single();
 
   if (insertError || !inserted) {
-    await supabase.storage.from(NOTES_BUCKET).remove([input.storagePath]).catch(() => undefined);
+    await deleteNoteObjects([input.storagePath]);
     return { error: insertError?.message ?? "Could not save the note." };
   }
   const resourceId = (inserted as { id: string }).id;
@@ -105,7 +167,7 @@ export async function createNoteUploadAction(input: {
       .insert({ resource_id: resourceId, ...parentColumns(parent), order_index: orderIndex });
     if (placementError) {
       await supabase.from("resources").delete().eq("id", resourceId);
-      await supabase.storage.from(NOTES_BUCKET).remove([input.storagePath]).catch(() => undefined);
+      await deleteNoteObjects([input.storagePath]);
       return { error: placementError.message };
     }
   }
@@ -372,9 +434,14 @@ export async function deleteNoteAction(resourceId: string): Promise<ResourceActi
   const { error } = await supabase.from("resources").delete().eq("id", resourceId);
   if (error) return { error: error.message };
 
-  const path = notePathFromUrl(resourceRow.file_url);
-  if (path) {
-    await supabase.storage.from(NOTES_BUCKET).remove([path]).catch(() => undefined);
+  /* Reap the bytes from whichever backend holds them (dual-read window). */
+  const key = noteKeyFromFileUrl(resourceRow.file_url);
+  if (key) {
+    if (isLegacySupabaseNote(resourceRow.file_url)) {
+      await supabase.storage.from(LEGACY_NOTES_BUCKET).remove([key]).catch(() => undefined);
+    } else {
+      await deleteNoteObjects([key]);
+    }
   }
 
   for (const classId of new Set(classMap.values())) revalidatePath(`/class/${classId}`);

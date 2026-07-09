@@ -7,12 +7,14 @@ import { FileText, Plus, UploadCloud, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
-import { createNoteUploadAction } from "@/app/actions/resources";
+import {
+  createNotePresignAction,
+  createNoteUploadAction,
+  reapNoteObjectAction,
+} from "@/app/actions/resources";
 import { formatBytes } from "@/lib/utils/format";
 import type { PlacementParent } from "@/lib/types/database";
 
-const BUCKET = "class-resources";
 const MAX_BYTES = 100 * 1024 * 1024;
 
 interface NoteUploadDialogProps {
@@ -133,15 +135,6 @@ export function NoteUploadDialog({
     }
 
     startTransition(async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setError("Your session expired. Please sign in again.");
-        return;
-      }
-
       const batch = files;
       const failed: { file: File; message: string }[] = [];
       setProgress({ done: 0, total: batch.length });
@@ -149,28 +142,45 @@ export function NoteUploadDialog({
       for (let index = 0; index < batch.length; index += 1) {
         const current = batch[index];
         const noteTitle = batch.length === 1 ? title.trim() : deriveTitle(current);
-        const path = `${user.id}/${crypto.randomUUID()}.pdf`;
 
-        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, current, {
-          contentType: "application/pdf",
-          cacheControl: "3600",
-          upsert: false,
-        });
-        if (uploadError) {
-          failed.push({ file: current, message: uploadError.message });
+        /* 1) mint a presigned R2 PUT — the server authorizes, premium-gates, and owns the key. */
+        const presign = await createNotePresignAction();
+        if ("error" in presign) {
+          failed.push({ file: current, message: presign.error });
           setProgress({ done: index + 1, total: batch.length });
           continue;
         }
 
+        /* 2) browser → R2 direct, bypassing the Vercel body limit (exactly like the old flow). */
+        let putError: string | null = null;
+        try {
+          const put = await fetch(presign.putUrl, {
+            method: "PUT",
+            body: current,
+            headers: { "Content-Type": "application/pdf" },
+          });
+          if (!put.ok) putError = `Upload failed (${put.status}).`;
+        } catch {
+          putError = "Upload failed. Check your connection and retry.";
+        }
+        if (putError) {
+          await reapNoteObjectAction(presign.key).catch(() => undefined);
+          failed.push({ file: current, message: putError });
+          setProgress({ done: index + 1, total: batch.length });
+          continue;
+        }
+
+        /* 3) register the library row — the action verifies the true size from R2 and reaps on any
+              failure so a stranded object never survives. */
         const result = await createNoteUploadAction({
           parent,
           title: noteTitle,
           description: "",
-          storagePath: path,
+          storagePath: presign.key,
           sizeBytes: current.size,
         });
         if (result?.error) {
-          await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined);
+          await reapNoteObjectAction(presign.key).catch(() => undefined);
           failed.push({ file: current, message: result.error });
         }
         setProgress({ done: index + 1, total: batch.length });

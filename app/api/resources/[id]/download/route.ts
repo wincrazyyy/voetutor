@@ -2,7 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { NOTES_BUCKET, notePathFromUrl } from "@/lib/storage/notes";
+import {
+  LEGACY_NOTES_BUCKET,
+  isLegacySupabaseNote,
+  noteKeyFromFileUrl,
+} from "@/lib/storage/notes";
+import { presignNoteGet } from "@/lib/storage/r2";
 
 /**
  * Mints a short-lived signed URL for a class note (PDF) and 302s to it.
@@ -11,11 +16,14 @@ import { NOTES_BUCKET, notePathFromUrl } from "@/lib/storage/notes";
  * (resources_select_authorized = owner / admin / enrolled-or-teaching a class
  * the note is placed in), so a successful read IS the authorization check — a
  * student who isn't in any class the note is placed in gets a null row → 404.
- * Only after that check do we mint the signed URL with the SERVICE-ROLE client,
- * because under the owner-keyed storage model student reads are not permitted by
- * the storage RLS (owner/admin only) — the file is shared across classes, so a
- * path prefix can't encode membership. This mirrors server-side video token mint.
- * Only objects inside the notes bucket are served (no open-redirect).
+ * Only after that check do we mint the download URL — the bytes live in an
+ * app-gated store with no per-user auth (Cloudflare R2, or legacy Supabase
+ * Storage during the migration), so the row read is the sole membership gate.
+ *
+ * Dual-read: rows migrated to R2 hold a bare object key and are served via an R2
+ * presigned GET; rows not yet migrated still hold a Supabase Storage https URL
+ * and are served via a service-role signed URL. Both derive the same owner-keyed
+ * object path, so neither is an open redirect. See plans/r2-notes-migration.md.
  */
 export async function GET(
   request: NextRequest,
@@ -42,17 +50,28 @@ export async function GET(
     return new NextResponse("Resource not found.", { status: 404 });
   }
 
-  const path = notePathFromUrl(row.file_url);
-  if (!path) {
+  const key = noteKeyFromFileUrl(row.file_url);
+  if (!key) {
     return new NextResponse("Invalid resource.", { status: 400 });
   }
 
-  /* The membership check above passed; mint with service-role (storage RLS is owner/admin only). */
-  const admin = createAdminClient();
-  const { data: signed, error } = await admin.storage.from(NOTES_BUCKET).createSignedUrl(path, 120);
-  if (error || !signed) {
-    return new NextResponse("Unable to access this file.", { status: 500 });
+  /* Legacy rows still on Supabase Storage: mint with service-role (storage RLS is owner/admin only). */
+  if (isLegacySupabaseNote(row.file_url)) {
+    const admin = createAdminClient();
+    const { data: signed, error } = await admin.storage
+      .from(LEGACY_NOTES_BUCKET)
+      .createSignedUrl(key, 600);
+    if (error || !signed) {
+      return new NextResponse("Unable to access this file.", { status: 500 });
+    }
+    return NextResponse.redirect(signed.signedUrl);
   }
 
-  return NextResponse.redirect(signed.signedUrl);
+  /* Migrated rows: 302 to a short-lived Cloudflare R2 presigned GET. */
+  try {
+    const url = await presignNoteGet(key);
+    return NextResponse.redirect(url);
+  } catch {
+    return new NextResponse("Unable to access this file.", { status: 500 });
+  }
 }
