@@ -6,8 +6,9 @@ import { ExternalLink, Inbox, Pencil, Search, ShieldCheck, Star } from "lucide-r
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DeleteEducatorButton } from "@/components/admin/delete-educator-button";
+import { DeleteAccountButton } from "@/components/admin/delete-account-button";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { deleteEducatorAccountAction } from "@/app/actions/educators";
 import type { EducatorProfile, Profile } from "@/lib/types/database";
 import { getDisplayName } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
@@ -183,7 +184,19 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
                   </Link>
                 </Button>
                 {educator.id !== currentUserId ? (
-                  <DeleteEducatorButton educatorId={educator.id} educatorName={name} />
+                  <DeleteAccountButton
+                    accountId={educator.id}
+                    accountName={name}
+                    action={deleteEducatorAccountAction}
+                    description={
+                      <>
+                        removes their login, public profile and reviews, every class they own — with all
+                        topics, lessons, notes, announcements, forum threads, and every student&apos;s
+                        enrolment and progress in those classes — plus their entire content library and all
+                        uploaded videos and files. This cannot be undone.
+                      </>
+                    }
+                  />
                 ) : null}
               </div>
             </Card>

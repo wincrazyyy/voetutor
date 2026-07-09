@@ -6,8 +6,11 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
+import { ImageCropModal } from "@/components/media/image-crop-modal";
 import { uploadUserAvatar } from "@/lib/avatar/upload-avatar";
 import { updateAvatarAction } from "@/app/actions/avatar";
+
+const ALLOWED = ["image/png", "image/jpeg", "image/webp"];
 
 interface AvatarUploaderProps {
   userId: string;
@@ -32,14 +35,25 @@ export function AvatarUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setError(null);
+    if (!ALLOWED.includes(file.type)) {
+      setError("Use a PNG, JPG, or WEBP image.");
+      return;
+    }
+    setPendingFile(file);
+  };
+
+  const handleCropped = async (cropped: File) => {
+    setPendingFile(null);
+    setError(null);
     setBusy(true);
-    const uploaded = await uploadUserAvatar(file, userId);
+    const uploaded = await uploadUserAvatar(cropped, userId);
     if (uploaded.error || !uploaded.url) {
       setBusy(false);
       setError(uploaded.error ?? "Upload failed. Please try again.");
@@ -104,7 +118,7 @@ export function AvatarUploader({
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          PNG, JPG, or WEBP, up to 5 MB. Shown next to your name across VOETutor.
+          PNG, JPG, or WEBP — large images are compressed automatically. Shown next to your name across VOETutor.
         </p>
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
@@ -116,6 +130,16 @@ export function AvatarUploader({
         className="hidden"
         onChange={onFile}
       />
+
+      {pendingFile && (
+        <ImageCropModal
+          file={pendingFile}
+          shape="circle"
+          title="Adjust your avatar"
+          onCancel={() => setPendingFile(null)}
+          onCropped={handleCropped}
+        />
+      )}
     </div>
   );
 }

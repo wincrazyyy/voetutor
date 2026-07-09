@@ -431,7 +431,7 @@ function PhotoCard({
           className="flex h-24 w-full flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border bg-muted/30 text-xs text-muted-foreground ring-offset-background transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-          {busy ? "Uploading…" : "Upload an image — PNG, JPG, or WEBP (max 5 MB)"}
+          {busy ? "Uploading…" : "Upload an image — PNG, JPG, or WEBP (compressed automatically)"}
         </button>
       )}
       {err ? <p className="text-xs text-destructive">{err}</p> : null}

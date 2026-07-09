@@ -1,33 +1,43 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteEducatorAccountAction } from "@/app/actions/educators";
 
-interface DeleteEducatorButtonProps {
-  educatorId: string;
-  educatorName: string;
+interface DeleteAccountButtonProps {
+  accountId: string;
+  accountName: string;
+  /** The "this removes …" copy specific to the account kind, rendered in the red info box. */
+  description: React.ReactNode;
+  action: (accountId: string, confirmation: string) => Promise<{ error?: string; ok?: boolean }>;
 }
 
 /** Force the admin to TYPE the id — block paste and drag-drop into the confirmation field. */
 const blockClipboard = (e: React.ClipboardEvent | React.DragEvent) => e.preventDefault();
 
-export function DeleteEducatorButton({ educatorId, educatorName }: DeleteEducatorButtonProps) {
+export function DeleteAccountButton({
+  accountId,
+  accountName,
+  description,
+  action,
+}: DeleteAccountButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const wasOpenRef = useRef(false);
 
   /* Confirm against the account id, not the name: ids are unique, so an admin can never accidentally
      type a value that matches a different, same-named account. Paste is blocked, so the only way through
      is to read the id from this modal and type it — the deliberate "super gate". */
-  const matches = confirmation.trim() === educatorId;
+  const matches = confirmation.trim() === accountId;
 
   useEffect(() => {
     if (!open) return;
@@ -37,6 +47,32 @@ export function DeleteEducatorButton({ educatorId, educatorName }: DeleteEducato
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, pending]);
+
+  /** Restore focus to the trigger when the dialog closes (aria-modal focus hygiene). */
+  useEffect(() => {
+    if (wasOpenRef.current && !open) triggerRef.current?.focus();
+    wasOpenRef.current = open;
+  }, [open]);
+
+  /** Keep Tab focus inside the dialog. */
+  const trapFocus = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    const nodes = panelRef.current?.querySelectorAll<HTMLElement>(
+      'button, input, [href], [tabindex]:not([tabindex="-1"])',
+    );
+    if (!nodes) return;
+    const focusable = Array.from(nodes).filter((node) => !node.hasAttribute("disabled"));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   const reset = () => {
     setConfirmation("");
@@ -48,7 +84,7 @@ export function DeleteEducatorButton({ educatorId, educatorName }: DeleteEducato
     if (!matches) return;
     setError(null);
     startTransition(async () => {
-      const result = await deleteEducatorAccountAction(educatorId, confirmation);
+      const result = await action(accountId, confirmation);
       if (result?.error) {
         setError(result.error);
         return;
@@ -61,6 +97,7 @@ export function DeleteEducatorButton({ educatorId, educatorName }: DeleteEducato
   if (!open) {
     return (
       <Button
+        ref={triggerRef}
         variant="destructive"
         size="icon-sm"
         title="Delete account"
@@ -78,15 +115,17 @@ export function DeleteEducatorButton({ educatorId, educatorName }: DeleteEducato
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="delete-educator-title"
+        aria-labelledby="delete-account-title"
         className="w-full max-w-md rounded-lg border border-destructive/30 bg-card p-6 shadow-lg"
+        onKeyDown={trapFocus}
       >
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            <h2 id="delete-educator-title" className="text-lg font-bold">
+            <h2 id="delete-account-title" className="text-lg font-bold">
               Delete account
             </h2>
           </div>
@@ -105,22 +144,18 @@ export function DeleteEducatorButton({ educatorId, educatorName }: DeleteEducato
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
             <p className="mb-1 font-semibold text-destructive">This permanently deletes the entire account.</p>
             <p className="text-muted-foreground">
-              Deleting <span className="font-semibold text-foreground">{educatorName}</span> removes their
-              login, public profile and reviews, every class they own — with all topics, lessons, notes,
-              announcements, forum threads, and every student&apos;s enrolment and progress in those
-              classes — plus their entire content library and all uploaded videos and files. This cannot be
-              undone.
+              Deleting <span className="font-semibold text-foreground">{accountName}</span> {description}
             </p>
           </div>
 
           <form onSubmit={handleDelete} className="space-y-3">
             <div className="grid gap-2">
-              <Label htmlFor="delete-educator-confirm">Type this account&apos;s ID to confirm (no pasting):</Label>
+              <Label htmlFor="delete-account-confirm">Type this account&apos;s ID to confirm (no pasting):</Label>
               <p className="select-all break-all rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">
-                {educatorId}
+                {accountId}
               </p>
               <Input
-                id="delete-educator-confirm"
+                id="delete-account-confirm"
                 value={confirmation}
                 onChange={(e) => setConfirmation(e.target.value)}
                 onPaste={blockClipboard}

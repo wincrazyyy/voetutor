@@ -26,6 +26,7 @@ import {
   Settings,
   BookMarked,
   BookOpen,
+  GraduationCap,
   GripVertical,
   Library,
   ClipboardList,
@@ -131,6 +132,7 @@ export function SidebarNav({
       badge: pendingApplicationCount,
     },
     { name: "Educators", href: "/admin/educators", icon: Users, lockable: false },
+    { name: "Students", href: "/admin/students", icon: GraduationCap, lockable: false },
     {
       name: "Reports",
       href: "/reports",

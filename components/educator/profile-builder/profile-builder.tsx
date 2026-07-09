@@ -54,6 +54,7 @@ import { ProfileDoc } from "@/components/profile/render/profile-doc";
 import { ProfileHeader } from "@/components/profile/public/profile-header";
 import type { PublicEducatorProfile } from "@/lib/types/database";
 import type { EducatorTier } from "@/lib/tiers/capabilities";
+import { ImageCropModal } from "@/components/media/image-crop-modal";
 
 import { SectionBodyEditor } from "./section-editors";
 import { AccentSwatches } from "./accent-swatches";
@@ -311,6 +312,7 @@ export function ProfileBuilder({
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [roleLabel, setRoleLabel] = useState(initialRoleLabel);
   const [headline, setHeadline] = useState(initialHeadline);
@@ -436,13 +438,22 @@ export function ProfileBuilder({
     touch();
   };
 
-  const onAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setAvatarError(null);
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setAvatarError("Use a PNG, JPG, or WEBP image.");
+      return;
+    }
+    setPendingAvatarFile(file);
+  };
+  const handleAvatarCropped = async (cropped: File) => {
+    setPendingAvatarFile(null);
+    setAvatarError(null);
     setAvatarBusy(true);
-    const res = await uploadEducatorImage(file, educatorId, "avatar");
+    const res = await uploadEducatorImage(cropped, educatorId, "avatar");
     setAvatarBusy(false);
     if (res.error) {
       setAvatarError(res.error);
@@ -816,10 +827,19 @@ export function ProfileBuilder({
             {avatarError ? (
               <p className="text-xs text-destructive">{avatarError}</p>
             ) : (
-              <p className="text-xs text-muted-foreground">Square image works best · PNG, JPG, WEBP · max 5 MB</p>
+              <p className="text-xs text-muted-foreground">Square image works best · PNG, JPG, WEBP · compressed automatically</p>
             )}
           </div>
         </div>
+        {pendingAvatarFile && (
+          <ImageCropModal
+            file={pendingAvatarFile}
+            shape="circle"
+            title="Adjust your profile photo"
+            onCancel={() => setPendingAvatarFile(null)}
+            onCropped={handleAvatarCropped}
+          />
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label htmlFor="pb-role">Role label</Label>

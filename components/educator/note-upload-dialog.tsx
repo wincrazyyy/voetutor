@@ -13,10 +13,10 @@ import { formatBytes } from "@/lib/utils/format";
 import type { PlacementParent } from "@/lib/types/database";
 
 const BUCKET = "class-resources";
-const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_BYTES = 100 * 1024 * 1024;
 
 interface NoteUploadDialogProps {
-  /** When set, the new note is placed under this node as well as landing in the library. */
+  /** When set, each new note is placed under this node as well as landing in the library. */
   parent?: PlacementParent | null;
   /** Shown in the dialog subtitle when a parent is given (e.g. "Calculus › Limits"). */
   parentLabel?: string;
@@ -31,11 +31,20 @@ function stripExtension(name: string): string {
   return dot > 0 ? name.slice(0, dot) : name;
 }
 
+/** Title for a note derived from its file name, clamped to the column limit. */
+function deriveTitle(file: File): string {
+  const base = stripExtension(file.name).trim().slice(0, 255);
+  return base || file.name.slice(0, 255);
+}
+
 /**
- * Uploads a PDF straight from the browser to the PRIVATE owner-keyed notes bucket
- * (class-resources/{ownerId}/{uuid}.pdf), then registers the library note via
- * createNoteUploadAction. The bytes never pass through the server action. A failed
- * registration reaps the just-uploaded object so storage never strands a file.
+ * Uploads one or more PDFs straight from the browser to the PRIVATE owner-keyed notes bucket
+ * (class-resources/{ownerId}/{uuid}.pdf), then registers each as a library note via
+ * createNoteUploadAction. The bytes never pass through the server action. Files upload
+ * sequentially with live progress; a failed registration reaps its just-uploaded object so
+ * storage never strands a file, and any files that fail stay selected for retry.
+ *
+ * A single file keeps an editable title; multiple files are each titled by their file name.
  */
 export function NoteUploadDialog({
   parent = null,
@@ -47,15 +56,17 @@ export function NoteUploadDialog({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const reset = () => {
-    setFile(null);
+    setFiles([]);
     setTitle("");
     setError(null);
+    setProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -69,37 +80,54 @@ export function NoteUploadDialog({
     setOpen(false);
   };
 
+  /** Applies a new file set, defaulting the single-file title to its file name. */
+  const applyFiles = (next: File[]) => {
+    setFiles(next);
+    setTitle((prev) => {
+      if (next.length === 1) return prev.trim() ? prev : deriveTitle(next[0]);
+      return "";
+    });
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    const selected = event.target.files?.[0] ?? null;
-    if (!selected) {
-      setFile(null);
-      return;
+    const selected = Array.from(event.target.files ?? []);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (selected.length === 0) return;
+
+    const rejected: string[] = [];
+    const merged = [...files];
+    for (const candidate of selected) {
+      const isPdf =
+        candidate.type === "application/pdf" || candidate.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        rejected.push(`${candidate.name} (not a PDF)`);
+        continue;
+      }
+      if (candidate.size > MAX_BYTES) {
+        rejected.push(`${candidate.name} (over 100 MB)`);
+        continue;
+      }
+      if (merged.some((f) => f.name === candidate.name && f.size === candidate.size)) continue;
+      merged.push(candidate);
     }
-    const isPdf = selected.type === "application/pdf" || selected.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      setFile(null);
-      setError("Only PDF files are supported.");
-      return;
-    }
-    if (selected.size > MAX_BYTES) {
-      setFile(null);
-      setError("File must be 50 MB or smaller.");
-      return;
-    }
-    setFile(selected);
-    if (!title.trim()) setTitle(stripExtension(selected.name));
+
+    applyFiles(merged);
+    if (rejected.length > 0) setError(`Skipped ${rejected.join(", ")}`);
+  };
+
+  const removeFile = (index: number) => {
+    applyFiles(files.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    if (!file) {
-      setError("Choose a PDF to upload.");
+    if (files.length === 0) {
+      setError("Choose at least one PDF to upload.");
       return;
     }
-    const cleanTitle = title.trim();
-    if (!cleanTitle) {
+    if (files.length === 1 && !title.trim()) {
       setError("A title is required.");
       return;
     }
@@ -113,32 +141,61 @@ export function NoteUploadDialog({
         setError("Your session expired. Please sign in again.");
         return;
       }
-      const path = `${user.id}/${crypto.randomUUID()}.pdf`;
-      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-        contentType: "application/pdf",
-        cacheControl: "3600",
-        upsert: false,
-      });
-      if (uploadError) {
-        setError(uploadError.message);
+
+      const batch = files;
+      const failed: { file: File; message: string }[] = [];
+      setProgress({ done: 0, total: batch.length });
+
+      for (let index = 0; index < batch.length; index += 1) {
+        const current = batch[index];
+        const noteTitle = batch.length === 1 ? title.trim() : deriveTitle(current);
+        const path = `${user.id}/${crypto.randomUUID()}.pdf`;
+
+        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, current, {
+          contentType: "application/pdf",
+          cacheControl: "3600",
+          upsert: false,
+        });
+        if (uploadError) {
+          failed.push({ file: current, message: uploadError.message });
+          setProgress({ done: index + 1, total: batch.length });
+          continue;
+        }
+
+        const result = await createNoteUploadAction({
+          parent,
+          title: noteTitle,
+          description: "",
+          storagePath: path,
+          sizeBytes: current.size,
+        });
+        if (result?.error) {
+          await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined);
+          failed.push({ file: current, message: result.error });
+        }
+        setProgress({ done: index + 1, total: batch.length });
+      }
+
+      setProgress(null);
+
+      if (failed.length === 0) {
+        setOpen(false);
+        reset();
+        router.refresh();
         return;
       }
 
-      const result = await createNoteUploadAction({
-        parent,
-        title: cleanTitle,
-        description: "",
-        storagePath: path,
-        sizeBytes: file.size,
-      });
-      if (result?.error) {
-        await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined);
-        setError(result.error);
-        return;
-      }
-
-      setOpen(false);
-      reset();
+      /* Keep only the failures selected so the user can retry them; the successes are
+         already saved, so refresh to reflect them behind the dialog. */
+      applyFiles(failed.map((entry) => entry.file));
+      const succeeded = batch.length - failed.length;
+      setError(
+        succeeded === 0
+          ? `Upload failed: ${failed.map((entry) => `${entry.file.name} — ${entry.message}`).join("; ")}`
+          : `Uploaded ${succeeded} of ${batch.length}. Still failing: ${failed
+              .map((entry) => entry.file.name)
+              .join(", ")}. Fix and retry.`,
+      );
       router.refresh();
     });
   };
@@ -157,6 +214,15 @@ export function NoteUploadDialog({
     );
   }
 
+  const multiple = files.length > 1;
+  const uploadLabel = pending
+    ? progress
+      ? `Uploading ${progress.done}/${progress.total}…`
+      : "Uploading…"
+    : multiple
+      ? `Upload ${files.length} notes`
+      : "Upload";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-card shadow-lg p-6">
@@ -164,7 +230,7 @@ export function NoteUploadDialog({
           <div className="min-w-0">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
-              Add note
+              {multiple ? "Add notes" : "Add note"}
             </h2>
             {parentLabel && (
               <p className="text-sm text-muted-foreground truncate mt-1">→ {parentLabel}</p>
@@ -183,22 +249,46 @@ export function NoteUploadDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="note-file">PDF file</Label>
+            <Label htmlFor="note-file">PDF file{files.length === 1 ? "" : "s"}</Label>
             <input
               ref={fileInputRef}
               id="note-file"
               type="file"
               accept="application/pdf,.pdf"
+              multiple
               onChange={handleFileChange}
               disabled={pending}
               className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20 file:cursor-pointer"
             />
-            {file && (
+            {files.length === 1 && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <UploadCloud className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{file.name}</span>
-                <span className="shrink-0">· {formatBytes(file.size)}</span>
+                <span className="truncate">{files[0].name}</span>
+                <span className="shrink-0">· {formatBytes(files[0].size)}</span>
               </p>
+            )}
+            {multiple && (
+              <ul className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                {files.map((f, index) => (
+                  <li
+                    key={`${f.name}-${f.size}-${index}`}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground"
+                  >
+                    <FileText className="w-3.5 h-3.5 shrink-0 text-primary/70" />
+                    <span className="truncate flex-1">{f.name}</span>
+                    <span className="shrink-0">{formatBytes(f.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      disabled={pending}
+                      className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                      aria-label={`Remove ${f.name}`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
             {!parent && (
               <p className="text-[11px] text-muted-foreground">
@@ -207,17 +297,23 @@ export function NoteUploadDialog({
             )}
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="note-title">Title</Label>
-            <Input
-              id="note-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              maxLength={255}
-              placeholder="e.g. Worksheet 1"
-              disabled={pending}
-            />
-          </div>
+          {multiple ? (
+            <p className="text-xs text-muted-foreground">
+              Each note is titled by its file name — rename any of them afterwards.
+            </p>
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="note-title">Title</Label>
+              <Input
+                id="note-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                maxLength={255}
+                placeholder="e.g. Worksheet 1"
+                disabled={pending}
+              />
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -225,8 +321,8 @@ export function NoteUploadDialog({
             <Button type="button" variant="ghost" onClick={closeDialog} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || !file || !title.trim()}>
-              {pending ? "Uploading…" : "Upload"}
+            <Button type="submit" disabled={pending || files.length === 0 || (files.length === 1 && !title.trim())}>
+              {uploadLabel}
             </Button>
           </div>
         </form>

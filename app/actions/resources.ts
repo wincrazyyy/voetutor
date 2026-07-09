@@ -16,7 +16,7 @@ import {
 } from "@/lib/curriculum/placements";
 import { NOTES_BUCKET, isOwnNotePath, noteFileUrl, notePathFromUrl } from "@/lib/storage/notes";
 
-const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_BYTES = 100 * 1024 * 1024;
 
 export interface ResourceActionState {
   error?: string;
@@ -59,7 +59,7 @@ export async function createNoteUploadAction(input: {
 
   const sizeBytes = Math.round(input.sizeBytes);
   if (!Number.isFinite(sizeBytes) || sizeBytes < 0) return { error: "Invalid file." };
-  if (sizeBytes > MAX_BYTES) return { error: "File must be 50 MB or smaller." };
+  if (sizeBytes > MAX_BYTES) return { error: "File must be 100 MB or smaller." };
 
   /* The object must live under the caller's OWN owner-keyed prefix. */
   if (!isOwnNotePath(input.storagePath, profile.id)) {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, Flag, ShieldCheck, UserCheck, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Flag, GraduationCap, ShieldCheck, UserCheck, Users } from "lucide-react";
 
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
 import { getPendingReportCount } from "@/lib/queries/class-reports";
@@ -62,7 +62,7 @@ export default async function AdminHubPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Link href="/admin/educators">
           <Card className="p-5 border-border bg-card shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
             <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -71,6 +71,18 @@ export default async function AdminHubPage() {
             <div>
               <div className="font-bold">Educator Profiles</div>
               <p className="text-sm text-muted-foreground">View and edit any educator&apos;s public profile</p>
+            </div>
+          </Card>
+        </Link>
+
+        <Link href="/admin/students">
+          <Card className="p-5 border-border bg-card shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+            <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <div className="font-bold">Students</div>
+              <p className="text-sm text-muted-foreground">View and remove student accounts</p>
             </div>
           </Card>
         </Link>
