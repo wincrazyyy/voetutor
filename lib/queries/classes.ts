@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { classNodeIds, placementsUnderClassFilter } from "@/lib/curriculum/placements";
+import { getDisplayName } from "@/lib/utils/format";
 import type { Class, ProfilePublic } from "@/lib/types/database";
 
 export interface EnrolledClassSummary {
@@ -86,6 +87,64 @@ export async function getClassEducator(educatorId: string | null): Promise<Profi
     .eq("id", educatorId)
     .maybeSingle();
   return (data as ProfilePublic | null) ?? null;
+}
+
+export interface RosterStudent {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * Enrolled students of a class for the educator/admin "Students" roster tab. The class-educator read
+ * of class_enrollments is authorised by enrollments_select_authorized; names + avatars come from
+ * profiles_public per the cross-user-read convention. Sorted by display name for a stable roster.
+ */
+export async function getClassRoster(classId: string): Promise<RosterStudent[]> {
+  const supabase = await createClient();
+  const { data: enrollments } = await supabase
+    .from("class_enrollments")
+    .select("user_id")
+    .eq("class_id", classId);
+
+  const userIds = ((enrollments ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
+  if (userIds.length === 0) return [];
+
+  const { data } = await supabase
+    .from("profiles_public")
+    .select("id, first_name, last_name, display_name, avatar_url")
+    .in("id", userIds);
+
+  const rows = (data ?? []) as RosterStudent[];
+  rows.sort((a, b) =>
+    getDisplayName(a.first_name, a.last_name, a.display_name).localeCompare(
+      getDisplayName(b.first_name, b.last_name, b.display_name),
+    ),
+  );
+  return rows;
+}
+
+export interface EducatorClassOption {
+  id: string;
+  title: string;
+  code: string;
+}
+
+/**
+ * Lightweight id/title/code list of an educator's classes, for the roster "Move to" picker. Avoids
+ * getClassesForEducator's per-class aggregate counts (enrolment/topic/video/forum), which that picker
+ * discards.
+ */
+export async function getEducatorClassOptions(educatorId: string): Promise<EducatorClassOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("classes")
+    .select("id, title, code")
+    .eq("educator_id", educatorId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as EducatorClassOption[];
 }
 
 export async function getClassMemberCount(classId: string): Promise<number> {
