@@ -19,11 +19,9 @@ export interface DeleteEducatorState {
  * these are reaped out-of-band. See lib/profile/asset-cleanup.ts (educator-assets),
  * lib/forum/rte-image.ts (rte-images), lib/avatar/upload-avatar.ts (avatars).
  *
- * Note PDFs now live in Cloudflare R2, reaped separately via wipeNotePrefix (step 5). "class-resources"
- * stays in this list only to sweep any LEGACY note bytes not yet migrated off Supabase — a harmless
- * no-op once the bucket is emptied/retired; drop it then.
+ * Note PDFs live in Cloudflare R2, reaped separately via wipeNotePrefix (below).
  */
-const ASSET_BUCKETS = ["educator-assets", "class-resources", "rte-images", "avatars"] as const;
+const ASSET_BUCKETS = ["educator-assets", "rte-images", "avatars"] as const;
 const PAGE = 100;
 const PLACEHOLDER = ".emptyFolderPlaceholder";
 

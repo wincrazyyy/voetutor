@@ -15,13 +15,7 @@ import {
   nextPlacementOrder,
   classesForPlacementRows,
 } from "@/lib/curriculum/placements";
-import {
-  LEGACY_NOTES_BUCKET,
-  isLegacySupabaseNote,
-  isOwnNoteKey,
-  noteFileUrl,
-  noteKeyFromFileUrl,
-} from "@/lib/storage/notes";
+import { isOwnNoteKey, noteFileUrl, noteKeyFromFileUrl } from "@/lib/storage/notes";
 import { deleteNoteObjects, headNoteSize, presignNotePut } from "@/lib/storage/r2";
 
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -434,15 +428,9 @@ export async function deleteNoteAction(resourceId: string): Promise<ResourceActi
   const { error } = await supabase.from("resources").delete().eq("id", resourceId);
   if (error) return { error: error.message };
 
-  /* Reap the bytes from whichever backend holds them (dual-read window). */
+  /* Reap the note bytes from R2 (best-effort; the DB cascade never reaches storage). */
   const key = noteKeyFromFileUrl(resourceRow.file_url);
-  if (key) {
-    if (isLegacySupabaseNote(resourceRow.file_url)) {
-      await supabase.storage.from(LEGACY_NOTES_BUCKET).remove([key]).catch(() => undefined);
-    } else {
-      await deleteNoteObjects([key]);
-    }
-  }
+  if (key) await deleteNoteObjects([key]);
 
   for (const classId of new Set(classMap.values())) revalidatePath(`/class/${classId}`);
   revalidatePath("/library");

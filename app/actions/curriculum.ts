@@ -13,11 +13,7 @@ import {
   resolveOwnedParentClass,
   classesForPlacementRows,
 } from "@/lib/curriculum/placements";
-import {
-  LEGACY_NOTES_BUCKET,
-  isLegacySupabaseNote,
-  noteKeyFromFileUrl,
-} from "@/lib/storage/notes";
+import { noteKeyFromFileUrl } from "@/lib/storage/notes";
 import { deleteNoteObjects } from "@/lib/storage/r2";
 import type { Profile } from "@/lib/types/database";
 
@@ -121,19 +117,11 @@ async function gcOrphanedResources(
     .in("id", orphanIds);
   await supabase.from("resources").delete().in("id", orphanIds);
 
-  /* Reap the bytes from whichever backend holds them (dual-read window). */
-  const r2Keys: string[] = [];
-  const legacyPaths: string[] = [];
-  for (const row of (orphanRows ?? []) as Array<{ file_url: string }>) {
-    const key = noteKeyFromFileUrl(row.file_url);
-    if (!key) continue;
-    if (isLegacySupabaseNote(row.file_url)) legacyPaths.push(key);
-    else r2Keys.push(key);
-  }
-  if (r2Keys.length > 0) await deleteNoteObjects(r2Keys);
-  if (legacyPaths.length > 0) {
-    await supabase.storage.from(LEGACY_NOTES_BUCKET).remove(legacyPaths).catch(() => undefined);
-  }
+  /* Reap the orphaned note bytes from R2 (best-effort; the cascade never reaches storage). */
+  const keys = ((orphanRows ?? []) as Array<{ file_url: string }>)
+    .map((row) => noteKeyFromFileUrl(row.file_url))
+    .filter((key): key is string => Boolean(key));
+  if (keys.length > 0) await deleteNoteObjects(keys);
 }
 
 /** Distinct placed video ids under a topic — both topic-level and via its subtopics. */

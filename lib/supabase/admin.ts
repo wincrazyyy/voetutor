@@ -7,14 +7,10 @@ import { createClient } from "@supabase/supabase-js";
  * SECURITY BOUNDARY: this module may be imported ONLY by trusted server
  * code that performs its own authorization FIRST:
  *   1. the Cloudflare Stream webhook route (authenticates by HMAC signature);
- *   2. the note download route (app/api/resources/[id]/download), which
- *      RLS-checks the caller's access to the resources row with the regular
- *      user client BEFORE using this client to mint a signed URL — the
- *      service-role client is used only for the storage mint, never to read
- *      rows on the user's behalf. (Only for LEGACY notes still on Supabase
- *      Storage during the R2 migration; migrated notes serve from Cloudflare
- *      R2 and don't touch this client. Drop this item once the dual-read
- *      window closes.)
+ *   2. the scheduled cron reapers (app/api/cron/reap-uploads and
+ *      app/api/cron/reap-r2-notes), each authenticated by a CRON_SECRET bearer
+ *      and running with no user session, so they legitimately span every
+ *      educator's rows to reconcile external storage;
  *   3. deleteEducatorAccountAction (app/actions/educators.ts), which verifies
  *      the caller is an admin (and not deleting themselves) with the regular
  *      user session BEFORE constructing this client — it then needs the

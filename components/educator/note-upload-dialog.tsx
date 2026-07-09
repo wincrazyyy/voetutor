@@ -40,8 +40,8 @@ function deriveTitle(file: File): string {
 }
 
 /**
- * Uploads one or more PDFs straight from the browser to the PRIVATE owner-keyed notes bucket
- * (class-resources/{ownerId}/{uuid}.pdf), then registers each as a library note via
+ * Uploads one or more PDFs straight from the browser to Cloudflare R2 via a presigned PUT
+ * (owner-keyed object {ownerId}/{uuid}.pdf), then registers each as a library note via
  * createNoteUploadAction. The bytes never pass through the server action. Files upload
  * sequentially with live progress; a failed registration reaps its just-uploaded object so
  * storage never strands a file, and any files that fail stay selected for retry.
