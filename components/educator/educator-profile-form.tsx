@@ -14,6 +14,9 @@ import type { EducatorProfile } from "@/lib/types/database";
 interface EducatorProfileFormProps {
   educatorId: string;
   initial: EducatorProfile | null;
+  /** "application" (the /pending approval form) vs "settings" (an approved educator editing later).
+   *  Only changes the framing copy — the fields and save path are identical. */
+  context?: "application" | "settings";
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -28,7 +31,7 @@ function splitWhatsapp(raw: string | null | undefined): { code: string; number: 
   return { code: "", number: trimmed };
 }
 
-export function EducatorProfileForm({ educatorId, initial }: EducatorProfileFormProps) {
+export function EducatorProfileForm({ educatorId, initial, context = "application" }: EducatorProfileFormProps) {
   const router = useRouter();
   const [gender, setGender] = useState(initial?.gender ?? "");
   const initialWhatsapp = splitWhatsapp(initial?.whatsapp_number);
@@ -62,6 +65,15 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
       initial?.self_introduction,
   );
   const [expanded, setExpanded] = useState(!hasInitialData);
+
+  const isSettings = context === "settings";
+  const heading = isSettings ? "Educator details" : "Application details";
+  const expandedIntro = isSettings
+    ? "Your contact and teaching background. These are private — visible only to you and platform admins. Your public profile page is edited separately."
+    : "Optional — but the more you fill in, the easier it is for an admin to approve your account.";
+  const savedMessage = isSettings
+    ? "Saved."
+    : "Saved. An administrator will see your updated details on the next review.";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +141,7 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-lg font-bold">Application details</h2>
+            <h2 className="text-lg font-bold">{heading}</h2>
             {hasInitialData && (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -138,9 +150,7 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
             )}
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {expanded
-              ? "Optional — but the more you fill in, the easier it is for an admin to approve your account."
-              : "Your details are on file. Click to edit."}
+            {expanded ? expandedIntro : "Your details are on file. Click to edit."}
           </p>
         </div>
         <ChevronDown
@@ -148,7 +158,7 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
         />
       </button>
 
-      {expanded && (
+      {expanded && !isSettings && (
         <div className="mb-5 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <span className="leading-relaxed">
@@ -160,7 +170,7 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
       {!expanded && saved && !error && (
         <p className="mt-4 text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-md px-3 py-2 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span className="flex-1">Saved. An administrator will see your updated details on the next review.</span>
+          <span className="flex-1">{savedMessage}</span>
           <button
             type="button"
             onClick={() => setExpanded(true)}
@@ -331,7 +341,7 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
 
         {saved && !error && (
           <p className="text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-md px-3 py-2">
-            Saved. An administrator will see your updated details on the next review.
+            {savedMessage}
           </p>
         )}
 

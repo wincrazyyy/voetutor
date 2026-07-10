@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, UserCircle } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getEducatorProfile } from "@/lib/queries/educator-profiles";
@@ -8,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AvatarUploader } from "@/components/settings/avatar-uploader";
 import { StudentProfileForm } from "@/components/settings/student-profile-form";
+import { EducatorProfileForm } from "@/components/educator/educator-profile-form";
 import { getDisplayName } from "@/lib/utils/format";
 
 export default async function SettingsPage() {
@@ -75,25 +77,26 @@ export default async function SettingsPage() {
           />
         </Card>
       ) : (
-        <Card className="p-6 border border-border shadow-sm bg-card">
-          <div className="grid gap-4 sm:grid-cols-2 text-sm">
-            <div>
-              <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">First name</div>
-              <div className="font-medium">{profile.first_name ?? "—"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">Last name</div>
-              <div className="font-medium">{profile.last_name ?? "—"}</div>
-            </div>
-            <div className="sm:col-span-2">
-              <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">Display name</div>
-              <div className="font-medium">{profile.display_name ?? "—"}</div>
-            </div>
-          </div>
-          <p className="mt-5 text-sm text-muted-foreground">
-            Inline editing of your name and display name will be available shortly.
-          </p>
-        </Card>
+        <>
+          <EducatorProfileForm educatorId={profile.id} initial={educatorProfile} context="settings" />
+
+          <Card className="p-6 border border-border shadow-sm bg-card">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <UserCircle className="w-5 h-5 text-primary" />
+              Public profile
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your public profile page is what prospective students see. It&apos;s edited separately from the
+              private details above.
+            </p>
+            <Link
+              href="/profile"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+            >
+              Edit public profile →
+            </Link>
+          </Card>
+        </>
       )}
     </div>
   );
