@@ -71,8 +71,8 @@ export function ForumReplyComposer({
             Cancel
           </Button>
         )}
-        <Button type="submit" size="sm" disabled={pending || content.trim().length === 0}>
-          {pending ? "Posting…" : "Reply"}
+        <Button type="submit" size="sm" loading={pending} loadingText="Posting…" disabled={content.trim().length === 0}>
+          Reply
         </Button>
       </div>
     </form>

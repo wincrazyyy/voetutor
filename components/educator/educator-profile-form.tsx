@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, AlertTriangle, ChevronDown, CheckCircle2, Pencil } from "lucide-react";
+import { Save, AlertTriangle, ChevronDown, CheckCircle2, Pencil } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -336,9 +336,9 @@ export function EducatorProfileForm({ educatorId, initial }: EducatorProfileForm
         )}
 
         <div className="flex items-center justify-end gap-2 pt-2">
-          <Button type="submit" disabled={isSaving} className="gap-2">
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {isSaving ? "Saving..." : "Save details"}
+          <Button type="submit" loading={isSaving} loadingText="Saving…" className="gap-2">
+            <Save className="w-4 h-4" />
+            Save details
           </Button>
         </div>
       </form>

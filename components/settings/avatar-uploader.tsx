@@ -2,10 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2, Trash2 } from "lucide-react";
+import { Camera, Trash2 } from "lucide-react";
 
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { ImageCropModal } from "@/components/media/image-crop-modal";
 import { uploadUserAvatar } from "@/lib/avatar/upload-avatar";
 import { updateAvatarAction } from "@/app/actions/avatar";
@@ -92,7 +93,7 @@ export function AvatarUploader({
         />
         {busy && (
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <Spinner className="h-5 w-5 text-primary" />
           </div>
         )}
       </div>

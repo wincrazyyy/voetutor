@@ -162,9 +162,11 @@ export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPost
             </Button>
             <Button
               type="submit"
-              disabled={pending || title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0}
+              loading={pending}
+              loadingText="Posting…"
+              disabled={title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0}
             >
-              {pending ? "Posting…" : "Post"}
+              Post
             </Button>
           </div>
         </form>

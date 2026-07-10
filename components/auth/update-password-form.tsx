@@ -75,8 +75,8 @@ export function UpdatePasswordForm({
                 {password.length > 0 && <PasswordRequirements value={password} className="mt-1" />}
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save new password"}
+              <Button type="submit" className="w-full" loading={isLoading} loadingText="Saving...">
+                Save new password
               </Button>
             </div>
           </form>

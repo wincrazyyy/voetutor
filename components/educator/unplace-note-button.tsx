@@ -55,7 +55,8 @@ export function UnplaceNoteButton({ placementId, onError }: UnplaceNoteButtonPro
         variant="ghost"
         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
         onClick={handleRemove}
-        disabled={pending}
+        loading={pending}
+        loadingText={null}
         aria-label="Confirm remove"
         title="Confirm remove"
       >

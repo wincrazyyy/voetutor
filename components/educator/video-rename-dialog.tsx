@@ -91,8 +91,8 @@ export function VideoRenameDialog({ videoId, classId, initialTitle }: VideoRenam
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || !title.trim()}>
-              {pending ? "Saving..." : "Save"}
+            <Button type="submit" loading={pending} loadingText="Saving..." disabled={!title.trim()}>
+              Save
             </Button>
           </div>
         </form>

@@ -158,8 +158,8 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setTitle(post.title); setContent(post.content); }} disabled={pending}>
                   Cancel
                 </Button>
-                <Button type="button" size="sm" onClick={saveEdit} disabled={pending || title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0}>
-                  {pending ? "Saving…" : "Save"}
+                <Button type="button" size="sm" onClick={saveEdit} loading={pending} disabled={title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0} loadingText="Saving…">
+                  Save
                 </Button>
               </div>
             </div>
@@ -185,13 +185,13 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
               {(canEdit || canDelete || canResolve) && (
                 <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-3">
                   {canResolve && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={toggleResolved} disabled={pending}>
+                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={toggleResolved} loading={pending}>
                       {post.is_resolved ? <Circle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                       {post.is_resolved ? "Mark unresolved" : "Mark resolved"}
                     </Button>
                   )}
                   {canModerate && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={togglePinned} disabled={pending}>
+                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={togglePinned} loading={pending}>
                       {post.is_pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                       {post.is_pinned ? "Unpin" : "Pin"}
                     </Button>
@@ -211,7 +211,7 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                   {canDelete && confirmDelete && (
                     <span className="flex items-center gap-1 text-sm">
                       <span className="text-muted-foreground">Delete this thread?</span>
-                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={doDelete} disabled={pending}>
+                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={doDelete} loading={pending}>
                         Yes, delete
                       </Button>
                       <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={pending}>

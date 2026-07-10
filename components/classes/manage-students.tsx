@@ -7,7 +7,6 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   Info,
-  Loader2,
   UserMinus,
   UserPlus,
   Users,
@@ -78,6 +77,9 @@ export function ManageStudents({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  /* Which specific action is in flight ("add" | `move:${id}` | `remove:${id}`), so only the clicked
+     button shows a spinner while isPending disables the whole roster against concurrent edits. */
+  const [busy, setBusy] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [addResult, setAddResult] = useState<{ tone: Tone; text: string } | null>(null);
@@ -112,56 +114,71 @@ export function ManageStudents({
 
   const submitAdd = () => {
     if (!trimmedEmail || isPending) return;
+    setBusy("add");
     startTransition(async () => {
-      setAddResult(null);
-      const res = await addStudentByEmailAction(classId, trimmedEmail);
-      if (res.error) {
-        setAddResult({ tone: "error", text: res.error });
-        return;
-      }
-      if (res.status === "enrolled") {
-        setAddResult({ tone: "success", text: `Added ${res.studentName ?? "student"}.` });
-        setEmail("");
-        router.refresh();
-      } else if (res.status === "already_enrolled") {
-        setAddResult({
-          tone: "info",
-          text: `${res.studentName ?? "That student"} is already in this class.`,
-        });
-      } else {
-        setAddResult({ tone: "info", text: "No student account found for this email." });
+      try {
+        setAddResult(null);
+        const res = await addStudentByEmailAction(classId, trimmedEmail);
+        if (res.error) {
+          setAddResult({ tone: "error", text: res.error });
+          return;
+        }
+        if (res.status === "enrolled") {
+          setAddResult({ tone: "success", text: `Added ${res.studentName ?? "student"}.` });
+          setEmail("");
+          router.refresh();
+        } else if (res.status === "already_enrolled") {
+          setAddResult({
+            tone: "info",
+            text: `${res.studentName ?? "That student"} is already in this class.`,
+          });
+        } else {
+          setAddResult({ tone: "info", text: "No student account found for this email." });
+        }
+      } finally {
+        setBusy(null);
       }
     });
   };
 
   const remove = (studentId: string) => {
+    setBusy(`remove:${studentId}`);
     startTransition(async () => {
-      setRosterError(null);
-      const res = await removeStudentAction(classId, studentId);
-      if (res.error) {
-        setRosterError(res.error);
-        return;
+      try {
+        setRosterError(null);
+        const res = await removeStudentAction(classId, studentId);
+        if (res.error) {
+          setRosterError(res.error);
+          return;
+        }
+        clearRemoveTimer();
+        setConfirmingRemove(null);
+        router.refresh();
+      } finally {
+        setBusy(null);
       }
-      clearRemoveTimer();
-      setConfirmingRemove(null);
-      router.refresh();
     });
   };
 
   const move = (studentId: string, toClassId: string) => {
+    setBusy(`move:${studentId}`);
     startTransition(async () => {
-      setRosterError(null);
-      const res = await moveStudentAction(studentId, classId, toClassId);
-      if (res.error) {
-        setRosterError(res.error);
-        return;
+      try {
+        setRosterError(null);
+        const res = await moveStudentAction(studentId, classId, toClassId);
+        if (res.error) {
+          setRosterError(res.error);
+          return;
+        }
+        setPendingMoveTarget((prev) => {
+          const next = { ...prev };
+          delete next[studentId];
+          return next;
+        });
+        router.refresh();
+      } finally {
+        setBusy(null);
       }
-      setPendingMoveTarget((prev) => {
-        const next = { ...prev };
-        delete next[studentId];
-        return next;
-      });
-      router.refresh();
     });
   };
 
@@ -201,8 +218,14 @@ export function ManageStudents({
               }}
             />
           </div>
-          <Button type="submit" disabled={isPending || !trimmedEmail} className="gap-2">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+          <Button
+            type="submit"
+            loading={busy === "add"}
+            disabled={isPending || !trimmedEmail}
+            loadingText="Adding student…"
+            className="gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
             Add student
           </Button>
         </form>
@@ -286,15 +309,13 @@ export function ManageStudents({
                       </Button>
                       <Button
                         size="sm"
-                        className="gap-1.5"
+                        loading={busy === `move:${student.id}`}
                         disabled={isPending}
+                        loadingText="Moving…"
+                        className="gap-1.5"
                         onClick={() => move(student.id, moveTarget)}
                       >
-                        {isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <ArrowRightLeft className="h-3.5 w-3.5" />
-                        )}
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
                         Move
                       </Button>
                     </div>
@@ -331,14 +352,12 @@ export function ManageStudents({
                       "gap-1.5",
                       !confirming && "text-muted-foreground hover:text-destructive",
                     )}
+                    loading={busy === `remove:${student.id}`}
                     disabled={isPending}
+                    loadingText="Removing…"
                     onClick={() => (confirming ? remove(student.id) : armRemove(student.id))}
                   >
-                    {isPending && confirming ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <UserMinus className="h-3.5 w-3.5" />
-                    )}
+                    <UserMinus className="h-3.5 w-3.5" />
                     {confirming ? "Confirm remove" : "Remove"}
                   </Button>
                 </div>

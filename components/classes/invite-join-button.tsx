@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { redeemInviteAction } from "@/app/actions/class-invites";
@@ -22,9 +21,8 @@ export function InviteJoinButton({ token }: { token: string }) {
 
   return (
     <div className="w-full">
-      <Button onClick={handleClick} disabled={pending} className="w-full gap-2">
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {pending ? "Joining..." : "Join class"}
+      <Button onClick={handleClick} loading={pending} loadingText="Joining…" className="w-full gap-2">
+        Join class
       </Button>
       {error ? <p className="mt-2 text-center text-xs text-destructive">{error}</p> : null}
     </div>

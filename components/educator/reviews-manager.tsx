@@ -6,7 +6,6 @@ import {
   Star,
   Plus,
   Save,
-  Loader2,
   Trash2,
   Pencil,
   X,
@@ -253,8 +252,8 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
           </div>
           <ReviewFields form={addForm} setForm={setAddForm} disabled={isPending} />
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={submitAdd} disabled={isPending}>
-              {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            <Button size="sm" loading={isPending} loadingText="Saving…" onClick={submitAdd}>
+              <Save className="h-3.5 w-3.5" />
               Save review
             </Button>
             <Button
@@ -308,8 +307,8 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                 <>
                   <ReviewFields form={editForm} setForm={setEditForm} disabled={isPending} />
                   <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={() => submitEdit(r.id)} disabled={isPending}>
-                      {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    <Button size="sm" loading={isPending} loadingText="Saving…" onClick={() => submitEdit(r.id)}>
+                      <Save className="h-3.5 w-3.5" />
                       Save
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
@@ -378,8 +377,8 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                         <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(null)} disabled={isPending}>
                           Cancel
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => remove(r.id)} disabled={isPending}>
-                          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        <Button variant="destructive" size="sm" loading={isPending} loadingText="Deleting…" onClick={() => remove(r.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
                           Delete
                         </Button>
                       </div>

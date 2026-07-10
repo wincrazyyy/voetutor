@@ -9,11 +9,7 @@ export const metadata: Metadata = {
     "The terms governing your use of VOETutor, our premium video-tutoring platform for IB students and educators.",
 };
 
-const LAST_UPDATED = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-}).format(new Date());
+const LAST_UPDATED = "10 July 2026";
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -38,8 +34,8 @@ export default function TermsOfService() {
           <p className="text-sm leading-relaxed text-muted-foreground pt-2">
             These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of VOETutor
             (&ldquo;VOETutor&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), a premium video-tutoring platform for IB
-            students and educators. By creating an account or using the platform, you agree to these Terms. If you do
-            not agree, please do not use VOETutor.
+            students and educators operated by WSMath. By creating an account or using the platform, you agree to these
+            Terms. If you do not agree, please do not use VOETutor.
           </p>
         </header>
 
@@ -74,14 +70,19 @@ export default function TermsOfService() {
                 marketplace, and manage the platform.
               </li>
             </ul>
+            <p>
+              VOETutor provides the platform that connects students and educators. The educational and tutoring
+              services are provided by the educators themselves; VOETutor is not the provider of those services and is
+              not a party to the arrangement between a student and an educator.
+            </p>
           </Section>
 
           <Section id="educator-content" title="3. Educator content and conduct">
             <p>
-              As an educator, you retain ownership of the videos, descriptions, profile information, and other content
-              you create. By uploading content, you grant VOETutor a non-exclusive licence to host, encode, store, and
-              deliver it to your enrolled students and, where applicable, to display your profile and class listings to
-              prospective students.
+              As an educator, you retain ownership of the videos, PDF notes, descriptions, profile information, images,
+              and other content you create. By uploading content, you grant VOETutor a non-exclusive licence to host,
+              encode, store, and deliver it to your enrolled students and, where applicable, to display your profile,
+              class listings, and any testimonials you add to prospective students.
             </p>
             <p>You represent that you have the rights to everything you upload, and you agree not to publish content that:</p>
             <ul className="list-disc pl-5 space-y-1.5">
@@ -91,13 +92,15 @@ export default function TermsOfService() {
             </ul>
             <p>
               You are responsible for the accuracy of your class listings, including titles, descriptions, and prices.
+              If you add student testimonials to your profile, you confirm they are genuine and that you have the
+              person&apos;s permission to display their name, school, and photo.
             </p>
           </Section>
 
           <Section id="student-conduct" title="4. Student conduct">
             <p>When using VOETutor you agree not to:</p>
             <ul className="list-disc pl-5 space-y-1.5">
-              <li>download, copy, redistribute, screen-record, or resell any video or material without permission;</li>
+              <li>download, copy, redistribute, screen-record, or resell any video, PDF note, or other material without permission;</li>
               <li>share your account or class access with anyone else;</li>
               <li>attempt to bypass access controls, signed video links, or other security measures;</li>
               <li>post unlawful, abusive, or off-topic content in forums and discussions;</li>
@@ -107,13 +110,30 @@ export default function TermsOfService() {
               Course materials are provided for your personal learning only. All content remains the property of the
               educator or VOETutor.
             </p>
+            <p>
+              You keep ownership of what you post in forums and discussions. By posting, you grant VOETutor a
+              non-exclusive licence to store and display your contributions to the other members and moderators of the
+              relevant class. You are responsible for what you post and must not post anything unlawful, infringing, or
+              abusive.
+            </p>
           </Section>
 
           <Section id="enrolment-payment" title="5. Enrolment and payment">
             <p>
-              You can enrol in free classes directly. Paid classes are not yet available; when paid checkout launches,
-              additional terms covering pricing, payment, refunds, and educator payouts will apply and will be made
-              available before that feature goes live. Prices for paid classes, once introduced, will be shown in the
+              You can enrol in free classes directly. Some classes may be paid, but there is currently no online
+              checkout on VOETutor. Where a class is paid for, you and the educator arrange payment directly, outside
+              the platform — for example, by bank transfer — and the educator then issues you a single-use invite link
+              to enrol.
+            </p>
+            <p>
+              VOETutor is not a party to these off-platform payments, does not process or hold any funds, and is not
+              responsible for them. Any questions, disputes, or refunds relating to an off-platform payment are between
+              you and the educator. You should only pay an educator you trust, and keep your own record of the
+              arrangement.
+            </p>
+            <p>
+              When online checkout is introduced, additional terms covering pricing, payment, refunds, and educator
+              payouts will apply and will be published before that feature goes live. Prices, once shown, are in the
               currency stated on the class listing.
             </p>
           </Section>
@@ -176,7 +196,17 @@ export default function TermsOfService() {
             </p>
           </Section>
 
-          <Section id="contact" title="13. Contact us">
+          <Section id="governing-law" title="13. Governing law and disputes">
+            <p>
+              These Terms are governed by the laws of the Hong Kong Special Administrative Region, without regard to
+              its conflict-of-law rules, and subject to any mandatory consumer-protection rights available to you where
+              you live. You and we submit to the exclusive jurisdiction of the Hong Kong courts, subject to those
+              mandatory rights. If you have a concern, please contact us first — we will try to resolve any dispute
+              informally before either of us pursues other options.
+            </p>
+          </Section>
+
+          <Section id="contact" title="14. Contact us">
             <p>
               Questions about these Terms? Email{" "}
               <a href="mailto:xini@saltancy.com">xini@saltancy.com</a>.

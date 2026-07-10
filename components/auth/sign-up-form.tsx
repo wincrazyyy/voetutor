@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -26,6 +25,11 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [school, setSchool] = useState("");
+  const [schoolYear, setSchoolYear] = useState("");
+  const [courses, setCourses] = useState("");
+  const [targetGrade, setTargetGrade] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +66,15 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
             last_name: lastName,
             display_name: `${firstName} ${lastName}`.trim(),
             intended_role: effectiveRole,
+            ...(effectiveRole === "student"
+              ? {
+                  whatsapp_number: whatsapp,
+                  school,
+                  school_year: schoolYear,
+                  courses,
+                  target_grade: targetGrade,
+                }
+              : {}),
           },
         },
       });
@@ -77,6 +90,8 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   };
 
   const isEducator = role === "educator";
+  /** Students (incl. the forced-student invite flow) provide enrolment details at sign-up. */
+  const isStudent = isInviteFlow || role === "student";
   const submitLabel = "Create account";
 
   return (
@@ -133,6 +148,81 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         />
       </div>
 
+      {isStudent && (
+        <fieldset className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-4" disabled={isLoading}>
+          <legend className="px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Student details
+          </legend>
+          <div className="grid gap-1.5">
+            <Label htmlFor="whatsapp">WhatsApp number</Label>
+            <Input
+              id="whatsapp"
+              type="tel"
+              placeholder="+852 1234 5678"
+              required
+              maxLength={50}
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="school">Name of school</Label>
+              <Input
+                id="school"
+                type="text"
+                placeholder="e.g. Island School"
+                required
+                maxLength={200}
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="school-year">School year</Label>
+              <Input
+                id="school-year"
+                type="text"
+                placeholder="e.g. Year 12 / DP1"
+                required
+                maxLength={60}
+                value={schoolYear}
+                onChange={(e) => setSchoolYear(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="courses">Enrolled courses</Label>
+            <Input
+              id="courses"
+              type="text"
+              placeholder="e.g. Math AA HL, Physics HL, Economics SL"
+              required
+              maxLength={1000}
+              value={courses}
+              onChange={(e) => setCourses(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="target-grade">Target grade</Label>
+            <Input
+              id="target-grade"
+              type="text"
+              placeholder="e.g. 7 or 40/45"
+              required
+              maxLength={100}
+              value={targetGrade}
+              onChange={(e) => setTargetGrade(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+        </fieldset>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="password">Password</Label>
@@ -168,9 +258,8 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         </p>
       )}
 
-      <Button type="submit" size="lg" className="w-full gap-2" disabled={isLoading}>
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isLoading ? "Creating your account..." : submitLabel}
+      <Button type="submit" size="lg" className="w-full gap-2" loading={isLoading} loadingText="Creating your account...">
+        {submitLabel}
       </Button>
 
       <p className="text-xs text-muted-foreground text-center leading-relaxed">

@@ -34,9 +34,10 @@ export function PublishToggle({ classId, isPublished }: PublishToggleProps) {
         variant={isPublished ? "outline" : "default"}
         size="sm"
         onClick={handleToggle}
-        disabled={pending}
+        loading={pending}
+        loadingText="Working…"
       >
-        {pending ? "Working..." : isPublished ? "Unpublish" : "Publish to marketplace"}
+        {isPublished ? "Unpublish" : "Publish to marketplace"}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

@@ -107,8 +107,8 @@ export function ReportClassButton({ classId }: ReportClassButtonProps) {
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending || reason.trim().length === 0}>
-                {pending ? "Submitting..." : "Submit Report"}
+              <Button type="submit" loading={pending} loadingText="Submitting..." disabled={reason.trim().length === 0}>
+                Submit Report
               </Button>
             </div>
           </form>

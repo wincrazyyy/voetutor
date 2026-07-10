@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
+import { LinkPending } from "@/components/layout/link-pending";
 import { reorderSidebarClassesAction } from "@/app/actions/class-order";
 
 type ClassItem = { id: string; code: string; title: string };
@@ -233,6 +234,7 @@ export function SidebarNav({
                     {badge}
                   </Badge>
                 )}
+                <LinkPending className="size-4 shrink-0 opacity-70" />
               </Link>
             );
           })}
@@ -394,6 +396,7 @@ function SortableClassRow({
             {unread}
           </Badge>
         )}
+        <LinkPending className="size-3.5 shrink-0 opacity-70" />
       </Link>
     </div>
   );

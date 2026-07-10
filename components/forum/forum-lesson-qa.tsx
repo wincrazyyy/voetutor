@@ -125,8 +125,8 @@ function AskQuestion({ classId, lessonId, uploaderId }: { classId: string; lesso
         <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={pending || title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0}>
-          {pending ? "Posting…" : "Post question"}
+        <Button type="submit" size="sm" loading={pending} disabled={title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0} loadingText="Posting…">
+          Post question
         </Button>
       </div>
     </form>

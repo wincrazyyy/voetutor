@@ -113,8 +113,8 @@ export function DeleteClassButton({
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
                 Cancel
               </Button>
-              <Button type="submit" variant="destructive" disabled={!matches || pending}>
-                {pending ? "Deleting..." : "I understand, delete this class"}
+              <Button type="submit" variant="destructive" loading={pending} disabled={!matches} loadingText="Deleting...">
+                I understand, delete this class
               </Button>
             </div>
           </form>

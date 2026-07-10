@@ -129,6 +129,17 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface StudentProfile {
+  student_id: string;
+  whatsapp_number: string | null;
+  school: string | null;
+  school_year: string | null;
+  courses: string | null;
+  target_grade: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProfilePublic {
   id: string;
   first_name: string | null;

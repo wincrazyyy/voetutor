@@ -26,6 +26,9 @@ interface NoteUploadDialogProps {
   buttonLabel?: string;
   buttonVariant?: "default" | "ghost";
   buttonClassName?: string;
+  /** Called once, after every file in a batch uploaded + registered with no failures. Lets a host
+   *  dialog (e.g. the board "Add notes" picker) close itself once the new note is placed. */
+  onUploaded?: () => void;
 }
 
 function stripExtension(name: string): string {
@@ -54,6 +57,7 @@ export function NoteUploadDialog({
   buttonLabel = "Add note",
   buttonVariant = "default",
   buttonClassName,
+  onUploaded,
 }: NoteUploadDialogProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,6 +196,7 @@ export function NoteUploadDialog({
         setOpen(false);
         reset();
         router.refresh();
+        onUploaded?.();
         return;
       }
 

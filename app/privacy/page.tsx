@@ -9,11 +9,7 @@ export const metadata: Metadata = {
     "How VOETutor collects, uses, stores, and shares your personal data across our video-tutoring platform.",
 };
 
-const LAST_UPDATED = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-}).format(new Date());
+const LAST_UPDATED = "10 July 2026";
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -59,10 +55,10 @@ export default function PrivacyPolicy() {
           <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
           <p className="text-sm leading-relaxed text-muted-foreground pt-2">
-            VOETutor (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;the platform&rdquo;) is a premium video-tutoring
-            platform for IB students and educators. This policy explains what personal data we collect, why we
-            collect it, who we share it with, and the rights you have over it. It applies to everyone who creates an
-            account or browses the platform.
+            VOETutor, operated by WSMath (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;the platform&rdquo;), is a premium
+            video-tutoring platform for IB students and educators, based in Hong Kong. This policy explains what
+            personal data we collect, why we collect it, who we share it with, and the rights you have over it. It
+            applies to everyone who creates an account or browses the platform.
           </p>
         </header>
 
@@ -72,8 +68,8 @@ export default function PrivacyPolicy() {
             <DataTable
               rows={[
                 {
-                  what: "Account details — first name, last name, display name, email address, and password.",
-                  why: "To create and secure your account, sign you in, and address you by name across the platform. Passwords are stored only as salted hashes by our authentication provider; we never see your plaintext password.",
+                  what: "Account details — first name, last name, display name, email address, password, and an optional profile photo (avatar) you choose to upload.",
+                  why: "To create and secure your account, sign you in, and identify you by name and picture across the platform. Passwords are stored only as salted hashes by our authentication provider; we never see your plaintext password.",
                 },
                 {
                   what: "Your role — whether you sign up as a student or educator.",
@@ -81,11 +77,23 @@ export default function PrivacyPolicy() {
                 },
                 {
                   what: "Educator application details (educators only) — gender, WhatsApp number, education and institution, degree, major, graduation year, teaching experience, teaching subjects, and a self-introduction.",
-                  why: "So an administrator can review and approve your educator account, and — once approved — to promote you to prospective students. Your self-introduction and professional background may be displayed publicly on your educator profile; your WhatsApp number and gender are used for review and are not published.",
+                  why: "So an administrator can review and approve your educator account. Your self-introduction and professional background may be displayed publicly on your educator profile; your WhatsApp number and gender are used for review and are not published.",
                 },
                 {
-                  what: "Content you create — forum posts and replies, upvotes, class announcements (educators), reports you file against a class, and videos you upload (educators), along with their titles and descriptions.",
-                  why: "To operate the discussion, curriculum, moderation, and video features you use.",
+                  what: "Educator public profile and media (educators only) — a profile/masthead photo, gallery images, a headline and role label, subject tags, an hourly rate, exam results, and the structured content of your public profile.",
+                  why: "To build and display your public educator profile so prospective students can find and evaluate you. This information is published to promote your classes.",
+                },
+                {
+                  what: "Content you create — forum posts, replies, and upvotes; class announcements, videos, and PDF notes you upload (educators), together with their titles and descriptions; and reports you file against a class.",
+                  why: "To operate the discussion, curriculum, moderation, and content features you use.",
+                },
+                {
+                  what: "Testimonials you add (educators only) — student testimonials that may include the reviewer's name, school, and photo.",
+                  why: "To display reviews on your public profile. If you add these, you confirm you have the person's permission to publish their details; you can remove them at any time.",
+                },
+                {
+                  what: "Invite recipients (educators only) — a prospective student's email address you optionally attach to a single-use invite link.",
+                  why: "To bind an invite to a specific person and help you share it. The platform does not send the invite for you.",
                 },
               ]}
             />
@@ -95,19 +103,19 @@ export default function PrivacyPolicy() {
             <DataTable
               rows={[
                 {
-                  what: "Learning activity — the classes you enrol in, and your video playback progress: resume position, total watch time, and whether you completed each lesson.",
-                  why: "To resume videos where you left off, show your progress, and give educators aggregate insight into how their lessons are watched.",
+                  what: "Learning activity — the classes you enrol in, your video playback progress (resume position, total watch time, and whether you completed each lesson), and which class announcements you have read.",
+                  why: "To resume videos where you left off, show your progress and unread updates, and give educators aggregate insight into how their lessons are watched.",
                 },
                 {
-                  what: "Video delivery analytics — minutes viewed per video, collected by our video provider (Cloudflare Stream).",
-                  why: "To show educators how their lessons are performing.",
+                  what: "Lesson analytics — aggregate minutes watched and completion counts per video, derived from the playback progress above.",
+                  why: "To show educators how their lessons are performing. These figures come from our own playback tracking, not from our video provider's separate delivery analytics.",
                 },
                 {
                   what: "Technical and log data — IP address, browser and device information, and access timestamps, recorded by our hosting provider.",
                   why: "To keep the service secure, diagnose problems, and prevent abuse.",
                 },
                 {
-                  what: "Cookies and local storage — an authentication session cookie, your theme preference, and the state of any in-progress video upload.",
+                  what: "Cookies and local storage — an authentication session cookie and your theme preference.",
                   why: "See the Cookies section below.",
                 },
               ]}
@@ -127,10 +135,6 @@ export default function PrivacyPolicy() {
               <li>
                 <strong className="text-foreground">Theme preference</strong> — stored in your browser to remember
                 light/dark mode.
-              </li>
-              <li>
-                <strong className="text-foreground">Upload state</strong> — stored in your browser so an interrupted
-                video upload can resume.
               </li>
             </ul>
           </Section>
@@ -155,11 +159,20 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li>
                 <strong className="text-foreground">Supabase</strong> — hosts our database and handles authentication
-                (your account, profile, learning activity, and content).
+                (your account, profile, learning activity, and content), and logs technical data such as IP addresses
+                and sign-in times as part of authentication.
               </li>
               <li>
                 <strong className="text-foreground">Cloudflare Stream</strong> — stores, encodes, and delivers
-                uploaded videos, and provides delivery analytics.
+                uploaded videos.
+              </li>
+              <li>
+                <strong className="text-foreground">Cloudflare R2</strong> — stores the PDF notes that educators
+                upload.
+              </li>
+              <li>
+                <strong className="text-foreground">Resend</strong> — delivers account emails such as sign-up
+                verification and password-reset messages.
               </li>
               <li>
                 <strong className="text-foreground">Vercel</strong> — hosts and serves the application, and processes
@@ -171,25 +184,35 @@ export default function PrivacyPolicy() {
               VOETutor and its users.
             </p>
             <p>
-              <strong className="text-foreground">Payments:</strong> paid classes are not yet available. When paid
-              checkout launches, payment details will be processed by a third-party payment provider and this policy
-              will be updated before that feature goes live.
+              <strong className="text-foreground">Payments:</strong> online paid checkout is not yet available. Where a
+              class is paid for today, payment is arranged directly between you and the educator outside the platform
+              (for example, by bank transfer), and access is granted through a single-use invite link — VOETutor does
+              not process, receive, or store those payments or any payment-card details. When online checkout launches,
+              a third-party payment provider will handle payment details and this policy will be updated before that
+              feature goes live.
             </p>
           </Section>
 
           <Section id="public-info" title="6. Information visible to others">
             <p>
-              Some information is, by design, visible to other signed-in users: your display name and role appear next
-              to your forum posts, replies, and Q&amp;A across the classes you share. Approved educators have a public
-              profile that may display their name, professional background, and self-introduction to promote their
-              classes. Please keep this in mind when deciding what to write.
+              Some information is public by design. Approved educators have a public profile — visible to anyone,
+              including visitors who are not signed in, through our educator directory and homepage — that may display
+              their name, photo, professional background, subjects, hourly rate, exam results, and any testimonials
+              they add (which can include a reviewer&apos;s name, school, and photo).
+            </p>
+            <p>
+              Within a class, your display name and profile photo appear next to your forum posts, replies, and
+              Q&amp;A to the other members of that class. Photos you upload as an avatar, and images you embed in
+              posts, are stored at public web addresses, so anyone with the direct link may be able to view them.
+              Please keep this in mind when deciding what to share.
             </p>
           </Section>
 
           <Section id="retention" title="7. Data retention">
             <p>
-              We keep your personal data for as long as your account is active. If you delete your account, we delete
-              your profile and associated content; some records may be retained where we are legally required to, or
+              We keep your personal data for as long as your account is active. When your account is deleted (at your
+              request), we delete your profile and associated content; some records may be retained where we are
+              legally required to, or
               where needed to resolve disputes and enforce our agreements. Server and security logs are retained for a
               limited period by our hosting provider.
             </p>
@@ -199,9 +222,9 @@ export default function PrivacyPolicy() {
             <p>
               Access to your data is restricted at the database level by row-level security, so users can only read
               and write the records they are authorised to. Passwords are stored as salted hashes, traffic is
-              encrypted in transit, and uploaded videos are served only through short-lived, access-checked signed
-              links. No system is perfectly secure, but we take reasonable technical and organisational measures to
-              protect your information.
+              encrypted in transit, and uploaded videos and note files are served only through short-lived,
+              access-checked links. No system is perfectly secure, but we take reasonable technical and organisational
+              measures to protect your information.
             </p>
           </Section>
 

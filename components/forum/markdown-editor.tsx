@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Bold, Code, ImagePlus, Italic, Link2, List, Loader2, Quote } from "lucide-react";
+import { Bold, Code, ImagePlus, Italic, Link2, List, Quote } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { ForumMarkdown } from "@/components/forum/forum-markdown";
 import { uploadRteImage } from "@/lib/forum/rte-image";
 
@@ -149,7 +150,7 @@ export function MarkdownEditor({
                 disabled={tab === "preview" || uploading}
                 className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
               >
-                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                {uploading ? <Spinner className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
               </button>
               <input
                 ref={fileRef}

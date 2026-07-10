@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Clock, Loader2, RotateCcw, UploadCloud, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, RotateCcw, UploadCloud, X } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Spinner } from "@/components/ui/spinner";
 import {
   type UploadJob,
   type UploadJobStatus,
@@ -15,7 +16,7 @@ function StatusIcon({ status }: { status: UploadJobStatus }) {
   if (status === "success") return <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />;
   if (status === "error") return <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />;
   if (status === "queued") return <Clock className="w-4 h-4 text-muted-foreground shrink-0" />;
-  return <Loader2 className="w-4 h-4 text-primary shrink-0 animate-spin" />;
+  return <Spinner className="w-4 h-4 text-primary shrink-0" />;
 }
 
 function UploadRow({

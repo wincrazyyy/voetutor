@@ -8,7 +8,6 @@ import {
   Check,
   Copy,
   Link2,
-  Loader2,
   Mail,
   MailQuestion,
   Trash2,
@@ -79,6 +78,9 @@ export function ClassInviteManager({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  /* Which action is in flight ("generate" | `revoke:${id}` | `remove:${id}`) so only the clicked
+     button spins while isPending disables the whole panel against concurrent edits. */
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState<InviteFormState>(EMPTY_FORM);
@@ -95,45 +97,63 @@ export function ClassInviteManager({
 
   const inviteUrl = (token: string) => `${window.location.origin}/invite/${token}`;
 
-  const generate = () =>
+  const generate = () => {
+    setBusy("generate");
     startTransition(async () => {
-      setError(null);
-      const res = await createClassInviteAction(classId, {
-        email: form.email.trim() || undefined,
-        note: form.note.trim() || undefined,
-        expiresAt: form.expiresAt || undefined,
-      });
-      if (res.error) {
-        setError(res.error);
-        return;
+      try {
+        setError(null);
+        const res = await createClassInviteAction(classId, {
+          email: form.email.trim() || undefined,
+          note: form.note.trim() || undefined,
+          expiresAt: form.expiresAt || undefined,
+        });
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setGeneratedUrl(res.url ?? null);
+        setForm(EMPTY_FORM);
+        router.refresh();
+      } finally {
+        setBusy(null);
       }
-      setGeneratedUrl(res.url ?? null);
-      setForm(EMPTY_FORM);
-      router.refresh();
     });
+  };
 
-  const revoke = (inviteId: string) =>
+  const revoke = (inviteId: string) => {
+    setBusy(`revoke:${inviteId}`);
     startTransition(async () => {
-      setError(null);
-      const res = await revokeClassInviteAction(inviteId, classId);
-      if (res.error) {
-        setError(res.error);
-        return;
+      try {
+        setError(null);
+        const res = await revokeClassInviteAction(inviteId, classId);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      } finally {
+        setBusy(null);
       }
-      router.refresh();
     });
+  };
 
-  const remove = (inviteId: string) =>
+  const remove = (inviteId: string) => {
+    setBusy(`remove:${inviteId}`);
     startTransition(async () => {
-      setError(null);
-      const res = await deleteClassInviteAction(inviteId, classId);
-      if (res.error) {
-        setError(res.error);
-        return;
+      try {
+        setError(null);
+        const res = await deleteClassInviteAction(inviteId, classId);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setConfirmingDelete(null);
+        router.refresh();
+      } finally {
+        setBusy(null);
       }
-      setConfirmingDelete(null);
-      router.refresh();
     });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -197,8 +217,8 @@ export function ClassInviteManager({
         </div>
 
         <div>
-          <Button onClick={generate} disabled={isPending} className="gap-2">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+          <Button onClick={generate} loading={busy === "generate"} disabled={isPending} loadingText="Generating…" className="gap-2">
+            <Link2 className="h-4 w-4" />
             Generate link
           </Button>
         </div>
@@ -302,7 +322,14 @@ export function ClassInviteManager({
                             {copiedKey === invite.id ? "Copied" : "Copy link"}
                           </span>
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => revoke(invite.id)} disabled={isPending}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => revoke(invite.id)}
+                          loading={busy === `revoke:${invite.id}`}
+                          disabled={isPending}
+                          loadingText="Revoking…"
+                        >
                           <Ban className="h-3.5 w-3.5" />
                           <span className="hidden sm:inline">Revoke</span>
                         </Button>
@@ -319,12 +346,15 @@ export function ClassInviteManager({
                         >
                           Cancel
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => remove(invite.id)} disabled={isPending}>
-                          {isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => remove(invite.id)}
+                          loading={busy === `remove:${invite.id}`}
+                          disabled={isPending}
+                          loadingText="Deleting…"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                           Delete
                         </Button>
                       </div>

@@ -162,8 +162,8 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending}>
-                {pending ? "Saving..." : "Save placements"}
+              <Button type="submit" loading={pending} loadingText="Saving...">
+                Save placements
               </Button>
             </div>
           </div>

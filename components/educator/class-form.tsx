@@ -104,14 +104,12 @@ export function ClassForm({ initial, mode }: ClassFormProps) {
           <Button type="button" variant="ghost" onClick={() => router.back()} disabled={pending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={pending}>
-            {pending
-              ? mode === "create"
-                ? "Creating..."
-                : "Saving..."
-              : mode === "create"
-                ? "Create Class"
-                : "Save Changes"}
+          <Button
+            type="submit"
+            loading={pending}
+            loadingText={mode === "create" ? "Creating..." : "Saving..."}
+          >
+            {mode === "create" ? "Create Class" : "Save Changes"}
           </Button>
         </div>
       </form>

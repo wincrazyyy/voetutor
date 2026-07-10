@@ -110,8 +110,8 @@ export function SubtopicFormDialog({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || !title.trim()}>
-              {pending ? "Saving..." : mode === "create" ? "Add subtopic" : "Save"}
+            <Button type="submit" loading={pending} loadingText="Saving..." disabled={!title.trim()}>
+              {mode === "create" ? "Add subtopic" : "Save"}
             </Button>
           </div>
         </form>

@@ -37,17 +37,19 @@ export function ReportActions({ reportId, classIsPublished }: ReportActionsProps
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={handleDismiss} disabled={pending}>
+        <Button variant="ghost" size="sm" onClick={handleDismiss} loading={pending}>
           Dismiss
         </Button>
         <Button
           variant="destructive"
           size="sm"
           onClick={handleUnpublish}
-          disabled={pending || !classIsPublished}
+          loading={pending}
+          disabled={!classIsPublished}
+          loadingText="Working…"
           title={classIsPublished ? "Unpublish class and resolve all pending reports against it" : "Class is already unpublished"}
         >
-          {pending ? "Working..." : classIsPublished ? "Unpublish Class" : "Already Unpublished"}
+          {classIsPublished ? "Unpublish Class" : "Already Unpublished"}
         </Button>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}

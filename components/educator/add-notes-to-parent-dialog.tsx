@@ -112,7 +112,13 @@ export function AddNotesToParentDialog({
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Add from your library
           </span>
-          <NoteUploadDialog parent={parent} parentLabel={parentLabel} buttonLabel="Upload new" buttonVariant="ghost" />
+          <NoteUploadDialog
+            parent={parent}
+            parentLabel={parentLabel}
+            buttonLabel="Upload new"
+            buttonVariant="ghost"
+            onUploaded={() => setOpen(false)}
+          />
         </div>
 
         {available.length > 0 && (
@@ -171,8 +177,14 @@ export function AddNotesToParentDialog({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSubmit} disabled={pending || selected.size === 0}>
-              {pending ? "Adding…" : `Add${selected.size > 0 ? ` ${selected.size}` : ""}`}
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              loading={pending}
+              disabled={selected.size === 0}
+              loadingText="Adding…"
+            >
+              {`Add${selected.size > 0 ? ` ${selected.size}` : ""}`}
             </Button>
           </div>
         </div>

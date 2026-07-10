@@ -300,8 +300,14 @@ export function AddVideosToSubtopicDialog({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSubmit} disabled={pending || selected.size === 0}>
-              {pending ? "Adding…" : `Add${selected.size > 0 ? ` ${selected.size}` : ""}`}
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              loading={pending}
+              disabled={selected.size === 0}
+              loadingText="Adding…"
+            >
+              {`Add${selected.size > 0 ? ` ${selected.size}` : ""}`}
             </Button>
           </div>
         </div>

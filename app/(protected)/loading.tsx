@@ -1,12 +1,10 @@
-import { Loader2 } from "lucide-react";
+import { PageHeaderSkeleton, ListSkeleton } from "@/components/loading/page-skeletons";
 
 export default function ProtectedLoading() {
   return (
-    <div className="flex h-full w-full items-center justify-center p-8 text-muted-foreground">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm font-medium animate-pulse">Loading dashboard...</p>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-6 p-6 md:p-8">
+      <PageHeaderSkeleton />
+      <ListSkeleton />
     </div>
   );
 }

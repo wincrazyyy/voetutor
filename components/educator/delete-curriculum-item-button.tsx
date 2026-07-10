@@ -97,8 +97,14 @@ export function DeleteCurriculumItemButton({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete} disabled={pending}>
-              {pending ? "Deleting..." : `Delete ${kind}`}
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              loading={pending}
+              loadingText="Deleting..."
+            >
+              {`Delete ${kind}`}
             </Button>
           </div>
         </div>

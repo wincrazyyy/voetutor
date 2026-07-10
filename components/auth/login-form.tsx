@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -77,9 +76,8 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         </p>
       )}
 
-      <Button type="submit" size="lg" className="w-full gap-2" disabled={isLoading}>
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isLoading ? "Signing in..." : "Log in"}
+      <Button type="submit" size="lg" className="w-full gap-2" loading={isLoading} loadingText="Signing in…">
+        Log in
       </Button>
 
       <div className="text-center text-sm text-muted-foreground">

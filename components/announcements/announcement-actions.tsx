@@ -43,7 +43,7 @@ export function AnnouncementActions({ classId, announcementId, size = "sm" }: An
       </Button>
       {confirm ? (
         <span className="flex items-center gap-1 text-xs">
-          <Button variant="ghost" size={size} className="text-destructive" onClick={doDelete} disabled={pending}>
+          <Button variant="ghost" size={size} className="text-destructive" onClick={doDelete} loading={pending} loadingText="Deleting…">
             Delete?
           </Button>
           <Button variant="ghost" size={size} onClick={() => setConfirm(false)} disabled={pending}>

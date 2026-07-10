@@ -82,8 +82,8 @@ export function DeleteResourceButton({ resourceId, name }: DeleteResourceButtonP
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete} disabled={pending}>
-              {pending ? "Deleting…" : "Delete"}
+            <Button type="button" variant="destructive" onClick={handleDelete} loading={pending} loadingText="Deleting…">
+              Delete
             </Button>
           </div>
         </div>

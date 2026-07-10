@@ -24,8 +24,8 @@ export function EnrollFreeButton({ classId, className }: EnrollFreeButtonProps) 
 
   return (
     <div className={className}>
-      <Button onClick={handleClick} disabled={pending} className="w-full">
-        {pending ? "Enrolling..." : "Enrol for free"}
+      <Button onClick={handleClick} loading={pending} loadingText="Enrolling..." className="w-full">
+        Enrol for free
       </Button>
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
     </div>

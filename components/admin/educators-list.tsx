@@ -119,9 +119,9 @@ function EducatorCard({
           </Badge>
         ) : (
           <div className="flex flex-col items-end gap-2">
-            <Button size="sm" className="gap-2" onClick={handleApprove} disabled={isPending}>
+            <Button size="sm" className="gap-2" onClick={handleApprove} loading={isPending} loadingText="Approving…">
               <CheckCircle2 className="w-4 h-4" />
-              {isPending ? "Approving..." : "Approve"}
+              Approve
             </Button>
             {error && <p className="text-xs text-destructive max-w-xs text-right">{error}</p>}
           </div>

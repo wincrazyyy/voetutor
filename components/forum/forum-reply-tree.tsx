@@ -182,8 +182,8 @@ function ReplyNode({
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setDraft(reply.content); }} disabled={pending}>
                   Cancel
                 </Button>
-                <Button type="button" size="sm" onClick={saveEdit} disabled={pending || draft.trim().length === 0}>
-                  {pending ? "Saving…" : "Save"}
+                <Button type="button" size="sm" onClick={saveEdit} loading={pending} disabled={draft.trim().length === 0} loadingText="Saving…">
+                  Save
                 </Button>
               </div>
             </div>
@@ -218,7 +218,7 @@ function ReplyNode({
               {canDelete && confirmDelete && (
                 <span className="flex items-center gap-1 text-xs">
                   <span className="text-muted-foreground">Delete?</span>
-                  <Button type="button" variant="ghost" size="xs" className="text-destructive" onClick={doDelete} disabled={pending}>
+                  <Button type="button" variant="ghost" size="xs" className="text-destructive" onClick={doDelete} loading={pending}>
                     Yes
                   </Button>
                   <Button type="button" variant="ghost" size="xs" onClick={() => setConfirmDelete(false)} disabled={pending}>

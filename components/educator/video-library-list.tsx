@@ -162,9 +162,10 @@ function LibraryVideoCard({
                 variant="destructive"
                 className="h-8 text-xs"
                 onClick={handleDelete}
-                disabled={pending}
+                loading={pending}
+                loadingText="Deleting..."
               >
-                {pending ? "Deleting..." : "Delete"}
+                Delete
               </Button>
               <Button
                 size="sm"

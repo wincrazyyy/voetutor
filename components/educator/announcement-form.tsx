@@ -146,8 +146,13 @@ export function AnnouncementForm({ classId, authorId, announcement }: Announceme
           <Button type="button" variant="ghost" onClick={() => router.back()} disabled={pending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={pending || !title.trim() || !content.trim()}>
-            {pending ? "Saving…" : isEdit ? "Save Changes" : "Post Announcement"}
+          <Button
+            type="submit"
+            loading={pending}
+            loadingText="Saving…"
+            disabled={!title.trim() || !content.trim()}
+          >
+            {isEdit ? "Save Changes" : "Post Announcement"}
           </Button>
         </div>
       </form>

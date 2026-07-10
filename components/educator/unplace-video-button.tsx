@@ -57,7 +57,8 @@ export function UnplaceVideoButton({ placementId, onError }: UnplaceVideoButtonP
         variant="ghost"
         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
         onClick={handleRemove}
-        disabled={pending}
+        loading={pending}
+        loadingText={null}
         aria-label="Confirm remove from subtopic"
         title="Confirm remove"
       >

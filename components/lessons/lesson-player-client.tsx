@@ -13,10 +13,10 @@ import {
   Clock,
   Paperclip,
   Lock,
-  Loader2,
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stream, type StreamPlayerApi } from "@cloudflare/stream-react";
 import { useVideoProgress } from "@/components/lessons/use-video-progress";
@@ -107,7 +107,7 @@ export function LessonPlayerClient({
               />
               {!playerReady && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black text-white pointer-events-none">
-                  <Loader2 className="w-14 h-14 text-primary/80 animate-spin" />
+                  <Spinner className="w-14 h-14 text-primary/80" />
                   <p className="mt-4 font-medium text-sm opacity-70">Loading video…</p>
                 </div>
               )}
@@ -128,7 +128,7 @@ export function LessonPlayerClient({
                 </>
               ) : (
                 <>
-                  <Loader2 className="w-16 h-16 text-primary/80 animate-spin" />
+                  <Spinner className="w-16 h-16 text-primary/80" />
                   <p className="mt-4 font-medium text-lg opacity-80">Lesson is still processing</p>
                   <p className="mt-2 text-xs opacity-40">Check back in a few minutes.</p>
                 </>

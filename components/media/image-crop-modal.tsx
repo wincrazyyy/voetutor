@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
-import { Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { ZoomIn, ZoomOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export interface ImageCropModalProps {
   file: File;
@@ -400,7 +401,7 @@ export function ImageCropModal({
 
               {status !== "ready" && status !== "saving" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  <Spinner className="h-6 w-6 text-white" />
                 </div>
               )}
             </div>
@@ -447,8 +448,13 @@ export function ImageCropModal({
           <Button type="button" variant="ghost" onClick={onCancel} disabled={status === "saving"}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={status !== "ready"}>
-            {status === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          <Button
+            type="button"
+            onClick={handleSave}
+            loading={status === "saving"}
+            loadingText="Saving…"
+            disabled={status !== "ready"}
+          >
             Save
           </Button>
         </div>

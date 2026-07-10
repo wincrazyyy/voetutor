@@ -27,6 +27,7 @@ ALTER TABLE forum_post_upvotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_reply_upvotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE educator_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE educator_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE classes FORCE ROW LEVEL SECURITY;
@@ -49,6 +50,7 @@ ALTER TABLE forum_post_upvotes FORCE ROW LEVEL SECURITY;
 ALTER TABLE forum_reply_upvotes FORCE ROW LEVEL SECURITY;
 ALTER TABLE educator_profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE educator_reviews FORCE ROW LEVEL SECURITY;
+ALTER TABLE student_profiles FORCE ROW LEVEL SECURITY;
 
 /* ==========  ROW LEVEL SECURITY POLICIES  ========== */
 /* Conventions enforced across every policy below:
@@ -587,6 +589,34 @@ CREATE POLICY educator_profiles_delete_self_or_admin ON educator_profiles
     FOR DELETE TO authenticated
     USING ((SELECT internal.is_admin()) OR (SELECT auth.uid()) = educator_id);
 COMMENT ON POLICY educator_profiles_delete_self_or_admin ON educator_profiles IS 'Educator can wipe their extended info; admin can clean it up if needed.';
+
+/* ----- STUDENT PROFILES ----- */
+CREATE POLICY student_profiles_select_self_or_admin ON student_profiles
+    FOR SELECT TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT auth.uid()) = student_id);
+COMMENT ON POLICY student_profiles_select_self_or_admin ON student_profiles IS 'The student owns their row; admins can read every row for the students console. Cross-user reads elsewhere use profiles_public, not this table.';
+
+CREATE POLICY student_profiles_insert_self ON student_profiles
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        (SELECT auth.uid()) = student_id
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = (SELECT auth.uid()) AND p.role = 'student'::user_role
+        )
+    );
+COMMENT ON POLICY student_profiles_insert_self ON student_profiles IS 'A student creates their own row (student_id = auth.uid()). The row is normally created at sign-up by handle_new_user (SECURITY DEFINER, bypasses RLS); this policy backs the Settings upsert for students who signed up before the sidecar existed. Only students can insert; the PK prevents duplicates.';
+
+CREATE POLICY student_profiles_update_self ON student_profiles
+    FOR UPDATE TO authenticated
+    USING ((SELECT auth.uid()) = student_id)
+    WITH CHECK ((SELECT auth.uid()) = student_id);
+COMMENT ON POLICY student_profiles_update_self ON student_profiles IS 'A student edits their own enrolment details in Settings indefinitely. WITH CHECK matches USING so the row cannot be redirected onto another student mid-update (student_id is also locked by prevent_student_profile_modifications).';
+
+CREATE POLICY student_profiles_delete_self_or_admin ON student_profiles
+    FOR DELETE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT auth.uid()) = student_id);
+COMMENT ON POLICY student_profiles_delete_self_or_admin ON student_profiles IS 'Student can wipe their extended info; admin can clean it up (e.g. as part of account deletion, which cascades from profiles anyway).';
 
 /* ----- EDUCATOR REVIEWS ----- */
 CREATE POLICY educator_reviews_select_owner_or_admin ON educator_reviews

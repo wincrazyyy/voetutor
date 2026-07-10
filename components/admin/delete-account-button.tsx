@@ -176,8 +176,14 @@ export function DeleteAccountButton({
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
                 Cancel
               </Button>
-              <Button type="submit" variant="destructive" disabled={!matches || pending}>
-                {pending ? "Deleting..." : "Delete this account"}
+              <Button
+                type="submit"
+                variant="destructive"
+                loading={pending}
+                disabled={!matches}
+                loadingText="Deleting..."
+              >
+                Delete this account
               </Button>
             </div>
           </form>

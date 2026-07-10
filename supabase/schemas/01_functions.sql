@@ -98,6 +98,24 @@ BEGIN
         v_role,
         v_is_approved
     );
+
+    /* Students provide extra enrollment details at sign-up (passed in signup metadata); persist them
+       into the sidecar. Values are truncated to the column caps so an oversized metadata payload can
+       never abort account creation, and blanks collapse to NULL. */
+    IF v_role = 'student'::public.user_role THEN
+        INSERT INTO public.student_profiles (
+            student_id, whatsapp_number, school, school_year, courses, target_grade
+        )
+        VALUES (
+            NEW.id,
+            LEFT(NULLIF(NEW.raw_user_meta_data->>'whatsapp_number', ''), 50),
+            LEFT(NULLIF(NEW.raw_user_meta_data->>'school', ''), 200),
+            LEFT(NULLIF(NEW.raw_user_meta_data->>'school_year', ''), 60),
+            LEFT(NULLIF(NEW.raw_user_meta_data->>'courses', ''), 1000),
+            LEFT(NULLIF(NEW.raw_user_meta_data->>'target_grade', ''), 100)
+        );
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
@@ -164,6 +182,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION internal.prevent_educator_profile_modifications() IS 'Variant of prevent_immutable_modifications scoped to educator_profiles, which uses educator_id as its PK rather than the conventional id column. Locks both educator_id and created_at against post-insert mutation; the educator_profiles_update_self RLS WITH CHECK clause separately prevents row redirection.';
+
+CREATE OR REPLACE FUNCTION internal.prevent_student_profile_modifications()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.student_id IS DISTINCT FROM OLD.student_id THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: student_id (PK) modifications are strictly prohibited.';
+    END IF;
+    IF NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: created_at timestamp modifications are strictly prohibited.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.prevent_student_profile_modifications() IS 'Variant of prevent_immutable_modifications scoped to student_profiles (PK is student_id, not the conventional id column). Locks student_id and created_at against post-insert mutation; the student_profiles_update_self RLS WITH CHECK clause separately prevents row redirection.';
 
 CREATE OR REPLACE FUNCTION internal.protect_profile_role()
 RETURNS TRIGGER AS $$

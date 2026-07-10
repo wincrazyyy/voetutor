@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel, Cormorant, Montserrat } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import { NavProgress } from "@/components/layout/nav-progress";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -48,6 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${montserrat.variable} ${cormorant.variable} ${cinzel.variable} font-sans antialiased`}>
+        <NavProgress />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

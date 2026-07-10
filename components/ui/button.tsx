@@ -3,6 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/spinner"
 
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -43,12 +44,32 @@ function Button({
   variant = "default",
   size = "default",
   asChild = false,
+  loading = false,
+  loadingText,
+  disabled,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    /** Shows a leading spinner + disables the button (so it can't be re-clicked). */
+    loading?: boolean
+    /** Optional label swap while loading, e.g. "Saving…". Defaults to keeping `children`. */
+    loadingText?: React.ReactNode
   }) {
   const Comp = asChild ? Slot.Root : "button"
+  /* Radix Slot requires a SINGLE child, so a spinner can't be injected in asChild mode — loading is
+     a no-op there (asChild buttons are Link wrappers that don't need it). When not spinning, content
+     stays exactly `children` so Slot still receives one child. */
+  const showSpinner = loading && !asChild
+  const content = showSpinner ? (
+    <>
+      <Spinner className="size-4" />
+      {loadingText !== undefined ? loadingText : children}
+    </>
+  ) : (
+    children
+  )
 
   return (
     <Comp
@@ -56,8 +77,12 @@ function Button({
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || showSpinner}
+      aria-busy={showSpinner || undefined}
       {...props}
-    />
+    >
+      {content}
+    </Comp>
   )
 }
 

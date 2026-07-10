@@ -111,6 +111,30 @@ GRANT SELECT ON public.profiles_public TO authenticated;
 
 /* ----------------------------------------- */
 
+CREATE TABLE student_profiles (
+    student_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    whatsapp_number TEXT CHECK (whatsapp_number IS NULL OR char_length(whatsapp_number) <= 50),
+    school TEXT CHECK (school IS NULL OR char_length(school) <= 200),
+    school_year TEXT CHECK (school_year IS NULL OR char_length(school_year) <= 60),
+    courses TEXT CHECK (courses IS NULL OR char_length(courses) <= 1000),
+    target_grade TEXT CHECK (target_grade IS NULL OR char_length(target_grade) <= 100),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+COMMENT ON TABLE student_profiles IS 'Optional 1:1 sidecar to profiles holding enrolment details that only students care about — WhatsApp number, school, school year, courses being studied, and target grade. Collected at sign-up (handle_new_user inserts the row from signup metadata) and self-editable in Settings. All columns are nullable so the row survives partial completion and pre-feature students who backfill later. Mirrors the educator_profiles sidecar shape.';
+COMMENT ON COLUMN student_profiles.courses IS 'Free-text list of the courses/subjects the student is studying (e.g. "Math AA HL, Physics HL, Economics SL"). Not the platform class enrolments (those live in class_enrollments).';
+COMMENT ON COLUMN student_profiles.target_grade IS 'Free-text goal grade the student is aiming for (e.g. "7", "40/45", "A*").';
+
+CREATE TRIGGER set_student_profiles_updated_at
+    BEFORE UPDATE ON student_profiles
+    FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+CREATE TRIGGER enforce_immutability_student_profiles
+    BEFORE UPDATE ON student_profiles
+    FOR EACH ROW EXECUTE PROCEDURE internal.prevent_student_profile_modifications();
+
+/* ----------------------------------------- */
+
 CREATE TABLE educator_reviews (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     educator_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,

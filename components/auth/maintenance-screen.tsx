@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Loader2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { Spinner } from "@/components/ui/spinner";
 
 /* Fixed maintenance palette — deliberately theme-independent (always dark premium), matching the
    original maintenance screen. Hex is intentional here (not Tailwind tokens) for that reason. */
@@ -190,7 +190,7 @@ export function MaintenanceScreen() {
                   style={{ background: C.teal, color: "#04130f" }}
                   className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
                 >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading && <Spinner className="h-4 w-4" />}
                   {loading ? "Signing in…" : "Sign in"}
                 </button>
               </form>

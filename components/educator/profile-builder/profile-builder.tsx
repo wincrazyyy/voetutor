@@ -10,7 +10,6 @@ import {
   ChevronsUpDown,
   Trash2,
   Save,
-  Loader2,
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
@@ -32,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { getDisplayName, getInitials } from "@/lib/utils/format";
 import {
@@ -726,10 +726,8 @@ export function ProfileBuilder({
                 <span className="hidden sm:inline">{showPreview ? "Hide preview" : "Preview"}</span>
               </Button>
             ) : null}
-            <Button size="sm" onClick={save} disabled={isPending} aria-label="Save">
-              {isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : justSaved && !dirty ? (
+            <Button size="sm" onClick={save} loading={isPending} loadingText="Saving…" aria-label="Save">
+              {justSaved && !dirty ? (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
@@ -737,12 +735,12 @@ export function ProfileBuilder({
               <span className="hidden sm:inline">{justSaved && !dirty ? "Saved" : "Save"}</span>
             </Button>
             {isPublished ? (
-              <Button variant="secondary" size="sm" onClick={unpublish} disabled={isPending} aria-label="Unpublish">
+              <Button variant="secondary" size="sm" onClick={unpublish} loading={isPending} aria-label="Unpublish">
                 <span className="hidden sm:inline">Unpublish</span>
                 <X className="h-3.5 w-3.5 sm:hidden" />
               </Button>
             ) : (
-              <Button variant="secondary" size="sm" onClick={publish} disabled={isPending} aria-label="Publish">
+              <Button variant="secondary" size="sm" onClick={publish} loading={isPending} aria-label="Publish">
                 <span className="hidden sm:inline">Publish</span>
                 <CheckCircle2 className="h-3.5 w-3.5 sm:hidden" />
               </Button>
@@ -815,7 +813,7 @@ export function ProfileBuilder({
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={avatarBusy}
               >
-                {avatarBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {avatarBusy ? <Spinner className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
                 {avatarUrl ? "Replace photo" : "Upload photo"}
               </Button>
               {avatarUrl ? (
