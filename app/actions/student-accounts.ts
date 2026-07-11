@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,22 +11,34 @@ import { generateTempPassword } from "@/lib/auth/temp-password";
 export interface CreateStudentAccountState {
   error?: string;
   emailExists?: boolean;
-  credentials?: { email: string; tempPassword: string; studentName: string };
+  setupUrl?: string;
+  studentName?: string;
+}
+
+async function resolveAppOrigin(): Promise<string> {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl) return envUrl.replace(/\/+$/, "");
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "localhost:3000";
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
 }
 
 /**
- * Educator/admin provisions a student account directly: creates the auth user with a strong temporary
- * password (returned ONCE in the action result, never logged or persisted), flags the profile with
- * must_change_password via signup metadata, and auto-enrolls the student into the caller's class.
- * Optional student_profiles details (WhatsApp / school / school year / courses / target grade) are
- * passed through signup metadata and seeded by internal.handle_new_user — handy for migrating an
- * existing student from another platform. Each is nullable, truncated by the trigger to its column
- * cap, and remains editable by the student in Settings.
+ * Educator/admin provisions a student account directly, then hands the student a DURABLE one-click
+ * setup link (/welcome/[token]) instead of a password: the account is created with a random internal
+ * password (never returned or logged, so the account is never password-less) and flagged with
+ * must_change_password via signup metadata; the student clicks the link, is signed in via a fresh
+ * recovery token, and sets their own password on /onboarding/set-password. The student is auto-enrolled
+ * into the caller's class. Optional student_profiles details (WhatsApp / school / school year /
+ * target grade) are passed through signup metadata and seeded by internal.handle_new_user — handy for
+ * migrating an existing student from another platform. Each is nullable, truncated by the trigger to its
+ * column cap, and remains editable by the student in Settings.
  *
  * Security contract: the caller is gated with the USER session (approved educator who owns the class,
  * or admin) BEFORE the service-role client is constructed. The enrollment INSERT uses the caller's own
- * RLS-checked client (enrollments_insert_educator_or_admin); on enrollment failure the freshly created
- * auth user is rolled back so no flagged orphan account is left behind.
+ * RLS-checked client (enrollments_insert_educator_or_admin); on enrollment OR setup-token failure the
+ * freshly created auth user is rolled back so no orphan account or unusable link is left behind.
  */
 export async function createStudentAccountAction(
   classId: string,
@@ -36,7 +49,6 @@ export async function createStudentAccountAction(
     whatsappNumber?: string;
     school?: string;
     schoolYear?: string;
-    courses?: string;
     targetGrade?: string;
   },
 ): Promise<CreateStudentAccountState> {
@@ -75,7 +87,6 @@ export async function createStudentAccountAction(
   addDetail("whatsapp_number", input.whatsappNumber);
   addDetail("school", input.school);
   addDetail("school_year", input.schoolYear);
-  addDetail("courses", input.courses);
   addDetail("target_grade", input.targetGrade);
 
   const admin = createAdminClient();
@@ -122,9 +133,28 @@ export async function createStudentAccountAction(
     return { error: "Could not enroll the new account; nothing was created. Try again." };
   }
 
+  const { data: tokenRow, error: tokenError } = await admin
+    .from("student_setup_tokens")
+    .insert({ user_id: newUserId, class_id: classId, created_by: profile.id })
+    .select("token")
+    .single();
+
+  if (tokenError || !tokenRow?.token) {
+    await admin.auth.admin.deleteUser(newUserId).then(
+      () => undefined,
+      () => undefined,
+    );
+    return { error: "Could not create the setup link; nothing was created. Try again." };
+  }
+
+  const origin = await resolveAppOrigin();
+
   revalidatePath(`/class/${classId}`);
   revalidatePath(`/class/${classId}/students`);
   revalidatePath("/", "layout");
 
-  return { credentials: { email, tempPassword, studentName: displayName } };
+  return {
+    setupUrl: `${origin}/welcome/${(tokenRow as { token: string }).token}`,
+    studentName: displayName,
+  };
 }

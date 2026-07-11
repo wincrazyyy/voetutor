@@ -89,6 +89,31 @@ export async function getClassEducator(educatorId: string | null): Promise<Profi
   return (data as ProfilePublic | null) ?? null;
 }
 
+export interface EducatorChip {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * Batch-resolves educator identity chips (avatar + names) from profiles_public, keyed by id. Powers the
+ * sidebar class list, whose per-class icon is the class educator's avatar. profiles_public.avatar_url
+ * already coalesces the account avatar with the educator masthead photo (falling back to initials).
+ */
+export async function getEducatorChipsByIds(ids: string[]): Promise<Map<string, EducatorChip>> {
+  const map = new Map<string, EducatorChip>();
+  if (ids.length === 0) return map;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles_public")
+    .select("id, first_name, last_name, display_name, avatar_url")
+    .in("id", ids);
+  for (const row of (data ?? []) as EducatorChip[]) map.set(row.id, row);
+  return map;
+}
+
 export interface RosterStudent {
   id: string;
   first_name: string | null;

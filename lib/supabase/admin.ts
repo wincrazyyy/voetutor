@@ -19,9 +19,14 @@ import { createClient } from "@supabase/supabase-js";
  *   4. createStudentAccountAction (app/actions/student-accounts.ts), which
  *      verifies the caller is an approved educator who owns the target class
  *      (or an admin) with the regular user session BEFORE constructing this
- *      client — it then needs the service role only for
- *      auth.admin.createUser / the rollback deleteUser; the enrollment
- *      INSERT itself uses the caller's own RLS-checked client.
+ *      client — it then needs the service role for auth.admin.createUser /
+ *      the rollback deleteUser and to mint the student_setup_tokens row; the
+ *      enrollment INSERT itself uses the caller's own RLS-checked client;
+ *   5. the /welcome/[token] route (app/welcome/[token]/route.ts), authorized
+ *      by possession of the 192-bit student_setup_tokens secret in the URL
+ *      (analogous to the webhook's HMAC): it resolves the token, mints a fresh
+ *      Supabase recovery link, and hands off to /auth/confirm so the student
+ *      can set their first password.
  * It must never be imported by a client component, an UNAUTHORIZED server
  * action, a page, or a layout. The `server-only` import turns any such
  * misuse into a build error.

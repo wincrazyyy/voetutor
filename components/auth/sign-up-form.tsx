@@ -28,7 +28,6 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   const [whatsapp, setWhatsapp] = useState("");
   const [school, setSchool] = useState("");
   const [schoolYear, setSchoolYear] = useState("");
-  const [courses, setCourses] = useState("");
   const [targetGrade, setTargetGrade] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -71,7 +70,6 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                   whatsapp_number: whatsapp,
                   school,
                   school_year: schoolYear,
-                  courses,
                   target_grade: targetGrade,
                 }
               : {}),
@@ -193,19 +191,6 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                 disabled={isLoading}
               />
             </div>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="courses">Enrolled courses</Label>
-            <Input
-              id="courses"
-              type="text"
-              placeholder="e.g. Math AA HL, Physics HL, Economics SL"
-              required
-              maxLength={1000}
-              value={courses}
-              onChange={(e) => setCourses(e.target.value)}
-              disabled={isLoading}
-            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="target-grade">Target grade</Label>

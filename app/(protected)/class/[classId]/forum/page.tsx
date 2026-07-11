@@ -38,6 +38,8 @@ export default async function ClassForumPage({
   const cls = await getClassById(classId);
   if (!cls) notFound();
 
+  const viewerManagesClass = profile.role === "admin" || cls.educator_id === profile.id;
+
   const [posts, memberCount, curriculum] = await Promise.all([
     getForumPostsForClass(classId, profile.id, sort),
     getClassMemberCount(classId),
@@ -119,6 +121,7 @@ export default async function ClassForumPage({
             memberCount={memberCount}
             postCount={posts.length}
             resolvedCount={posts.filter((p) => p.is_resolved).length}
+            showMemberCount={viewerManagesClass}
           />
         </div>
       </div>

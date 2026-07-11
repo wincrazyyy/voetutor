@@ -39,18 +39,12 @@ function ToneIcon({ tone }: { tone: Tone }) {
 
 type Mode = "existing" | "new";
 
-interface Credentials {
-  email: string;
-  tempPassword: string;
-  studentName: string;
-}
-
 /**
  * The "Add a student" card on the class students page. Two modes behind a segmented control:
  * "Existing account" enrolls a student who already has a VOETutor account by email;
- * "New account" provisions a fresh student account via createStudentAccountAction and shows the
- * generated temporary password exactly ONCE (it lives only in this component's state — a refresh
- * loses it by design).
+ * "New account" provisions a fresh student account via createStudentAccountAction and shows a durable
+ * one-click setup link to hand to the student — opening it signs them in and lets them set their own
+ * password (no password to type). The link lives only in this component's state until "Done".
  */
 export function AddStudentCard({ classId }: { classId: string }) {
   const router = useRouter();
@@ -68,14 +62,13 @@ export function AddStudentCard({ classId }: { classId: string }) {
   const [newEmail, setNewEmail] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [emailExists, setEmailExists] = useState(false);
-  const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const [setup, setSetup] = useState<{ url: string; studentName: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const [showDetails, setShowDetails] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [school, setSchool] = useState("");
   const [schoolYear, setSchoolYear] = useState("");
-  const [courses, setCourses] = useState("");
   const [targetGrade, setTargetGrade] = useState("");
 
   const copy = (key: string, text: string) => {
@@ -131,7 +124,6 @@ export function AddStudentCard({ classId }: { classId: string }) {
           whatsappNumber: whatsappNumber.trim() || undefined,
           school: school.trim() || undefined,
           schoolYear: schoolYear.trim() || undefined,
-          courses: courses.trim() || undefined,
           targetGrade: targetGrade.trim() || undefined,
         });
         if (res.error) {
@@ -139,8 +131,8 @@ export function AddStudentCard({ classId }: { classId: string }) {
           setEmailExists(res.emailExists === true);
           return;
         }
-        if (res.credentials) {
-          setCredentials(res.credentials);
+        if (res.setupUrl) {
+          setSetup({ url: res.setupUrl, studentName: res.studentName ?? "the student" });
           router.refresh();
         }
       } finally {
@@ -157,15 +149,14 @@ export function AddStudentCard({ classId }: { classId: string }) {
     setEmailExists(false);
   };
 
-  const finishCredentials = () => {
-    setCredentials(null);
+  const finishSetup = () => {
+    setSetup(null);
     setFirstName("");
     setLastName("");
     setNewEmail("");
     setWhatsappNumber("");
     setSchool("");
     setSchoolYear("");
-    setCourses("");
     setTargetGrade("");
     setShowDetails(false);
     setCreateError(null);
@@ -185,7 +176,7 @@ export function AddStudentCard({ classId }: { classId: string }) {
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "existing"
               ? "The student must already have a VOETutor account. They are enrolled immediately — no invite link needed."
-              : "Create a VOETutor account for a student who doesn't have one. You'll get a temporary password to hand to them — they'll be asked to set their own the first time they sign in."}
+              : "Create a VOETutor account for a student who doesn't have one. You'll get a link to send them — one click signs them in and lets them set their own password."}
           </p>
         </div>
         <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="shrink-0">
@@ -244,99 +235,48 @@ export function AddStudentCard({ classId }: { classId: string }) {
             </div>
           ) : null}
         </>
-      ) : credentials ? (
+      ) : setup ? (
         <div className="flex flex-col gap-3 rounded-md border border-primary/30 bg-primary/5 p-4">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
             <span className="text-sm font-semibold text-foreground">
-              Account created for {credentials.studentName}
+              Account created for {setup.studentName}
             </span>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
-              <span className="w-36 shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Email
-              </span>
-              <code className="min-w-0 flex-1 truncate text-xs text-foreground">
-                {credentials.email}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-1.5"
-                onClick={() => copy("email", credentials.email)}
-              >
-                {copiedKey === "email" ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-primary" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </div>
-            <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
-              <span className="w-36 shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Temporary password
-              </span>
-              <code className="min-w-0 flex-1 truncate text-xs text-foreground">
-                {credentials.tempPassword}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-1.5"
-                onClick={() => copy("password", credentials.tempPassword)}
-              >
-                {copiedKey === "password" ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-primary" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              This password is shown once. Copy it now and hand it to the student — the educator
-              cannot recover it later, only the student can change it.
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+            <code className="min-w-0 flex-1 truncate text-xs text-foreground">{setup.url}</code>
             <Button
               variant="outline"
-              className="gap-1.5"
-              onClick={() =>
-                copy("both", `Email: ${credentials.email}\nTemporary password: ${credentials.tempPassword}`)
-              }
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={() => copy("link", setup.url)}
             >
-              {copiedKey === "both" ? (
+              {copiedKey === "link" ? (
                 <>
-                  <Check className="h-4 w-4 text-primary" />
+                  <Check className="h-3.5 w-3.5 text-primary" />
                   Copied
                 </>
               ) : (
                 <>
-                  <Copy className="h-4 w-4" />
-                  Copy both
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy link
                 </>
               )}
             </Button>
-            <Button onClick={finishCredentials}>Done</Button>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Send this link to the student. Opening it signs them in and asks them to set their own
+              password — no email or password to type. The link stays valid until they set their
+              password.
+            </span>
+          </div>
+
+          <div>
+            <Button onClick={finishSetup}>Done</Button>
           </div>
         </div>
       ) : (
@@ -455,17 +395,6 @@ export function AddStudentCard({ classId }: { classId: string }) {
                         onChange={(e) => setSchoolYear(e.target.value)}
                       />
                     </div>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="new-courses">Enrolled courses</Label>
-                    <Input
-                      id="new-courses"
-                      maxLength={1000}
-                      placeholder="e.g. Math AA HL, Physics HL, Economics SL"
-                      value={courses}
-                      disabled={isPending}
-                      onChange={(e) => setCourses(e.target.value)}
-                    />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="new-target">Target grade</Label>

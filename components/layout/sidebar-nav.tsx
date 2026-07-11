@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -24,12 +24,10 @@ import {
   type LucideIcon,
   LayoutDashboard,
   Settings,
-  BookMarked,
   BookOpen,
   GraduationCap,
   GripVertical,
   Library,
-  ClipboardList,
   Flag,
   ShieldCheck,
   Star,
@@ -44,14 +42,24 @@ import {
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { LinkPending } from "@/components/layout/link-pending";
 import { reorderSidebarClassesAction } from "@/app/actions/class-order";
 
-type ClassItem = { id: string; code: string; title: string };
+type ClassItem = {
+  id: string;
+  code: string;
+  title: string;
+  educatorAvatarUrl: string | null;
+  educatorFirstName: string | null;
+  educatorLastName: string | null;
+  educatorDisplayName: string | null;
+};
 
 interface SidebarNavProps {
   role: UserRole;
-  classes: Array<{ id: string; code: string; title: string }>;
+  classes: ClassItem[];
   /** Per-class unread-announcement counts (students). */
   classUnread?: Record<string, number>;
   pendingApplicationCount?: number;
@@ -253,7 +261,9 @@ export function SidebarNav({
                 {role === "educator" || role === "admin" ? "No classes assigned yet." : "No enrolments yet."}
               </p>
             ) : (
-              <SortableClassList role={role} classes={classes} classUnread={classUnread} classHrefPrefix={classHrefPrefix} />
+              <TooltipProvider delayDuration={300}>
+                <SortableClassList classes={classes} classUnread={classUnread} classHrefPrefix={classHrefPrefix} />
+              </TooltipProvider>
             )}
           </div>
         </div>
@@ -262,13 +272,59 @@ export function SidebarNav({
   );
 }
 
+/**
+ * The class-name span, byte-identical to the plain `flex-1 truncate` span at rest. It measures its
+ * own overflow (ResizeObserver + re-measure on title change) and, ONLY when the title is actually
+ * truncated, wraps itself in a hover tooltip carrying the full title. Rendering the Tooltip
+ * conditionally (always uncontrolled) sidesteps any controlled/uncontrolled `open` warning.
+ */
+function TruncatedClassTitle({ title, suppressTooltip }: { title: string; suppressTooltip?: boolean }) {
+  const elRef = useRef<HTMLSpanElement | null>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  /* Callback ref instead of a ref+effect pair: when the tooltip wrapper mounts/unmounts, the span
+     remounts at a new tree position, and an effect keyed on `title` alone would keep observing the
+     detached old node. The callback re-attaches the observer to whichever node is current. */
+  const attachRef = useCallback((el: HTMLSpanElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    elRef.current = el;
+    if (!el) return;
+    const measure = () => setIsTruncated(el.scrollWidth > el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    observerRef.current = observer;
+  }, []);
+
+  /* A title change alone doesn't resize the span, so the ResizeObserver won't fire — re-measure. */
+  useEffect(() => {
+    const el = elRef.current;
+    if (el) setIsTruncated(el.scrollWidth > el.clientWidth);
+  }, [title]);
+
+  const span = (
+    <span ref={attachRef} className="flex-1 truncate">
+      {title}
+    </span>
+  );
+
+  if (!isTruncated || suppressTooltip) return span;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{span}</TooltipTrigger>
+      <TooltipContent side="right">{title}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function SortableClassList({
-  role,
   classes,
   classUnread,
   classHrefPrefix,
 }: {
-  role: UserRole;
   classes: ClassItem[];
   classUnread: Record<string, number>;
   classHrefPrefix: string;
@@ -321,7 +377,6 @@ function SortableClassList({
         {items.map((cls) => (
           <SortableClassRow
             key={cls.id}
-            role={role}
             cls={cls}
             unread={classUnread[cls.id] ?? 0}
             classHrefPrefix={classHrefPrefix}
@@ -333,12 +388,10 @@ function SortableClassList({
 }
 
 function SortableClassRow({
-  role,
   cls,
   unread,
   classHrefPrefix,
 }: {
-  role: UserRole;
   cls: ClassItem;
   unread: number;
   classHrefPrefix: string;
@@ -376,21 +429,14 @@ function SortableClassRow({
           isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
         )}
       >
-        <div
-          className={cn(
-            "w-5 h-5 flex items-center justify-center rounded-md border shrink-0",
-            isActive
-              ? "border-primary bg-primary/20 text-primary"
-              : "border-muted-foreground/30 text-muted-foreground group-hover:border-foreground",
-          )}
-        >
-          {role === "educator" || role === "admin" ? (
-            <ClipboardList className="w-3 h-3" />
-          ) : (
-            <BookMarked className="w-3 h-3" />
-          )}
-        </div>
-        <span className="flex-1 truncate">{cls.title}</span>
+        <UserAvatar
+          avatarUrl={cls.educatorAvatarUrl}
+          firstName={cls.educatorFirstName}
+          lastName={cls.educatorLastName}
+          displayName={cls.educatorDisplayName}
+          size={20}
+        />
+        <TruncatedClassTitle title={cls.title} suppressTooltip={isDragging} />
         {unread > 0 && (
           <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5 shrink-0">
             {unread}

@@ -15,7 +15,6 @@ const LIMITS = {
   whatsapp_number: 50,
   school: 200,
   school_year: 60,
-  courses: 1000,
   target_grade: 100,
 } as const;
 
@@ -31,7 +30,6 @@ export async function updateStudentProfileAction(input: {
   whatsappNumber: string;
   school: string;
   schoolYear: string;
-  courses: string;
   targetGrade: string;
 }): Promise<StudentProfileActionState> {
   const profile = await getCurrentProfile();
@@ -52,7 +50,6 @@ export async function updateStudentProfileAction(input: {
   const whatsappNumber = clamp(input.whatsappNumber, LIMITS.whatsapp_number);
   const school = clamp(input.school, LIMITS.school);
   const schoolYear = clamp(input.schoolYear, LIMITS.school_year);
-  const courses = clamp(input.courses, LIMITS.courses);
   const targetGrade = clamp(input.targetGrade, LIMITS.target_grade);
 
   const supabase = await createClient();
@@ -66,7 +63,6 @@ export async function updateStudentProfileAction(input: {
       whatsapp_number: whatsappNumber || null,
       school: school || null,
       school_year: schoolYear || null,
-      courses: courses || null,
       target_grade: targetGrade || null,
     },
     { onConflict: "student_id" },

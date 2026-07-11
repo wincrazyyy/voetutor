@@ -116,6 +116,7 @@ export async function updateSession(request: NextRequest) {
     !path.startsWith("/privacy") &&
     !path.startsWith("/terms") &&
     !path.startsWith("/invite") &&
+    !path.startsWith("/welcome") &&
     !isPublicEducatorPath(path)
   ) {
     const url = request.nextUrl.clone();

@@ -15,7 +15,6 @@ interface StudentProfileFormProps {
   whatsappNumber: string;
   school: string;
   schoolYear: string;
-  courses: string;
   targetGrade: string;
 }
 
@@ -27,7 +26,6 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
   const [whatsappNumber, setWhatsappNumber] = useState(initial.whatsappNumber);
   const [school, setSchool] = useState(initial.school);
   const [schoolYear, setSchoolYear] = useState(initial.schoolYear);
-  const [courses, setCourses] = useState(initial.courses);
   const [targetGrade, setTargetGrade] = useState(initial.targetGrade);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -50,7 +48,6 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
         whatsappNumber,
         school,
         schoolYear,
-        courses,
         targetGrade,
       });
       if (result?.error) {
@@ -97,18 +94,6 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
           <Label htmlFor="s-year">School year</Label>
           <Input id="s-year" maxLength={60} placeholder="e.g. Year 12 / DP1" value={schoolYear} onChange={edit(setSchoolYear)} disabled={pending} />
         </div>
-      </div>
-
-      <div className="grid gap-1.5">
-        <Label htmlFor="s-courses">Enrolled courses</Label>
-        <Input
-          id="s-courses"
-          maxLength={1000}
-          placeholder="e.g. Math AA HL, Physics HL, Economics SL"
-          value={courses}
-          onChange={edit(setCourses)}
-          disabled={pending}
-        />
       </div>
 
       <div className="grid gap-1.5">

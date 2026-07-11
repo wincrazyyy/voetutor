@@ -1,6 +1,5 @@
 import {
   getClassEducator,
-  getClassMemberCount,
   getClassVideoTotals,
 } from "@/lib/queries/classes";
 import { getCurriculumForClass } from "@/lib/queries/curriculum";
@@ -20,12 +19,11 @@ import { CurriculumAccordion } from "@/components/classes/curriculum-accordion";
 export async function StudentClassView({ cls, userId }: { cls: Class; userId: string }) {
   const classId = cls.id;
 
-  const [curriculum, announcements, educator, totals, memberCount] = await Promise.all([
+  const [curriculum, announcements, educator, totals] = await Promise.all([
     getCurriculumForClass(classId, userId),
     getAnnouncementsForClass(classId, 10),
     getClassEducator(cls.educator_id),
     getClassVideoTotals(classId, userId),
-    getClassMemberCount(classId),
   ]);
 
   const educatorName = educator
@@ -78,7 +76,7 @@ export async function StudentClassView({ cls, userId }: { cls: Class; userId: st
         />
 
         <div className="xl:col-span-5 space-y-8 sticky top-24">
-          <CommunityBanner classId={classId} memberCount={memberCount} />
+          <CommunityBanner classId={classId} />
           <CurriculumAccordion curriculum={curriculum} classId={classId} />
         </div>
       </div>

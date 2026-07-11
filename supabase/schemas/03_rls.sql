@@ -10,6 +10,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_setup_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subtopics ENABLE ROW LEVEL SECURITY;
@@ -33,6 +34,7 @@ ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE classes FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_invites FORCE ROW LEVEL SECURITY;
+ALTER TABLE student_setup_tokens FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_reports FORCE ROW LEVEL SECURITY;
 ALTER TABLE topics FORCE ROW LEVEL SECURITY;
 ALTER TABLE subtopics FORCE ROW LEVEL SECURITY;
@@ -159,6 +161,21 @@ CREATE POLICY class_invites_delete_owner_or_admin ON class_invites
     FOR DELETE TO authenticated
     USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
 COMMENT ON POLICY class_invites_delete_owner_or_admin ON class_invites IS 'Class educator or admin may hard-delete an invite (housekeeping); redeemed enrollments are unaffected — the enrollment row lives in class_enrollments.';
+
+/* ----- STUDENT SETUP TOKENS ----- */
+
+/* Every write is service-role only (createStudentAccountAction mints the row; the /welcome route reads
+   it with the admin client, authorized by possession of the secret) — deliberately NO insert/update/
+   delete policies for authenticated, mirroring how class_invites keeps its secret handling out of
+   client reach. The select policy exists solely for a future issuer-side manage/resend UI; students
+   never read this table. */
+CREATE POLICY student_setup_tokens_select_issuer_or_admin ON student_setup_tokens
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR created_by = (SELECT auth.uid())
+    );
+COMMENT ON POLICY student_setup_tokens_select_issuer_or_admin ON student_setup_tokens IS 'Issuer-or-admin read for a future manage/resend surface. All writes stay service-role only: RLS blocks authenticated INSERT/UPDATE/DELETE entirely, so the secret lifecycle is owned by createStudentAccountAction and the /welcome route.';
 
 /* ----- CLASS REPORTS ----- */
 CREATE POLICY class_reports_select_own_or_admin ON class_reports

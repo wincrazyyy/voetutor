@@ -72,7 +72,6 @@ export default async function SettingsPage() {
             whatsappNumber={studentProfile?.whatsapp_number ?? ""}
             school={studentProfile?.school ?? ""}
             schoolYear={studentProfile?.school_year ?? ""}
-            courses={studentProfile?.courses ?? ""}
             targetGrade={studentProfile?.target_grade ?? ""}
           />
         </Card>

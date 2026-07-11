@@ -135,7 +135,6 @@ export interface StudentProfile {
   whatsapp_number: string | null;
   school: string | null;
   school_year: string | null;
-  courses: string | null;
   target_grade: string | null;
   created_at: string;
   updated_at: string;
@@ -186,6 +185,19 @@ export interface ClassInvite {
   redeemed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** A row of the student_setup_tokens table — a durable one-click setup link for an
+ *  educator-provisioned student account. Written/read via the service-role client only;
+ *  the authenticated select policy (issuer/admin) exists for a future manage UI. */
+export interface StudentSetupToken {
+  id: string;
+  token: string;
+  user_id: string;
+  class_id: string;
+  created_by: string | null;
+  revoked_at: string | null;
+  created_at: string;
 }
 
 export type ClassInvitePreviewReason = "revoked" | "redeemed" | "expired" | "valid";

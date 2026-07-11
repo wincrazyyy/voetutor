@@ -106,14 +106,13 @@ BEGIN
        never abort account creation, and blanks collapse to NULL. */
     IF v_role = 'student'::public.user_role THEN
         INSERT INTO public.student_profiles (
-            student_id, whatsapp_number, school, school_year, courses, target_grade
+            student_id, whatsapp_number, school, school_year, target_grade
         )
         VALUES (
             NEW.id,
             LEFT(NULLIF(NEW.raw_user_meta_data->>'whatsapp_number', ''), 50),
             LEFT(NULLIF(NEW.raw_user_meta_data->>'school', ''), 200),
             LEFT(NULLIF(NEW.raw_user_meta_data->>'school_year', ''), 60),
-            LEFT(NULLIF(NEW.raw_user_meta_data->>'courses', ''), 1000),
             LEFT(NULLIF(NEW.raw_user_meta_data->>'target_grade', ''), 100)
         );
     END IF;

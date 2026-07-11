@@ -2,7 +2,7 @@ import Link from "next/link";
 import { VoeWordmark } from "@/components/brand/vault-mark";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
-import { getEnrolledClasses, getClassOrder } from "@/lib/queries/classes";
+import { getEnrolledClasses, getClassOrder, getEducatorChipsByIds } from "@/lib/queries/classes";
 import { getClassesForEducator } from "@/lib/queries/educator";
 import { getEducatorProfile } from "@/lib/queries/educator-profiles";
 import { getPendingEducatorCount } from "@/lib/queries/educator-approvals";
@@ -20,7 +20,17 @@ export async function Sidebar() {
   const isApproved = profile?.is_approved ?? true;
   const isPendingEducator = role === "educator" && !isApproved;
 
-  let classes: Array<{ id: string; code: string; title: string }> = [];
+  type SidebarClass = {
+    id: string;
+    code: string;
+    title: string;
+    educatorAvatarUrl: string | null;
+    educatorFirstName: string | null;
+    educatorLastName: string | null;
+    educatorDisplayName: string | null;
+  };
+
+  let classes: SidebarClass[] = [];
   let pendingApplicationCount = 0;
   let pendingReportCount = 0;
   /* Admins are effectively premium; approved educators read their tier. Drives which nav items the
@@ -28,16 +38,17 @@ export async function Sidebar() {
   let isPremium = role === "admin";
 
   if (profile && !isPendingEducator) {
+    let base: Array<{ id: string; code: string; title: string; educator_id: string | null }> = [];
     if (role === "educator" || role === "admin") {
       const educatorClasses = await getClassesForEducator(profile.id);
-      classes = educatorClasses.map((c) => ({ id: c.id, code: c.code, title: c.title }));
+      base = educatorClasses.map((c) => ({ id: c.id, code: c.code, title: c.title, educator_id: c.educator_id }));
       if (role === "educator") {
         const ep = await getEducatorProfile(profile.id);
         isPremium = (ep?.tier ?? "basic") === "premium";
       }
     } else {
       const enrolled = await getEnrolledClasses(profile.id);
-      classes = enrolled.map((c) => ({ id: c.id, code: c.code, title: c.title }));
+      base = enrolled.map((c) => ({ id: c.id, code: c.code, title: c.title, educator_id: c.educator_id }));
     }
 
     /* Apply the caller's saved sidebar ordering here only (not inside the queries) so the marketplace
@@ -45,7 +56,7 @@ export async function Sidebar() {
        one keep their existing natural order after the positioned ones (stable). */
     const order = await getClassOrder(profile.id);
     if (order.size > 0) {
-      classes = classes
+      base = base
         .map((c, index) => ({ c, index, position: order.get(c.id) }))
         .sort((a, b) => {
           const aHas = a.position !== undefined;
@@ -57,6 +68,24 @@ export async function Sidebar() {
         })
         .map((entry) => entry.c);
     }
+
+    /* The per-class sidebar icon is the class educator's avatar (batch-resolved from profiles_public). */
+    const educatorIds = [
+      ...new Set(base.map((c) => c.educator_id).filter((id): id is string => Boolean(id))),
+    ];
+    const educatorChips = await getEducatorChipsByIds(educatorIds);
+    classes = base.map((c) => {
+      const ed = c.educator_id ? educatorChips.get(c.educator_id) : undefined;
+      return {
+        id: c.id,
+        code: c.code,
+        title: c.title,
+        educatorAvatarUrl: ed?.avatar_url ?? null,
+        educatorFirstName: ed?.first_name ?? null,
+        educatorLastName: ed?.last_name ?? null,
+        educatorDisplayName: ed?.display_name ?? null,
+      };
+    });
   }
 
   /* Per-class unread-announcement badges — a student affordance (educators authored their own, so the

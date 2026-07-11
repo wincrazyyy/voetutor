@@ -10,7 +10,7 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("student_profiles")
-    .select("student_id, whatsapp_number, school, school_year, courses, target_grade, created_at, updated_at")
+    .select("student_id, whatsapp_number, school, school_year, target_grade, created_at, updated_at")
     .eq("student_id", studentId)
     .maybeSingle();
 

@@ -1,13 +1,12 @@
 import Link from "next/link";
-import { MessageSquare, ArrowRight, Users } from "lucide-react";
+import { MessageSquare, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 interface CommunityBannerProps {
   classId: string;
-  memberCount: number;
 }
 
-export function CommunityBanner({ classId, memberCount }: CommunityBannerProps) {
+export function CommunityBanner({ classId }: CommunityBannerProps) {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-bold">Community</h2>
@@ -22,10 +21,6 @@ export function CommunityBanner({ classId, memberCount }: CommunityBannerProps) 
             <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
           </div>
           <p className="text-sm text-muted-foreground">Ask questions, share resources, and collaborate with your peers.</p>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium mt-1">
-            <Users className="w-3.5 h-3.5" />
-            {memberCount} {memberCount === 1 ? "member" : "members"}
-          </div>
         </Link>
       </Card>
     </div>
