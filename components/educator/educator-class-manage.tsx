@@ -8,7 +8,6 @@ import {
   MessageSquare,
   PlayCircle,
   Settings,
-  UserPlus,
   Users,
 } from "lucide-react";
 
@@ -67,10 +66,10 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
             <p className="text-muted-foreground">Manage curriculum, post announcements, and track engagement.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/class/${classId}/invite`}>
+            <Link href={`/class/${classId}/students`}>
               <Button variant="outline" className="gap-2">
-                <UserPlus className="w-4 h-4" />
-                Invite Students
+                <Users className="w-4 h-4" />
+                Manage Students
               </Button>
             </Link>
             <Link href={`/class/${classId}/edit`}>
@@ -90,13 +89,15 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="p-5 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Students</span>
-            <Users className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black">{stats.total_students}</div>
-        </Card>
+        <Link href={`/class/${classId}/students`}>
+          <Card className="p-5 border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Students</span>
+              <Users className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-black">{stats.total_students}</div>
+          </Card>
+        </Link>
         <Card className="p-5 border-border bg-card shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Avg Completion</span>

@@ -77,7 +77,7 @@ export async function createClassInviteAction(
   if (error) return { error: error.message };
 
   const origin = await resolveAppOrigin();
-  revalidatePath(`/class/${classId}/invite`);
+  revalidatePath(`/class/${classId}/students`);
   return { url: `${origin}/invite/${(data as { token: string }).token}` };
 }
 
@@ -97,7 +97,7 @@ export async function revokeClassInviteAction(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/class/${classId}/invite`);
+  revalidatePath(`/class/${classId}/students`);
   return {};
 }
 
@@ -117,7 +117,7 @@ export async function deleteClassInviteAction(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/class/${classId}/invite`);
+  revalidatePath(`/class/${classId}/students`);
   return {};
 }
 

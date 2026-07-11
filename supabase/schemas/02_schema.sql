@@ -15,6 +15,7 @@ CREATE TABLE profiles (
     avatar_url TEXT CHECK (avatar_url IS NULL OR (char_length(avatar_url) <= 2048 AND avatar_url ~* '^https://')),
     role user_role DEFAULT 'student'::user_role NOT NULL,
     is_approved BOOLEAN DEFAULT TRUE NOT NULL,
+    must_change_password BOOLEAN DEFAULT FALSE NOT NULL,
     approved_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
     approved_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -24,6 +25,7 @@ COMMENT ON TABLE profiles IS 'Extended user profile data maintaining a strict 1:
 COMMENT ON COLUMN profiles.role IS 'Literal role declared at signup. Note: this is NOT the effective authorisation level — read internal.get_user_role() instead, which folds unapproved educators back to ''student''.';
 COMMENT ON COLUMN profiles.is_approved IS 'Approval gate. Defaults to TRUE for students (no review needed) and is forced to FALSE by internal.handle_new_user when intended_role is educator. Only an admin may flip this column (enforced by internal.protect_profile_role).';
 COMMENT ON COLUMN profiles.approved_by IS 'The admin who flipped is_approved from FALSE to TRUE, captured for audit trail. Set automatically by approve_educator().';
+COMMENT ON COLUMN profiles.must_change_password IS 'TRUE only for accounts provisioned by an educator/admin with a temporary password (set from signup metadata by internal.handle_new_user). While TRUE the proxy confines the signed-in user to /onboarding/set-password until they set their own password. Deliberately NOT locked by internal.protect_profile_role: the owner clears it themselves after supabase.auth.updateUser succeeds (like avatar_url). A user who clears it without changing the password only weakens their own account — the educator who provisioned it already knows the temporary password; the flag is a UX rail, not the security boundary. Never exposed via profiles_public.';
 COMMENT ON COLUMN profiles.avatar_url IS 'The universal account avatar for ANY user (students included), set in Settings and uploaded to the public owner-keyed `avatars` bucket. This is the identity chip shown app-wide (navbar, forum, announcements) via profiles_public. Distinct from educator_profiles.avatar_url, which is the public sales-page masthead photo; profiles_public COALESCEs this first so a Settings avatar wins but an educator with only a masthead photo still shows it. Self-updatable (not locked by protect_profile_role); origin-pinned to the caller''s avatars/{uid}/ prefix by updateAvatarAction.';
 
 CREATE INDEX idx_profiles_approved_by ON profiles(approved_by);

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/queries/profile";
+import { requireEducatorOrAdmin, ownsClass } from "@/lib/auth/educator-class-gate";
 
 export interface RosterActionState {
   error?: string;
@@ -13,40 +13,6 @@ export interface AddByEmailState {
   error?: string;
   status?: "enrolled" | "already_enrolled" | "not_found";
   studentName?: string;
-}
-
-interface GateSuccess {
-  profile: { id: string; role: string; is_approved: boolean };
-}
-interface GateFailure {
-  error: string;
-}
-
-async function requireEducatorOrAdmin(): Promise<GateSuccess | GateFailure> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { error: "Sign in required." };
-  if (profile.role !== "educator" && profile.role !== "admin") {
-    return { error: "Only educators can manage a roster." };
-  }
-  if (profile.role === "educator" && !profile.is_approved) {
-    return { error: "Educator account is awaiting approval." };
-  }
-  return { profile: { id: profile.id, role: profile.role, is_approved: profile.is_approved } };
-}
-
-/** Owner/admin check on ONE class, giving remove + move a friendly pre-error (RLS is the real gate). */
-async function ownsClass(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  profile: { id: string; role: string },
-  classId: string,
-): Promise<boolean> {
-  if (profile.role === "admin") return true;
-  const { data } = await supabase
-    .from("classes")
-    .select("educator_id")
-    .eq("id", classId)
-    .maybeSingle();
-  return (data as { educator_id: string | null } | null)?.educator_id === profile.id;
 }
 
 /**
@@ -74,7 +40,7 @@ export async function removeStudentAction(
   if (error) return { error: error.message };
 
   revalidatePath(`/class/${classId}`);
-  revalidatePath(`/class/${classId}/edit`);
+  revalidatePath(`/class/${classId}/students`);
   revalidatePath("/", "layout");
   return {};
 }
@@ -104,8 +70,9 @@ export async function moveStudentAction(
   if (data === "not_in_source") return { error: "That student is no longer in this class." };
 
   revalidatePath(`/class/${fromClassId}`);
-  revalidatePath(`/class/${fromClassId}/edit`);
+  revalidatePath(`/class/${fromClassId}/students`);
   revalidatePath(`/class/${toClassId}`);
+  revalidatePath(`/class/${toClassId}/students`);
   revalidatePath("/", "layout");
   return {};
 }
@@ -137,7 +104,7 @@ export async function addStudentByEmailAction(
 
   if (row.status === "enrolled") {
     revalidatePath(`/class/${classId}`);
-    revalidatePath(`/class/${classId}/edit`);
+    revalidatePath(`/class/${classId}/students`);
     revalidatePath("/", "layout");
   }
   return {

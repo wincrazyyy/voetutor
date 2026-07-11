@@ -15,7 +15,13 @@ import { createClient } from "@supabase/supabase-js";
  *      the caller is an admin (and not deleting themselves) with the regular
  *      user session BEFORE constructing this client — it then needs the
  *      service role both to delete the auth.users row (auth admin API) and to
- *      DELETE rows that have no profiles DELETE policy under FORCE RLS.
+ *      DELETE rows that have no profiles DELETE policy under FORCE RLS;
+ *   4. createStudentAccountAction (app/actions/student-accounts.ts), which
+ *      verifies the caller is an approved educator who owns the target class
+ *      (or an admin) with the regular user session BEFORE constructing this
+ *      client — it then needs the service role only for
+ *      auth.admin.createUser / the rollback deleteUser; the enrollment
+ *      INSERT itself uses the caller's own RLS-checked client.
  * It must never be imported by a client component, an UNAUTHORIZED server
  * action, a page, or a layout. The `server-only` import turns any such
  * misuse into a build error.

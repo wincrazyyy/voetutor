@@ -3,15 +3,13 @@ import Link from "next/link";
 import { ArrowLeft, ClipboardList, Globe, Lock, Trash2 } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
-import { getClassById, getClassRoster, getEducatorClassOptions } from "@/lib/queries/classes";
+import { getClassById } from "@/lib/queries/classes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ClassForm } from "@/components/educator/class-form";
 import { PublishToggle } from "@/components/educator/publish-toggle";
 import { DeleteClassButton } from "@/components/classes/delete-class-button";
-import { ClassSettingsTabs } from "@/components/classes/class-settings-tabs";
-import { ManageStudents } from "@/components/classes/manage-students";
 
 export default async function EditClassPage({
   params,
@@ -27,11 +25,6 @@ export default async function EditClassPage({
   const cls = await getClassById(classId);
   if (!cls) notFound();
   if (profile.role === "educator" && cls.educator_id !== profile.id) redirect("/dashboard");
-
-  const [roster, educatorClasses] = await Promise.all([
-    getClassRoster(classId),
-    getEducatorClassOptions(cls.educator_id ?? profile.id),
-  ]);
 
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
@@ -57,59 +50,45 @@ export default async function EditClassPage({
         </p>
       </div>
 
-      <ClassSettingsTabs
-        studentCount={roster.length}
-        settings={
-          <>
-            <Card className="p-5 border-border shadow-sm bg-card">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  {cls.is_published ? (
-                    <Globe className="w-5 h-5 text-primary mt-0.5" />
-                  ) : (
-                    <Lock className="w-5 h-5 text-muted-foreground mt-0.5" />
-                  )}
-                  <div>
-                    <div className="font-semibold">
-                      {cls.is_published ? "Published" : "Draft"}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {cls.is_published
-                        ? "Visible in the student marketplace and accepting enrolments."
-                        : "Only you and admins can see this class. Students cannot enrol yet."}
-                    </p>
-                  </div>
-                </div>
-                <PublishToggle classId={cls.id} isPublished={cls.is_published} />
+      <Card className="p-5 border-border shadow-sm bg-card">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            {cls.is_published ? (
+              <Globe className="w-5 h-5 text-primary mt-0.5" />
+            ) : (
+              <Lock className="w-5 h-5 text-muted-foreground mt-0.5" />
+            )}
+            <div>
+              <div className="font-semibold">
+                {cls.is_published ? "Published" : "Draft"}
               </div>
-            </Card>
+              <p className="text-sm text-muted-foreground">
+                {cls.is_published
+                  ? "Visible in the student marketplace and accepting enrolments."
+                  : "Only you and admins can see this class. Students cannot enrol yet."}
+              </p>
+            </div>
+          </div>
+          <PublishToggle classId={cls.id} isPublished={cls.is_published} />
+        </div>
+      </Card>
 
-            <ClassForm mode="edit" initial={cls} />
+      <ClassForm mode="edit" initial={cls} />
 
-            <Card className="p-5 border-destructive/30 bg-destructive/5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <Trash2 className="w-5 h-5 text-destructive mt-0.5" />
-                  <div>
-                    <div className="font-semibold text-destructive">Danger zone</div>
-                    <p className="text-sm text-muted-foreground">
-                      Permanently delete this class and everything attached to it: topics, videos, announcements, forum posts, and student enrolments.
-                    </p>
-                  </div>
-                </div>
-                <DeleteClassButton classId={cls.id} classCode={cls.code} classTitle={cls.title} />
-              </div>
-            </Card>
-          </>
-        }
-        students={
-          <ManageStudents
-            classId={cls.id}
-            roster={roster}
-            otherClasses={educatorClasses.filter((c) => c.id !== cls.id)}
-          />
-        }
-      />
+      <Card className="p-5 border-destructive/30 bg-destructive/5 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Trash2 className="w-5 h-5 text-destructive mt-0.5" />
+            <div>
+              <div className="font-semibold text-destructive">Danger zone</div>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete this class and everything attached to it: topics, videos, announcements, forum posts, and student enrolments.
+              </p>
+            </div>
+          </div>
+          <DeleteClassButton classId={cls.id} classCode={cls.code} classTitle={cls.title} />
+        </div>
+      </Card>
     </div>
   );
 }

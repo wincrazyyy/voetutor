@@ -123,6 +123,7 @@ export interface Profile {
   avatar_url: string | null;
   role: UserRole;
   is_approved: boolean;
+  must_change_password: boolean;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;

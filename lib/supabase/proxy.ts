@@ -4,6 +4,9 @@ import { hasEnvVars } from "../utils";
 
 const PENDING_GATE_PATH = "/pending";
 const ALLOWED_WHILE_PENDING = new Set<string>([PENDING_GATE_PATH, "/settings"]);
+/* Forced first-sign-in password change: while profiles.must_change_password is TRUE the signed-in
+   user is confined here (only /auth/* and the maintenance screen stay reachable). */
+const SET_PASSWORD_PATH = "/onboarding/set-password";
 /* The maintenance screen (which also hosts the admin sign-in) — the only page non-admins reach
    while MAINTENANCE_MODE is on. */
 const MAINTENANCE_PATH = "/maintenance";
@@ -85,14 +88,17 @@ export async function updateSession(request: NextRequest) {
   /* Resolve role once — reused by both the maintenance admin-bypass and the pending gate. */
   let role: string | undefined;
   let isApproved = true;
+  let mustChangePassword = false;
   if (user) {
     const { data: profileRow } = await supabase
       .from("profiles")
-      .select("role, is_approved")
+      .select("role, is_approved, must_change_password")
       .eq("id", user.id)
       .maybeSingle();
     role = (profileRow as { role?: string; is_approved?: boolean } | null)?.role;
     isApproved = (profileRow as { is_approved?: boolean } | null)?.is_approved ?? true;
+    mustChangePassword =
+      (profileRow as { must_change_password?: boolean } | null)?.must_change_password === true;
   }
 
   /* Maintenance gate: non-admins go to the maintenance screen (which hosts the admin sign-in). Admins,
@@ -114,6 +120,21 @@ export async function updateSession(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
+    return NextResponse.redirect(url);
+  }
+
+  /* Forced-password gate: an account provisioned with a temporary password is confined to the
+     set-password page until it sets its own. /auth/* stays reachable (login, sign-out, password
+     reset) and the maintenance screen is exempt so MAINTENANCE_MODE never redirect-loops. */
+  if (
+    user &&
+    mustChangePassword &&
+    path !== SET_PASSWORD_PATH &&
+    !path.startsWith("/auth") &&
+    !isMaintenancePath
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = SET_PASSWORD_PATH;
     return NextResponse.redirect(url);
   }
 
