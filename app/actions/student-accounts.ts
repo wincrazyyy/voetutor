@@ -33,7 +33,9 @@ async function resolveAppOrigin(): Promise<string> {
  * into the caller's class. Optional student_profiles details (WhatsApp / school / school year /
  * target grade) are passed through signup metadata and seeded by internal.handle_new_user — handy for
  * migrating an existing student from another platform. Each is nullable, truncated by the trigger to its
- * column cap, and remains editable by the student in Settings.
+ * column cap, and remains editable by the student in Settings. An optional passId (validated to the
+ * class up front) enrolls the new account SCOPED holding that Access Pass — trial/partial students
+ * from day one; the holder insert is part of the roll-back-on-failure sequence.
  *
  * Security contract: the caller is gated with the USER session (approved educator who owns the class,
  * or admin) BEFORE the service-role client is constructed. The enrollment INSERT uses the caller's own
@@ -50,6 +52,8 @@ export async function createStudentAccountAction(
     school?: string;
     schoolYear?: string;
     targetGrade?: string;
+    /** Optional Access Pass id — enrolls the new account SCOPED, holding this pass. */
+    passId?: string;
   },
 ): Promise<CreateStudentAccountState> {
   const gate = await requireEducatorOrAdmin();
@@ -59,6 +63,18 @@ export async function createStudentAccountAction(
   const supabase = await createClient();
   if (!(await ownsClass(supabase, profile, classId))) {
     return { error: "You do not manage this class." };
+  }
+
+  const passId = input.passId || null;
+  if (passId) {
+    /* Validate the pass BEFORE creating anything — an RLS read nulls foreign/forged ids. */
+    const { data: pass } = await supabase
+      .from("class_passes")
+      .select("id")
+      .eq("id", passId)
+      .eq("class_id", classId)
+      .maybeSingle();
+    if (!pass) return { error: "The selected pass does not belong to this class." };
   }
 
   const firstName = input.firstName.trim();
@@ -123,7 +139,7 @@ export async function createStudentAccountAction(
 
   const { error: enrollError } = await supabase
     .from("class_enrollments")
-    .insert({ user_id: newUserId, class_id: classId });
+    .insert({ user_id: newUserId, class_id: classId, access_scope: passId ? "scoped" : "full" });
 
   if (enrollError) {
     await admin.auth.admin.deleteUser(newUserId).then(
@@ -131,6 +147,22 @@ export async function createStudentAccountAction(
       () => undefined,
     );
     return { error: "Could not enroll the new account; nothing was created. Try again." };
+  }
+
+  if (passId) {
+    const { error: holderError } = await supabase.from("class_pass_holders").insert({
+      user_id: newUserId,
+      class_id: classId,
+      pass_id: passId,
+      granted_by: profile.id,
+    });
+    if (holderError) {
+      await admin.auth.admin.deleteUser(newUserId).then(
+        () => undefined,
+        () => undefined,
+      );
+      return { error: "Could not grant the selected pass; nothing was created. Try again." };
+    }
   }
 
   const { data: tokenRow, error: tokenError } = await admin

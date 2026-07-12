@@ -1,9 +1,12 @@
+import { Ticket } from "lucide-react";
+
 import {
   getClassEducator,
   getClassVideoTotals,
 } from "@/lib/queries/classes";
 import { getCurriculumForClass } from "@/lib/queries/curriculum";
 import { getAnnouncementsForClass } from "@/lib/queries/announcements";
+import { getMyClassAccess } from "@/lib/queries/class-access";
 import { getDisplayName } from "@/lib/utils/format";
 import type { Class } from "@/lib/types/database";
 
@@ -19,11 +22,12 @@ import { CurriculumAccordion } from "@/components/classes/curriculum-accordion";
 export async function StudentClassView({ cls, userId }: { cls: Class; userId: string }) {
   const classId = cls.id;
 
-  const [curriculum, announcements, educator, totals] = await Promise.all([
+  const [curriculum, announcements, educator, totals, access] = await Promise.all([
     getCurriculumForClass(classId, userId),
     getAnnouncementsForClass(classId, 10),
     getClassEducator(cls.educator_id),
     getClassVideoTotals(classId, userId),
+    getMyClassAccess(classId, userId),
   ]);
 
   const educatorName = educator
@@ -63,6 +67,28 @@ export async function StudentClassView({ cls, userId }: { cls: Class; userId: st
         subscriptions={[{ table: "announcements", filter: `class_id=eq.${classId}` }]}
       />
       <ClassHeader title={cls.title} progress={totals.progress_percent} />
+
+      {access?.scope === "scoped" ? (
+        <div className="flex items-start gap-2.5 rounded-lg border border-gold/30 bg-gold/5 px-4 py-3 text-sm">
+          <Ticket className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+          <p className="text-foreground">
+            {access.passes.length > 0 ? (
+              <>
+                You have{" "}
+                <span className="font-semibold">
+                  {access.passes.map((p) => p.name).join(", ")}
+                </span>{" "}
+                access to this class.
+              </>
+            ) : (
+              <>Your access to this class&apos;s content is currently restricted.</>
+            )}{" "}
+            <span className="text-muted-foreground">
+              Contact your educator to unlock the full course.
+            </span>
+          </p>
+        </div>
+      ) : null}
 
       <UpNextHero video={nextVideo} classId={classId} />
 

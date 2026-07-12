@@ -9,6 +9,9 @@
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_passes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_pass_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_pass_holders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_setup_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_reports ENABLE ROW LEVEL SECURITY;
@@ -33,6 +36,9 @@ ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE classes FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_enrollments FORCE ROW LEVEL SECURITY;
+ALTER TABLE class_passes FORCE ROW LEVEL SECURITY;
+ALTER TABLE class_pass_items FORCE ROW LEVEL SECURITY;
+ALTER TABLE class_pass_holders FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_invites FORCE ROW LEVEL SECURITY;
 ALTER TABLE student_setup_tokens FORCE ROW LEVEL SECURITY;
 ALTER TABLE class_reports FORCE ROW LEVEL SECURITY;
@@ -121,6 +127,12 @@ CREATE POLICY enrollments_insert_educator_or_admin ON class_enrollments
     );
 COMMENT ON POLICY enrollments_insert_educator_or_admin ON class_enrollments IS 'Restricts the addition of students to a roster exclusively to the assigned educator and administrators. Self-enrolment for free classes flows through the enroll_in_free_class SECURITY DEFINER RPC, which bypasses this policy.';
 
+CREATE POLICY enrollments_update_educator_or_admin ON class_enrollments
+    FOR UPDATE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)))
+    WITH CHECK ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY enrollments_update_educator_or_admin ON class_enrollments IS 'The table''s first (and only) UPDATE policy, added for the Access Pass model: the class educator or an admin flips access_scope (full <-> scoped) in place, so a trial upgrade never deletes and re-creates the enrollment. Students can never touch their own scope; the identity columns (user_id, class_id, enrolled_at) are locked by the enforce_immutability_class_enrollments trigger.';
+
 CREATE POLICY enrollments_delete_authorized ON class_enrollments
     FOR DELETE TO authenticated
     USING (
@@ -129,6 +141,72 @@ CREATE POLICY enrollments_delete_authorized ON class_enrollments
         OR (SELECT internal.is_class_educator(class_id))
     );
 COMMENT ON POLICY enrollments_delete_authorized ON class_enrollments IS 'Permits self-unenrollment by students, and roster management by educators/administrators.';
+
+/* ----- ACCESS PASSES ----- */
+CREATE POLICY class_passes_select_authorized ON class_passes
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (SELECT internal.is_class_educator(class_id))
+        OR (SELECT internal.holds_class_pass(id))
+    );
+COMMENT ON POLICY class_passes_select_authorized ON class_passes IS 'The class educator and admins manage passes; the holder-select branch lets a scoped student read the NAME of a pass they hold (the "Trial access" banner chip and the PostgREST class_passes(name) embed on targeted announcements). Name + description only by column discipline in queries; the row carries nothing sensitive.';
+
+CREATE POLICY class_passes_insert_educator_or_admin ON class_passes
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        created_by = (SELECT auth.uid())
+        AND ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)))
+    );
+COMMENT ON POLICY class_passes_insert_educator_or_admin ON class_passes IS 'Only the educator of the target class or an admin may create a pass, and the issuer must stamp themselves as created_by (mirroring class_invites_insert_owner_or_admin).';
+
+CREATE POLICY class_passes_update_educator_or_admin ON class_passes
+    FOR UPDATE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)))
+    WITH CHECK ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY class_passes_update_educator_or_admin ON class_passes IS 'Class educator or admin renames / re-describes a pass. class_id is locked by the enforce_pass_reparent trigger, so an update can never move a pass (and its holders / targeted announcements) to another class.';
+
+CREATE POLICY class_passes_delete_educator_or_admin ON class_passes
+    FOR DELETE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY class_passes_delete_educator_or_admin ON class_passes IS 'Class educator or admin deletes a pass; items, holders, scoped invites, and targeted announcements cascade away, and scoped holders fail closed to an empty curriculum (the manage UI warns with the holder count first).';
+
+/* ----- ACCESS PASS ITEMS ----- */
+CREATE POLICY class_pass_items_select_owner_or_admin ON class_pass_items
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (SELECT internal.is_class_educator(internal.pass_class_id(pass_id)))
+    );
+COMMENT ON POLICY class_pass_items_select_owner_or_admin ON class_pass_items IS 'Educator/admin management surface only — students never query this table; the curriculum RLS (topics / subtopics / placements select policies via the scoped_* helpers) does the filtering for them. Class resolves through internal.pass_class_id so this policy never reads class_passes under RLS.';
+
+CREATE POLICY class_pass_items_modify_owner_or_admin ON class_pass_items
+    FOR ALL TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR (SELECT internal.is_class_educator(internal.pass_class_id(pass_id)))
+    );
+COMMENT ON POLICY class_pass_items_modify_owner_or_admin ON class_pass_items IS 'The class educator (resolved via internal.pass_class_id, never reading class_passes under RLS) or an admin reconciles a pass''s item set. FOR ALL with USING only, matching the curriculum-modify convention; the enforce_pass_item_class trigger is the cross-class integrity backstop.';
+
+/* ----- ACCESS PASS HOLDERS ----- */
+CREATE POLICY class_pass_holders_select_authorized ON class_pass_holders
+    FOR SELECT TO authenticated
+    USING (
+        (SELECT internal.is_admin())
+        OR user_id = (SELECT auth.uid())
+        OR (SELECT internal.is_class_educator(class_id))
+    );
+COMMENT ON POLICY class_pass_holders_select_authorized ON class_pass_holders IS 'A student sees their own held passes (drives the scoped-access banner); the class educator sees the roster''s holders (drives the access chips); admins see all.';
+
+CREATE POLICY class_pass_holders_insert_educator_or_admin ON class_pass_holders
+    FOR INSERT TO authenticated
+    WITH CHECK ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY class_pass_holders_insert_educator_or_admin ON class_pass_holders IS 'Only the class educator or an admin grants a pass directly; students acquire passes through the redeem_class_invite SECURITY DEFINER RPC. The enforce_pass_holder_class trigger pins the pass to the row''s class.';
+
+CREATE POLICY class_pass_holders_delete_educator_or_admin ON class_pass_holders
+    FOR DELETE TO authenticated
+    USING ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(class_id)));
+COMMENT ON POLICY class_pass_holders_delete_educator_or_admin ON class_pass_holders IS 'Class educator or admin revokes a held pass (the access editor''s reconcile). No UPDATE policy — an immutable join row like announcement_reads; change = delete + insert.';
 
 /* ----- CLASS INVITES ----- */
 
@@ -211,9 +289,10 @@ CREATE POLICY topics_select_authorized ON topics
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR class_id IN (SELECT internal.get_user_class_ids())
+        OR class_id IN (SELECT internal.get_full_access_class_ids())
+        OR (SELECT internal.scoped_topic_access(topics.id))
     );
-COMMENT ON POLICY topics_select_authorized ON topics IS 'Inherits visibility boundaries from the parent class enrollment status.';
+COMMENT ON POLICY topics_select_authorized ON topics IS 'The CONTENT perimeter: admins and full-access members (full enrollment or teaching educator, via internal.get_full_access_class_ids) see every topic; scoped enrollments see only topics their Access Passes grant or that must render as the ancestor of a granted item (internal.scoped_topic_access). For a user with zero holder rows the scoped branch is a single empty index probe.';
 
 CREATE POLICY topics_modify_educator_or_admin ON topics
     FOR ALL TO authenticated
@@ -230,10 +309,12 @@ CREATE POLICY subtopics_select_authorized ON subtopics
         (SELECT internal.is_admin())
         OR EXISTS (
             SELECT 1 FROM public.topics t
-            WHERE t.id = subtopics.topic_id AND t.class_id IN (SELECT internal.get_user_class_ids())
+            WHERE t.id = subtopics.topic_id
+              AND t.class_id IN (SELECT internal.get_full_access_class_ids())
         )
+        OR (SELECT internal.scoped_subtopic_access(subtopics.id))
     );
-COMMENT ON POLICY subtopics_select_authorized ON subtopics IS 'Inherits visibility boundaries from the parent topic hierarchy via an EXISTS join.';
+COMMENT ON POLICY subtopics_select_authorized ON subtopics IS 'The CONTENT perimeter one level down: full-access members (via the parent topic''s class) see every subtopic; scoped enrollments see only subtopics their Access Passes grant — directly, via a parent-topic grant, or as the ancestor of a granted item (internal.scoped_subtopic_access).';
 
 CREATE POLICY subtopics_modify_educator_or_admin ON subtopics
     FOR ALL TO authenticated
@@ -267,9 +348,11 @@ CREATE POLICY video_placements_select_authorized ON video_placements
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR (SELECT internal.placement_class_id(video_placements.topic_id, video_placements.subtopic_id)) IN (SELECT internal.get_user_class_ids())
+        OR (SELECT internal.placement_class_id(video_placements.topic_id, video_placements.subtopic_id))
+             IN (SELECT internal.get_full_access_class_ids())
+        OR (SELECT internal.scoped_placement_access(video_placements.topic_id, video_placements.subtopic_id, video_placements.video_id, NULL))
     );
-COMMENT ON POLICY video_placements_select_authorized ON video_placements IS 'A placement is visible to anyone who can see its parent node — i.e. users enrolled in or teaching the placement''s class (resolved from the topic- or subtopic-level parent via internal.placement_class_id). Drives curriculum rendering for students and educators.';
+COMMENT ON POLICY video_placements_select_authorized ON video_placements IS 'A placement is visible to admins, full-access members of its class (full enrollment or teaching educator, via internal.get_full_access_class_ids), or a scoped enrollment whose Access Pass covers it — the ancestor topic, the exact subtopic, or the placed video itself (internal.scoped_placement_access). Drives curriculum rendering for students and educators.';
 
 CREATE POLICY video_placements_modify_educator_or_admin ON video_placements
     FOR ALL TO authenticated
@@ -302,9 +385,11 @@ CREATE POLICY resource_placements_select_authorized ON resource_placements
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR (SELECT internal.placement_class_id(resource_placements.topic_id, resource_placements.subtopic_id)) IN (SELECT internal.get_user_class_ids())
+        OR (SELECT internal.placement_class_id(resource_placements.topic_id, resource_placements.subtopic_id))
+             IN (SELECT internal.get_full_access_class_ids())
+        OR (SELECT internal.scoped_placement_access(resource_placements.topic_id, resource_placements.subtopic_id, NULL, resource_placements.resource_id))
     );
-COMMENT ON POLICY resource_placements_select_authorized ON resource_placements IS 'A note placement is visible to anyone who can see its parent node — users enrolled in or teaching the placement''s class (resolved via internal.placement_class_id). Drives curriculum rendering. Mirrors video_placements_select_authorized.';
+COMMENT ON POLICY resource_placements_select_authorized ON resource_placements IS 'A note placement is visible to admins, full-access members of its class, or a scoped enrollment whose Access Pass covers it — the ancestor topic, the exact subtopic, or the placed note itself (internal.scoped_placement_access). Drives curriculum rendering. Mirrors video_placements_select_authorized.';
 
 CREATE POLICY resource_placements_modify_educator_or_admin ON resource_placements
     FOR ALL TO authenticated
@@ -375,9 +460,16 @@ CREATE POLICY announcements_select_authorized ON announcements
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR class_id IN (SELECT internal.get_user_class_ids())
+        OR (
+            class_id IN (SELECT internal.get_user_class_ids())
+            AND (
+                pass_id IS NULL
+                OR (SELECT internal.is_class_educator(class_id))
+                OR (SELECT internal.holds_class_pass(pass_id))
+            )
+        )
     );
-COMMENT ON POLICY announcements_select_authorized ON announcements IS 'Inherits visibility boundaries from the parent class enrollment status.';
+COMMENT ON POLICY announcements_select_authorized ON announcements IS 'Membership perimeter plus the targeted-audience gate: broadcast announcements (pass_id NULL) are visible to every class member exactly as before; a targeted announcement is visible only to the class educator, admins, and holders of that exact pass — a FULL student does NOT see trial-targeted messages, and holders of a different pass do not either. Read receipts, unread badges, and the realtime subscription are all RLS-filtered reads of this table, so they adapt with zero query changes.';
 
 CREATE POLICY announcements_insert_author ON announcements
     FOR INSERT TO authenticated
@@ -422,9 +514,16 @@ CREATE POLICY forum_posts_select_authorized ON forum_posts
     FOR SELECT TO authenticated
     USING (
         (SELECT internal.is_admin())
-        OR class_id IN (SELECT internal.get_user_class_ids())
+        OR (
+            class_id IN (SELECT internal.get_user_class_ids())
+            AND (
+                type <> 'video_qa'::public.forum_post_type
+                OR video_id IS NULL
+                OR (SELECT internal.video_visible_in_class(video_id, class_id))
+            )
+        )
     );
-COMMENT ON POLICY forum_posts_select_authorized ON forum_posts IS 'Confines discussion visibility strictly to users enrolled in or teaching the related class.';
+COMMENT ON POLICY forum_posts_select_authorized ON forum_posts IS 'Membership perimeter (general discussion stays class-wide — scoped students remain full community members) plus the lesson Q&A gate: a video_qa thread is visible only to members who can actually consume its video IN THIS CLASS (internal.video_visible_in_class), so a scoped student never sees Q&A about non-granted lessons. The helper is invoked only for video_qa rows, after the cheaper type / video_id / membership predicates, so general-post and full-student hot paths are unchanged.';
 
 CREATE POLICY forum_posts_insert_authorized ON forum_posts
     FOR INSERT TO authenticated
@@ -462,10 +561,16 @@ CREATE POLICY forum_replies_select_authorized ON forum_replies
         (SELECT internal.is_admin())
         OR EXISTS (
             SELECT 1 FROM public.forum_posts fp
-            WHERE fp.id = forum_replies.post_id AND fp.class_id IN (SELECT internal.get_user_class_ids())
+            WHERE fp.id = forum_replies.post_id
+              AND fp.class_id IN (SELECT internal.get_user_class_ids())
+              AND (
+                  fp.type <> 'video_qa'::public.forum_post_type
+                  OR fp.video_id IS NULL
+                  OR (SELECT internal.video_visible_in_class(fp.video_id, fp.class_id))
+              )
         )
     );
-COMMENT ON POLICY forum_replies_select_authorized ON forum_replies IS 'Resolves reply visibility dynamically by validating access to the parent post context.';
+COMMENT ON POLICY forum_replies_select_authorized ON forum_replies IS 'Resolves reply visibility dynamically by validating access to the parent post context, including the lesson Q&A scope gate (internal.video_visible_in_class) — applied here explicitly, belt-and-suspenders with the parent forum_posts policy, so reply visibility never depends on RLS-in-policy-subquery cascade semantics.';
 
 CREATE POLICY forum_replies_insert_authorized ON forum_replies
     FOR INSERT TO authenticated
@@ -514,10 +619,16 @@ CREATE POLICY forum_post_upvotes_select_authorized ON forum_post_upvotes
         (SELECT internal.is_admin())
         OR EXISTS (
             SELECT 1 FROM public.forum_posts fp
-            WHERE fp.id = forum_post_upvotes.post_id AND fp.class_id IN (SELECT internal.get_user_class_ids())
+            WHERE fp.id = forum_post_upvotes.post_id
+              AND fp.class_id IN (SELECT internal.get_user_class_ids())
+              AND (
+                  fp.type <> 'video_qa'::public.forum_post_type
+                  OR fp.video_id IS NULL
+                  OR (SELECT internal.video_visible_in_class(fp.video_id, fp.class_id))
+              )
         )
     );
-COMMENT ON POLICY forum_post_upvotes_select_authorized ON forum_post_upvotes IS 'Mirrors forum post visibility — endorsements are visible only to users authorised to access the parent post context.';
+COMMENT ON POLICY forum_post_upvotes_select_authorized ON forum_post_upvotes IS 'Mirrors forum post visibility — endorsements are visible only to users authorised to access the parent post context, including the lesson Q&A scope gate (internal.video_visible_in_class), applied explicitly on all four forum select policies.';
 
 CREATE POLICY forum_post_upvotes_insert_self ON forum_post_upvotes
     FOR INSERT TO authenticated
@@ -543,10 +654,16 @@ CREATE POLICY forum_reply_upvotes_select_authorized ON forum_reply_upvotes
         OR EXISTS (
             SELECT 1 FROM public.forum_replies fr
             JOIN public.forum_posts fp ON fp.id = fr.post_id
-            WHERE fr.id = forum_reply_upvotes.reply_id AND fp.class_id IN (SELECT internal.get_user_class_ids())
+            WHERE fr.id = forum_reply_upvotes.reply_id
+              AND fp.class_id IN (SELECT internal.get_user_class_ids())
+              AND (
+                  fp.type <> 'video_qa'::public.forum_post_type
+                  OR fp.video_id IS NULL
+                  OR (SELECT internal.video_visible_in_class(fp.video_id, fp.class_id))
+              )
         )
     );
-COMMENT ON POLICY forum_reply_upvotes_select_authorized ON forum_reply_upvotes IS 'Mirrors reply visibility — endorsements are visible only to users authorised to access the parent post''s class context.';
+COMMENT ON POLICY forum_reply_upvotes_select_authorized ON forum_reply_upvotes IS 'Mirrors reply visibility — endorsements are visible only to users authorised to access the parent post''s class context, including the lesson Q&A scope gate (internal.video_visible_in_class), applied explicitly on all four forum select policies.';
 
 CREATE POLICY forum_reply_upvotes_insert_self ON forum_reply_upvotes
     FOR INSERT TO authenticated

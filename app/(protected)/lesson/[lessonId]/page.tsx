@@ -29,7 +29,17 @@ export default async function LessonPlayerPage({
      to at least one of them. A signed token is a real capability grant, so
      access is verified explicitly here rather than relying solely on the RLS
      that gated getVideoById. The resolved classId scopes the curriculum
-     sidebar, Q&A, and back link to a class the viewer actually belongs to. */
+     sidebar, Q&A, and back link to a class the viewer actually belongs to.
+
+     Access Passes are enforced UPSTREAM of this page by RLS alone: for a
+     scoped student without a grant, getVideoById returns null (the amended
+     internal.video_in_user_classes) so notFound() fires BEFORE any token is
+     minted, and getClassIdsForVideo reads video_placements under RLS so it
+     only returns classes where the caller can see at least one placement of
+     this video. The enrollment check below therefore stays a plain membership
+     check — a scoped student who reached this line IS enrolled and IS granted
+     the video (in at least one listed class), and the in-page curriculum
+     sidebar / totals / up-next shrink to the granted subset automatically. */
   const classIds = await getClassIdsForVideo(lessonId);
   if (classIds.length === 0) notFound();
 

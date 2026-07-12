@@ -10,6 +10,7 @@ import {
   Link2,
   Mail,
   MailQuestion,
+  Ticket,
   Trash2,
 } from "lucide-react";
 
@@ -17,6 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
@@ -65,16 +73,21 @@ interface InviteFormState {
   email: string;
   note: string;
   expiresAt: string;
+  /** "" = full-access invite; otherwise the pass id for a scoped invite. */
+  passId: string;
 }
 
-const EMPTY_FORM: InviteFormState = { email: "", note: "", expiresAt: "" };
+const EMPTY_FORM: InviteFormState = { email: "", note: "", expiresAt: "", passId: "" };
 
 export function ClassInviteManager({
   classId,
   invites,
+  passes = [],
 }: {
   classId: string;
   invites: ClassInviteRow[];
+  /** The class's Access Passes; when present, the create form gains an Access select. */
+  passes?: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -106,6 +119,7 @@ export function ClassInviteManager({
           email: form.email.trim() || undefined,
           note: form.note.trim() || undefined,
           expiresAt: form.expiresAt || undefined,
+          passId: form.passId || undefined,
         });
         if (res.error) {
           setError(res.error);
@@ -216,6 +230,33 @@ export function ClassInviteManager({
           />
         </div>
 
+        {passes.length > 0 ? (
+          <div className="grid gap-1.5">
+            <Label htmlFor="inv-access">Access</Label>
+            <Select
+              value={form.passId || "full"}
+              disabled={isPending}
+              onValueChange={(v) => setForm({ ...form, passId: v === "full" ? "" : v })}
+            >
+              <SelectTrigger id="inv-access" className="w-full sm:w-72">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Full course</SelectItem>
+                {passes.map((pass) => (
+                  <SelectItem key={pass.id} value={pass.id}>
+                    {pass.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Choosing a pass makes this a restricted invite — the student gets only the pass&apos;s
+              content (they still join the class forum and announcements).
+            </p>
+          </div>
+        ) : null}
+
         <div>
           <Button onClick={generate} loading={busy === "generate"} disabled={isPending} loadingText="Generating…" className="gap-2">
             <Link2 className="h-4 w-4" />
@@ -281,6 +322,12 @@ export function ClassInviteManager({
                       >
                         {badge.label}
                       </span>
+                      {invite.pass_name ? (
+                        <span className="inline-flex max-w-48 items-center gap-1 truncate rounded-full bg-gold/10 px-2 py-0.5 text-xs font-semibold text-gold">
+                          <Ticket className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{invite.pass_name}</span>
+                        </span>
+                      ) : null}
                       {invite.email ? (
                         <span className="inline-flex min-w-0 items-center gap-1 text-sm text-foreground">
                           <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

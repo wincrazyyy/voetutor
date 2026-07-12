@@ -20,6 +20,8 @@ export interface CreateClassInviteInput {
   email?: string;
   note?: string;
   expiresAt?: string;
+  /** Optional Access Pass id — makes this a SCOPED invite (redeem enrolls scoped, holding the pass). */
+  passId?: string;
 }
 
 async function resolveAppOrigin(): Promise<string> {
@@ -62,10 +64,25 @@ export async function createClassInviteAction(
   }
 
   const supabase = await createClient();
+
+  const passId = input.passId || null;
+  if (passId) {
+    /* RLS returns null for a pass the caller cannot manage, so a foreign/forged id fails here;
+       the enforce_invite_pass_class trigger is the DB backstop. */
+    const { data: pass } = await supabase
+      .from("class_passes")
+      .select("id")
+      .eq("id", passId)
+      .eq("class_id", classId)
+      .maybeSingle();
+    if (!pass) return { error: "The selected pass does not belong to this class." };
+  }
+
   const { data, error } = await supabase
     .from("class_invites")
     .insert({
       class_id: classId,
+      pass_id: passId,
       created_by: profile.id,
       email,
       note,

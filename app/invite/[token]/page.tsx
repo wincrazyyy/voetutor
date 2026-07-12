@@ -96,8 +96,14 @@ export default async function InvitePage({
         <div className="space-y-2">
           <h1 className="font-serif text-2xl font-bold tracking-tight">You&apos;re invited</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            You&apos;ve been invited to <strong className="text-foreground">{preview.class_title}</strong> by{" "}
-            {preview.educator_name}.
+            You&apos;ve been invited to <strong className="text-foreground">{preview.class_title}</strong>
+            {preview.pass_name ? (
+              <>
+                {" "}
+                — <strong className="text-foreground">{preview.pass_name}</strong>
+              </>
+            ) : null}{" "}
+            by {preview.educator_name}.
           </p>
         </div>
 

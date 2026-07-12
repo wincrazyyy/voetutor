@@ -6,6 +6,8 @@ export type ClassInviteStatus = "pending" | "redeemed" | "revoked" | "expired";
 export interface ClassInviteRow extends ClassInvite {
   status: ClassInviteStatus;
   redeemer: ProfilePublic | null;
+  /** Audience label of a scoped invite (the pass name); null = full-access invite. */
+  pass_name: string | null;
 }
 
 /** Derives the display status of an invite. Revoked wins over redeemed wins over expired,
@@ -28,12 +30,12 @@ export async function getClassInvites(classId: string): Promise<ClassInviteRow[]
   const { data } = await supabase
     .from("class_invites")
     .select(
-      "id, token, class_id, created_by, email, note, expires_at, revoked_at, redeemed_by, redeemed_at, created_at, updated_at",
+      "id, token, class_id, pass_id, created_by, email, note, expires_at, revoked_at, redeemed_by, redeemed_at, created_at, updated_at, class_passes(name)",
     )
     .eq("class_id", classId)
     .order("created_at", { ascending: false });
 
-  const rows = (data ?? []) as ClassInvite[];
+  const rows = (data ?? []) as unknown as Array<ClassInvite & { class_passes: { name: string } | null }>;
   if (rows.length === 0) return [];
 
   const redeemerIds = Array.from(
@@ -49,10 +51,11 @@ export async function getClassInvites(classId: string): Promise<ClassInviteRow[]
     redeemerMap = new Map(((redeemers ?? []) as ProfilePublic[]).map((r) => [r.id, r]));
   }
 
-  return rows.map((r) => ({
+  return rows.map(({ class_passes, ...r }) => ({
     ...r,
     status: deriveClassInviteStatus(r),
     redeemer: r.redeemed_by ? (redeemerMap.get(r.redeemed_by) ?? null) : null,
+    pass_name: class_passes?.name ?? null,
   }));
 }
 

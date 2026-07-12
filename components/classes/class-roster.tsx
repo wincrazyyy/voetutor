@@ -17,6 +17,7 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { getDisplayName } from "@/lib/utils/format";
 import { moveStudentAction, removeStudentAction } from "@/app/actions/class-roster";
+import { StudentAccessEditor, type StudentAccessVM } from "@/components/classes/student-access-editor";
 
 interface RosterStudentVM {
   id: string;
@@ -32,6 +33,8 @@ interface OtherClass {
   code: string;
 }
 
+const FULL_ACCESS: StudentAccessVM = { scope: "full", passes: [] };
+
 /**
  * Educator/admin roster list for the class students page: move a student to another of the educator's
  * own classes, and kick a student. Removing/moving does NOT delete user_video_progress (keyed by
@@ -42,10 +45,16 @@ export function ClassRoster({
   classId,
   roster,
   otherClasses,
+  accessMap = {},
+  passes = [],
 }: {
   classId: string;
   roster: RosterStudentVM[];
   otherClasses: OtherClass[];
+  /** Per-student enrollment access (scope + held passes), keyed by student id. */
+  accessMap?: Record<string, StudentAccessVM>;
+  /** The class's Access Passes, for the per-student access editor. */
+  passes?: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -143,6 +152,10 @@ export function ClassRoster({
             const name = getDisplayName(student.first_name, student.last_name, student.display_name);
             const confirming = confirmingRemove === student.id;
             const moveTarget = pendingMoveTarget[student.id];
+            const access = accessMap[student.id] ?? FULL_ACCESS;
+            /* Zero-passes classes stay visually unchanged (scenario 11) — the access affordances
+               appear only once a pass exists (or a student is somehow already scoped). */
+            const showAccess = passes.length > 0 || access.scope === "scoped";
 
             return (
               <Card
@@ -157,10 +170,43 @@ export function ClassRoster({
                     displayName={student.display_name}
                     size={36}
                   />
-                  <span className="truncate font-semibold text-foreground">{name}</span>
+                  <div className="min-w-0">
+                    <span className="block truncate font-semibold text-foreground">{name}</span>
+                    {showAccess ? (
+                      <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                        {access.scope === "full" ? (
+                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Full
+                          </span>
+                        ) : access.passes.length === 0 ? (
+                          <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                            Restricted · no passes
+                          </span>
+                        ) : (
+                          access.passes.map((pass) => (
+                            <span
+                              key={pass.id}
+                              className="inline-flex max-w-40 items-center truncate rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold text-gold"
+                            >
+                              {pass.name}
+                            </span>
+                          ))
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {showAccess ? (
+                    <StudentAccessEditor
+                      classId={classId}
+                      studentId={student.id}
+                      studentName={name}
+                      access={access}
+                      passes={passes}
+                    />
+                  ) : null}
                   {otherClasses.length === 0 ? (
                     <span className="text-xs text-muted-foreground">No other classes</span>
                   ) : moveTarget ? (

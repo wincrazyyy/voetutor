@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Megaphone } from "lucide-react";
+import { ExternalLink, Megaphone, Ticket } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,7 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
     ann.author?.display_name ?? null,
   );
   return (
-    <Card className={cn("p-6 bg-card border shadow-sm transition-all hover:shadow-md", isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border")}>
+    <Card id={`announcement-${ann.id}`} className={cn("scroll-mt-24 p-6 bg-card border shadow-sm transition-all hover:shadow-md", isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border")}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           {unread && <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-label="Unread" />}
@@ -61,16 +61,32 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
             </div>
           </div>
         </div>
-        {isImportant && (
-          <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10 border-transparent pointer-events-none shrink-0">
-            Important
-          </Badge>
-        )}
-        {isEvent && (
-          <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent pointer-events-none shrink-0">
-            Event
-          </Badge>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {ann.pass_id && (
+            <Badge
+              variant="secondary"
+              className="bg-gold/10 text-gold border-transparent pointer-events-none max-w-48 gap-1"
+              title={
+                canManage
+                  ? `Sent only to holders of this pass`
+                  : `Sent to holders of this pass (includes you)`
+              }
+            >
+              <Ticket className="h-3 w-3 shrink-0" />
+              <span className="truncate">{ann.pass_name ?? "Pass"}</span>
+            </Badge>
+          )}
+          {isImportant && (
+            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10 border-transparent pointer-events-none">
+              Important
+            </Badge>
+          )}
+          {isEvent && (
+            <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent pointer-events-none">
+              Event
+            </Badge>
+          )}
+        </div>
       </div>
 
       <h3 className="text-xl font-bold mb-3 flex items-center gap-2">

@@ -20,6 +20,9 @@ export interface AnnouncementInput {
   linkUrl?: string | null;
   /** ISO instant (client converts the datetime-local picker to UTC); only kept for event-type. */
   eventAt?: string | null;
+  /** Audience: null/undefined = broadcast to the whole class; a pass id targets its holders.
+   *  Honored on CREATE only — the audience is immutable after posting (v1). */
+  passId?: string | null;
 }
 
 const TYPES: AnnouncementType[] = ["standard", "important", "event"];
@@ -70,6 +73,20 @@ export async function createAnnouncementAction(
   if ("error" in clean) return clean;
 
   const supabase = await createClient();
+
+  const passId = input.passId || null;
+  if (passId) {
+    /* RLS returns null for a pass the caller cannot manage, so a foreign/forged id fails here;
+       the enforce_announcement_pass_class trigger is the DB backstop. */
+    const { data: pass } = await supabase
+      .from("class_passes")
+      .select("id")
+      .eq("id", passId)
+      .eq("class_id", input.classId)
+      .maybeSingle();
+    if (!pass) return { error: "The selected pass does not belong to this class." };
+  }
+
   const { data, error } = await supabase
     .from("announcements")
     .insert({
@@ -81,6 +98,7 @@ export async function createAnnouncementAction(
       link_title: clean.link_title,
       link_url: clean.link_url,
       event_at: clean.event_at,
+      pass_id: passId,
     })
     .select("id")
     .single();

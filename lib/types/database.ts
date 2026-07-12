@@ -164,10 +164,49 @@ export interface Class {
   updated_at: string;
 }
 
+export type EnrollmentAccess = "full" | "scoped";
+
 export interface ClassEnrollment {
   user_id: string;
   class_id: string;
+  /** The enrollment's content perimeter: "full" (default, whole curriculum) or "scoped"
+   *  (fail-closed — the student sees exactly the union of the Access Passes they hold). */
+  access_scope: EnrollmentAccess;
   enrolled_at: string;
+}
+
+/** A named, reusable Access Pass — a subset of one class's curriculum that a scoped
+ *  enrollment can be limited to (class_passes table). */
+export interface ClassPass {
+  id: string;
+  class_id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** What a pass grants — polymorphic 4-way XOR: exactly one of topic_id / subtopic_id /
+ *  video_id / resource_id is set (class_pass_items table). Item grants are keyed by
+ *  library-item id (not placement id) so they survive placement churn. */
+export interface ClassPassItem {
+  id: string;
+  pass_id: string;
+  topic_id: string | null;
+  subtopic_id: string | null;
+  video_id: string | null;
+  resource_id: string | null;
+  created_at: string;
+}
+
+/** Which enrollment holds which pass (class_pass_holders table — immutable join row). */
+export interface ClassPassHolder {
+  user_id: string;
+  class_id: string;
+  pass_id: string;
+  granted_by: string | null;
+  created_at: string;
 }
 
 /** A row of the class_invites table — a single-use, per-student invite link for manual
@@ -176,6 +215,8 @@ export interface ClassInvite {
   id: string;
   token: string;
   class_id: string;
+  /** NULL = full-access invite; set = a scoped invite granting this Access Pass on redeem. */
+  pass_id: string | null;
   created_by: string | null;
   email: string | null;
   note: string | null;
@@ -210,6 +251,8 @@ export interface ClassInvitePreview {
   educator_name: string;
   redeemable: boolean;
   reason: ClassInvitePreviewReason;
+  /** Audience label of a scoped invite (the pass name); null = full-access invite. */
+  pass_name: string | null;
 }
 
 export interface Topic {
@@ -314,6 +357,8 @@ export interface Announcement {
   image_alt: string | null;
   image_url: string | null;
   event_at: string | null;
+  /** NULL = broadcast to the whole class; set = targeted at the holders of one Access Pass. */
+  pass_id: string | null;
   created_at: string;
   updated_at: string;
 }

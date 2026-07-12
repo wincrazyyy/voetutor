@@ -4,6 +4,7 @@ import { ArrowLeft, Megaphone } from "lucide-react";
 
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getClassById } from "@/lib/queries/classes";
+import { getClassPasses } from "@/lib/queries/class-access";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AnnouncementForm } from "@/components/educator/announcement-form";
@@ -22,6 +23,8 @@ export default async function NewAnnouncementPage({
   const cls = await getClassById(classId);
   if (!cls) notFound();
   if (profile.role === "educator" && cls.educator_id !== profile.id) redirect("/dashboard");
+
+  const passes = await getClassPasses(classId);
 
   return (
     <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
@@ -47,7 +50,11 @@ export default async function NewAnnouncementPage({
         </p>
       </div>
 
-      <AnnouncementForm classId={classId} authorId={profile.id} />
+      <AnnouncementForm
+        classId={classId}
+        authorId={profile.id}
+        passes={passes.map((pass) => ({ id: pass.id, name: pass.name }))}
+      />
     </div>
   );
 }

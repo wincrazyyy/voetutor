@@ -19,6 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { addStudentByEmailAction } from "@/app/actions/class-roster";
 import { createStudentAccountAction } from "@/app/actions/student-accounts";
@@ -46,13 +53,22 @@ type Mode = "existing" | "new";
  * one-click setup link to hand to the student — opening it signs them in and lets them set their own
  * password (no password to type). The link lives only in this component's state until "Done".
  */
-export function AddStudentCard({ classId }: { classId: string }) {
+export function AddStudentCard({
+  classId,
+  passes = [],
+}: {
+  classId: string;
+  /** The class's Access Passes; when present, both modes gain an optional Access select. */
+  passes?: Array<{ id: string; name: string }>;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   /* Which specific action is in flight ("add" | "create"), so only the clicked button shows a
      spinner while isPending disables the whole card against concurrent edits. */
   const [busy, setBusy] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("existing");
+  /* "" = full course; otherwise the selected pass id (scoped enrollment). */
+  const [accessPassId, setAccessPassId] = useState("");
 
   const [email, setEmail] = useState("");
   const [addResult, setAddResult] = useState<{ tone: Tone; text: string } | null>(null);
@@ -81,13 +97,38 @@ export function AddStudentCard({ classId }: { classId: string }) {
   const trimmedEmail = email.trim();
   const canCreate = !!firstName.trim() && !!lastName.trim() && !!newEmail.trim();
 
+  /** Shared "Access" select — rendered in both modes, and only when the class has passes. */
+  const accessSelect = (idSuffix: string) =>
+    passes.length > 0 ? (
+      <div className="grid gap-1.5">
+        <Label htmlFor={`access-${idSuffix}`}>Access</Label>
+        <Select
+          value={accessPassId || "full"}
+          disabled={isPending}
+          onValueChange={(v) => setAccessPassId(v === "full" ? "" : v)}
+        >
+          <SelectTrigger id={`access-${idSuffix}`} className="w-full sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="full">Full course</SelectItem>
+            {passes.map((pass) => (
+              <SelectItem key={pass.id} value={pass.id}>
+                {pass.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : null;
+
   const submitAdd = () => {
     if (!trimmedEmail || isPending) return;
     setBusy("add");
     startTransition(async () => {
       try {
         setAddResult(null);
-        const res = await addStudentByEmailAction(classId, trimmedEmail);
+        const res = await addStudentByEmailAction(classId, trimmedEmail, accessPassId || undefined);
         if (res.error) {
           setAddResult({ tone: "error", text: res.error });
           return;
@@ -95,6 +136,7 @@ export function AddStudentCard({ classId }: { classId: string }) {
         if (res.status === "enrolled") {
           setAddResult({ tone: "success", text: `Added ${res.studentName ?? "student"}.` });
           setEmail("");
+          setAccessPassId("");
           router.refresh();
         } else if (res.status === "already_enrolled") {
           setAddResult({
@@ -125,6 +167,7 @@ export function AddStudentCard({ classId }: { classId: string }) {
           school: school.trim() || undefined,
           schoolYear: schoolYear.trim() || undefined,
           targetGrade: targetGrade.trim() || undefined,
+          passId: accessPassId || undefined,
         });
         if (res.error) {
           setCreateError(res.error);
@@ -154,6 +197,7 @@ export function AddStudentCard({ classId }: { classId: string }) {
     setFirstName("");
     setLastName("");
     setNewEmail("");
+    setAccessPassId("");
     setWhatsappNumber("");
     setSchool("");
     setSchoolYear("");
@@ -211,6 +255,7 @@ export function AddStudentCard({ classId }: { classId: string }) {
                 }}
               />
             </div>
+            {accessSelect("existing")}
             <Button
               type="submit"
               loading={busy === "add"}
@@ -410,6 +455,8 @@ export function AddStudentCard({ classId }: { classId: string }) {
                 </div>
               ) : null}
             </div>
+
+            {accessSelect("new")}
 
             <div>
               <Button

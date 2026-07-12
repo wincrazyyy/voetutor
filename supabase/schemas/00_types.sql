@@ -13,3 +13,4 @@ CREATE TYPE class_report_status AS ENUM ('pending', 'dismissed', 'actioned');
 CREATE TYPE video_status AS ENUM ('uploading', 'queued', 'processing', 'ready', 'errored');
 CREATE TYPE educator_tier AS ENUM ('basic', 'premium');
 CREATE TYPE review_source AS ENUM ('imported', 'verified');
+CREATE TYPE enrollment_access AS ENUM ('full', 'scoped');

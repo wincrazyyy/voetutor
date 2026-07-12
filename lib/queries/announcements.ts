@@ -5,13 +5,16 @@ export interface AnnouncementWithAuthor extends Announcement {
   author: ProfilePublic | null;
   class_code: string | null;
   has_read: boolean;
+  /** Audience label when the announcement targets an Access Pass (null = broadcast). */
+  pass_name: string | null;
 }
 
 const ANNOUNCEMENT_SELECT =
-  "id, class_id, author_id, title, content, type, link_title, link_url, image_alt, image_url, event_at, created_at, updated_at, classes!inner(code), author:profiles_public!announcements_author_id_fkey(id, first_name, last_name, display_name, role, is_approved, avatar_url)";
+  "id, class_id, author_id, title, content, type, link_title, link_url, image_alt, image_url, event_at, pass_id, created_at, updated_at, classes!inner(code), class_passes(name), author:profiles_public!announcements_author_id_fkey(id, first_name, last_name, display_name, role, is_approved, avatar_url)";
 
 type RawRow = Announcement & {
   classes: { code: string } | null;
+  class_passes: { name: string } | null;
   author: ProfilePublic | null;
 };
 
@@ -33,6 +36,7 @@ async function decorate(rows: RawRow[], userId: string | null): Promise<Announce
     class_code: r.classes?.code ?? null,
     author: r.author ?? null,
     has_read: readIds.has(r.id),
+    pass_name: r.class_passes?.name ?? null,
   }));
 }
 
@@ -40,7 +44,7 @@ export async function getAnnouncementById(id: string): Promise<Announcement | nu
   const supabase = await createClient();
   const { data } = await supabase
     .from("announcements")
-    .select("id, class_id, author_id, title, content, type, link_title, link_url, image_alt, image_url, event_at, created_at, updated_at")
+    .select("id, class_id, author_id, title, content, type, link_title, link_url, image_alt, image_url, event_at, pass_id, created_at, updated_at")
     .eq("id", id)
     .maybeSingle();
   return (data as Announcement | null) ?? null;

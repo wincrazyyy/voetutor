@@ -236,13 +236,50 @@ CREATE TRIGGER set_classes_published_at
 CREATE TABLE class_enrollments (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
     class_id UUID REFERENCES classes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    access_scope enrollment_access DEFAULT 'full'::enrollment_access NOT NULL,
     enrolled_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     PRIMARY KEY (user_id, class_id)
 );
-COMMENT ON TABLE class_enrollments IS 'Resolves the many-to-many relationship between users and classes. Treated as an immutable join row — mutations happen via DELETE + re-INSERT, hence no updated_at column or UPDATE policy.';
+COMMENT ON TABLE class_enrollments IS 'Resolves the many-to-many relationship between users and classes. Membership identity (user_id, class_id, enrolled_at) stays immutable — locked by enforce_immutability_class_enrollments; only access_scope is mutable, by the class educator or an admin (enrollments_update_educator_or_admin), so a trial student can be upgraded in place without losing progress, forum history, or read receipts.';
 COMMENT ON COLUMN class_enrollments.user_id IS 'Acts as the leading column in the primary key B-tree, implicitly indexing queries filtering strictly by user_id.';
+COMMENT ON COLUMN class_enrollments.access_scope IS 'The enrollment''s content perimeter. full (default — every pre-existing writer is untouched): the student sees the whole curriculum, today''s behavior. scoped: FAIL-CLOSED explicit marker — the student sees exactly the union of the Access Passes they hold (class_pass_holders); if every held pass is deleted they see an empty curriculum (plus broadcast announcements + forum), never silently-full access. Not derived from the existence of holder rows by design.';
 
 CREATE INDEX idx_class_enrollments_class_id ON class_enrollments(class_id);
+
+CREATE TRIGGER enforce_immutability_class_enrollments
+    BEFORE UPDATE ON class_enrollments
+    FOR EACH ROW EXECUTE PROCEDURE internal.protect_enrollment_columns();
+
+/* ----------------------------------------- */
+
+CREATE TABLE class_passes (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name TEXT NOT NULL CHECK (char_length(trim(name)) > 0 AND char_length(name) <= 80),
+    description TEXT CHECK (description IS NULL OR char_length(description) <= 500),
+    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+COMMENT ON TABLE class_passes IS 'A named, reusable Access Pass: a subset of one class''s curriculum (defined by class_pass_items) that an enrollment can be scoped to (via class_pass_holders + class_enrollments.access_scope = scoped). The pass is the first-class noun the educator names ("Trial — first 2 lessons", "Topics 1-3"), reuses across students, targets announcements at (announcements.pass_id), and mints scoped invite links for (class_invites.pass_id). Deleting a pass cascades its items, holders, scoped invites, and targeted announcements away — scoped students then fail closed to an empty curriculum, never silently-full access.';
+COMMENT ON COLUMN class_passes.name IS 'Educator-facing label, unique per class case-insensitively (uniq_class_passes_class_name). Shown to holders on the class banner, targeted-announcement chips, and the invite landing page — the same trust surface as the class title.';
+COMMENT ON COLUMN class_passes.created_by IS 'Issuer bookkeeping; ON DELETE SET NULL because the pass must keep working for its holders even if the creating account goes away.';
+
+CREATE UNIQUE INDEX uniq_class_passes_class_name ON class_passes(class_id, lower(name));
+CREATE INDEX idx_class_passes_class_id ON class_passes(class_id);
+CREATE INDEX idx_class_passes_created_by ON class_passes(created_by);
+
+CREATE TRIGGER set_class_passes_updated_at
+    BEFORE UPDATE ON class_passes
+    FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+CREATE TRIGGER enforce_immutability_class_passes
+    BEFORE UPDATE ON class_passes
+    FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
+
+CREATE TRIGGER enforce_pass_reparent
+    BEFORE UPDATE ON class_passes
+    FOR EACH ROW EXECUTE PROCEDURE internal.prevent_pass_reparent();
 
 /* ----------------------------------------- */
 
@@ -251,6 +288,7 @@ CREATE TABLE class_invites (
     token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(24), 'hex')
         CHECK (char_length(token) BETWEEN 16 AND 128),
     class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    pass_id UUID REFERENCES class_passes(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
     email TEXT CHECK (email IS NULL OR char_length(email) <= 255),
     note TEXT CHECK (note IS NULL OR char_length(note) <= 200),
@@ -266,8 +304,10 @@ COMMENT ON COLUMN class_invites.token IS 'The invite secret: 24 random bytes hex
 COMMENT ON COLUMN class_invites.email IS 'Optional binding to the invitee''s email, stored lowercased by the action. NULL means anyone holding the link may redeem it — the default expectation for a manually shared secret link.';
 COMMENT ON COLUMN class_invites.created_by IS 'ON DELETE SET NULL is non-essential bookkeeping: deleting an educator account deletes their classes first (deleteEducatorAccountAction), which cascades the invites away before the profile row goes.';
 COMMENT ON COLUMN class_invites.redeemed_at IS 'Single-use marker. redeemed_by / redeemed_at are written only by the redeem_class_invite RPC; set means the invite is spent (idempotent for the same redeemer, rejected for anyone else).';
+COMMENT ON COLUMN class_invites.pass_id IS 'NULL = full-access invite (the default, today''s behavior). Set = a SCOPED invite: redeeming enrolls the student with access_scope = scoped holding this pass. ON DELETE CASCADE (not SET NULL) is deliberate fail-closed design — SET NULL would silently escalate a trial invite into a full-access invite when the pass is deleted; cascade kills the outstanding link with the pass instead. Class membership of the pass is enforced by enforce_invite_pass_class.';
 
 CREATE INDEX idx_class_invites_class_id ON class_invites(class_id);
+CREATE INDEX idx_class_invites_pass_id ON class_invites(pass_id);
 CREATE INDEX idx_class_invites_created_by ON class_invites(created_by);
 CREATE INDEX idx_class_invites_redeemed_by ON class_invites(redeemed_by);
 
@@ -278,6 +318,10 @@ CREATE TRIGGER set_class_invites_updated_at
 CREATE TRIGGER enforce_immutability_class_invites
     BEFORE UPDATE ON class_invites
     FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
+
+CREATE TRIGGER enforce_invite_pass_class
+    BEFORE INSERT OR UPDATE ON class_invites
+    FOR EACH ROW EXECUTE PROCEDURE internal.validate_invite_pass_class();
 
 /* ----------------------------------------- */
 
@@ -469,6 +513,68 @@ CREATE INDEX idx_resource_placements_subtopic_id ON resource_placements(subtopic
 CREATE INDEX idx_resource_placements_topic_id ON resource_placements(topic_id);
 CREATE INDEX idx_resource_placements_resource_id ON resource_placements(resource_id);
 
+/* ==========  ACCESS PASS CONTENTS & HOLDERS  ==========
+   class_pass_items FKs topics / subtopics / videos / resources, so it is
+   defined here — after every curriculum table — for db diff's in-order
+   rebuild. The class_passes table itself lives just after class_enrollments
+   (before class_invites, which references it). */
+
+CREATE TABLE class_pass_items (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    pass_id UUID NOT NULL REFERENCES class_passes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    topic_id UUID REFERENCES topics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subtopic_id UUID REFERENCES subtopics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    video_id UUID REFERENCES videos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    resource_id UUID REFERENCES resources(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    CONSTRAINT chk_pass_item_shape CHECK (
+        (topic_id IS NOT NULL)::int + (subtopic_id IS NOT NULL)::int
+        + (video_id IS NOT NULL)::int + (resource_id IS NOT NULL)::int = 1
+    )
+);
+COMMENT ON TABLE class_pass_items IS 'What an Access Pass grants — polymorphic 4-way XOR rows (chk_pass_item_shape): a topic grant covers the topic, ALL its subtopics, and every placement under any of them (including content added later); a subtopic grant covers the subtopic and its placements (and reveals the parent topic row for rendering); a video / resource grant covers that LIBRARY ITEM wherever it is placed in this class (and reveals the ancestor rows). Item grants are deliberately keyed by library-item id, NOT video_placements.id — placements churn under the drag-and-drop board and a grant must survive that; a granted item whose last placement in the class is removed simply grants nothing (fail-closed dangling grant, harmless). Cross-class integrity is enforced by enforce_pass_item_class.';
+COMMENT ON CONSTRAINT chk_pass_item_shape ON class_pass_items IS '4-way XOR: exactly one of topic_id / subtopic_id / video_id / resource_id is set per item row.';
+
+CREATE UNIQUE INDEX uniq_pass_items_topic    ON class_pass_items(pass_id, topic_id)    WHERE topic_id IS NOT NULL;
+CREATE UNIQUE INDEX uniq_pass_items_subtopic ON class_pass_items(pass_id, subtopic_id) WHERE subtopic_id IS NOT NULL;
+CREATE UNIQUE INDEX uniq_pass_items_video    ON class_pass_items(pass_id, video_id)    WHERE video_id IS NOT NULL;
+CREATE UNIQUE INDEX uniq_pass_items_resource ON class_pass_items(pass_id, resource_id) WHERE resource_id IS NOT NULL;
+CREATE INDEX idx_pass_items_pass_id     ON class_pass_items(pass_id);
+CREATE INDEX idx_pass_items_topic_id    ON class_pass_items(topic_id);
+CREATE INDEX idx_pass_items_subtopic_id ON class_pass_items(subtopic_id);
+CREATE INDEX idx_pass_items_video_id    ON class_pass_items(video_id);
+CREATE INDEX idx_pass_items_resource_id ON class_pass_items(resource_id);
+
+CREATE TRIGGER enforce_pass_item_class
+    BEFORE INSERT OR UPDATE ON class_pass_items
+    FOR EACH ROW EXECUTE PROCEDURE internal.validate_pass_item_class();
+
+CREATE TRIGGER enforce_immutability_class_pass_items
+    BEFORE UPDATE ON class_pass_items
+    FOR EACH ROW EXECUTE PROCEDURE internal.prevent_immutable_modifications();
+
+/* ----------------------------------------- */
+
+CREATE TABLE class_pass_holders (
+    user_id UUID NOT NULL,
+    class_id UUID NOT NULL,
+    pass_id UUID NOT NULL REFERENCES class_passes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    granted_by UUID REFERENCES profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    PRIMARY KEY (user_id, class_id, pass_id),
+    FOREIGN KEY (user_id, class_id)
+        REFERENCES class_enrollments(user_id, class_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+COMMENT ON TABLE class_pass_holders IS 'Which enrollment holds which Access Pass. The composite FK to class_enrollments means unenrolling (or deleting the account / class) cascades holder rows away; deleting a pass cascades its holders — and the enrollment''s access_scope = scoped marker keeps the student FAIL-CLOSED (no silent full-access escalation). Holder rows are meaningful only while access_scope = scoped; on upgrade-to-full the writers delete them (a leftover would be inert while full but would resurrect on a later downgrade). Immutable join row (composite PK, no UPDATE policy — the announcement_reads / forum_post_upvotes pattern; change = delete + insert). Pass-class agreement is enforced by enforce_pass_holder_class.';
+COMMENT ON COLUMN class_pass_holders.granted_by IS 'Who granted the pass (educator, admin, or the invite issuer via redeem_class_invite); ON DELETE SET NULL bookkeeping only.';
+
+CREATE INDEX idx_class_pass_holders_pass_user ON class_pass_holders(pass_id, user_id);
+CREATE INDEX idx_class_pass_holders_class_id  ON class_pass_holders(class_id);
+
+CREATE TRIGGER enforce_pass_holder_class
+    BEFORE INSERT ON class_pass_holders
+    FOR EACH ROW EXECUTE PROCEDURE internal.validate_pass_holder_class();
+
 /* ==========  USER PROGRESS TRACKING  ========== */
 
 CREATE TABLE user_video_progress (
@@ -527,21 +633,28 @@ CREATE TABLE announcements (
     image_alt TEXT CHECK (image_alt IS NULL OR char_length(image_alt) <= 255),
     image_url TEXT CHECK (image_url IS NULL OR (char_length(image_url) <= 2048 AND image_url ~* '^https://')),
     event_at TIMESTAMPTZ,
+    pass_id UUID REFERENCES class_passes(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT chk_announcement_event_at CHECK (event_at IS NULL OR type = 'event'::announcement_type)
 );
-COMMENT ON TABLE announcements IS 'Unidirectional broadcast payloads distributed from administrators/educators to enrolled users.';
+COMMENT ON TABLE announcements IS 'Unidirectional broadcast payloads distributed from administrators/educators to enrolled users. pass_id NULL = broadcast to the whole class (the default); set = targeted at the holders of one Access Pass (plus the class educator / admins), enforced by the select policy.';
 COMMENT ON COLUMN announcements.event_at IS 'When the event happens (event-type announcements only — chk_announcement_event_at enforces NULL for standard/important). Stored as TIMESTAMPTZ; rendered in the viewer''s local timezone client-side.';
 COMMENT ON COLUMN announcements.link_url IS 'Optional outbound link. Inline CHECK enforces both 2048-char cap and HTTPS-only transport.';
 COMMENT ON COLUMN announcements.image_url IS 'Optional inline image. Inline CHECK enforces both 2048-char cap and HTTPS-only transport.';
+COMMENT ON COLUMN announcements.pass_id IS 'NULL = broadcast to the whole class (default — every pre-existing row stays broadcast). Set = visible only to the class educator, admins, and holders of that pass (announcements_select_authorized). ON DELETE CASCADE: a targeted announcement dies with its audience — an orphaned targeted message shown to nobody, or worse silently flipped to broadcast, would both be wrong. One pass per announcement in v1 (post once per pass for multi-audience). Class membership of the pass is enforced by enforce_announcement_pass_class; audience is create-time-only in the app (updateAnnouncementAction does not accept it).';
 
 CREATE INDEX idx_announcements_class_id ON announcements(class_id);
 CREATE INDEX idx_announcements_author_id ON announcements(author_id);
+CREATE INDEX idx_announcements_pass_id ON announcements(pass_id);
 
 CREATE TRIGGER set_announcements_updated_at
     BEFORE UPDATE ON announcements
     FOR EACH ROW EXECUTE PROCEDURE internal.set_current_timestamp_updated_at();
+
+CREATE TRIGGER enforce_announcement_pass_class
+    BEFORE INSERT OR UPDATE ON announcements
+    FOR EACH ROW EXECUTE PROCEDURE internal.validate_announcement_pass_class();
 
 /* ----------------------------------------- */
 

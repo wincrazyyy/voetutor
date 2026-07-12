@@ -16,6 +16,9 @@ interface AnnouncementFormProps {
   authorId: string;
   /** Present → edit mode; absent → create. */
   announcement?: Announcement;
+  /** The class's Access Passes. When present (and creating), an Audience select appears; the
+   *  audience is create-time-only — editing never changes it. */
+  passes?: Array<{ id: string; name: string }>;
 }
 
 /** ISO instant → a `datetime-local` value in the browser's timezone (YYYY-MM-DDTHH:mm). */
@@ -26,7 +29,7 @@ function toLocalInputValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function AnnouncementForm({ classId, authorId, announcement }: AnnouncementFormProps) {
+export function AnnouncementForm({ classId, authorId, announcement, passes = [] }: AnnouncementFormProps) {
   const router = useRouter();
   const isEdit = Boolean(announcement);
   const [title, setTitle] = useState(announcement?.title ?? "");
@@ -35,6 +38,8 @@ export function AnnouncementForm({ classId, authorId, announcement }: Announceme
   const [linkTitle, setLinkTitle] = useState(announcement?.link_title ?? "");
   const [linkUrl, setLinkUrl] = useState(announcement?.link_url ?? "");
   const [eventLocal, setEventLocal] = useState("");
+  /* "" = everyone in the class (broadcast); otherwise the target pass id. Create-time only. */
+  const [passId, setPassId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -48,7 +53,16 @@ export function AnnouncementForm({ classId, authorId, announcement }: Announceme
     setError(null);
 
     const eventAt = type === "event" && eventLocal ? new Date(eventLocal).toISOString() : null;
-    const input = { classId, title, content, type, linkTitle: linkTitle || null, linkUrl: linkUrl || null, eventAt };
+    const input = {
+      classId,
+      title,
+      content,
+      type,
+      linkTitle: linkTitle || null,
+      linkUrl: linkUrl || null,
+      eventAt,
+      passId: isEdit ? undefined : passId || null,
+    };
     startTransition(async () => {
       const res = isEdit
         ? await updateAnnouncementAction(announcement!.id, input)
@@ -57,7 +71,11 @@ export function AnnouncementForm({ classId, authorId, announcement }: Announceme
         setError(res.error);
         return;
       }
-      router.push(`/class/${classId}`);
+      router.push(
+        isEdit
+          ? `/class/${classId}/announcements#announcement-${announcement!.id}`
+          : `/class/${classId}`,
+      );
       router.refresh();
     });
   };
@@ -102,6 +120,29 @@ export function AnnouncementForm({ classId, authorId, announcement }: Announceme
             <option value="event">Event</option>
           </select>
         </div>
+
+        {!isEdit && passes.length > 0 && (
+          <div className="grid gap-2">
+            <Label htmlFor="ann-audience">Audience</Label>
+            <select
+              id="ann-audience"
+              value={passId}
+              onChange={(e) => setPassId(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Everyone in this class</option>
+              {passes.map((pass) => (
+                <option key={pass.id} value={pass.id}>
+                  Holders of “{pass.name}”
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Targeting a pass means only its holders (and you) can see this announcement. The
+              audience can&apos;t be changed after posting.
+            </p>
+          </div>
+        )}
 
         {type === "event" && (
           <div className="grid gap-2">

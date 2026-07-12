@@ -84,6 +84,7 @@ export async function moveStudentAction(
 export async function addStudentByEmailAction(
   classId: string,
   email: string,
+  passId?: string,
 ): Promise<AddByEmailState> {
   const gate = await requireEducatorOrAdmin();
   if ("error" in gate) return { error: gate.error };
@@ -96,6 +97,7 @@ export async function addStudentByEmailAction(
   const { data, error } = await supabase.rpc("educator_enroll_student_by_email", {
     p_class_id: classId,
     p_email: trimmed,
+    p_pass_id: passId || null,
   });
   if (error) return { error: error.message };
 

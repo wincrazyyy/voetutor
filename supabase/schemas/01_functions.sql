@@ -397,6 +397,123 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 COMMENT ON FUNCTION internal.protect_topic_class_lineage() IS 'Top of the class-lineage protection chain: blocks topic reassignment that would alter the class of any video bound to a forum_post — whether the video is placed directly on the topic (vp.topic_id) or on one of its subtopics (vp.subtopic_id), under the polymorphic placement model.';
 
+/* ==========  ACCESS PASS TRIGGER FUNCTIONS  ==========
+   Anti-tampering and cross-table integrity for the Access Pass model
+   (class_passes / class_pass_items / class_pass_holders + the pass_id
+   columns on class_invites / announcements + class_enrollments.access_scope).
+   The integrity validators are SECURITY DEFINER (empty search_path,
+   fully-qualified) because they must read curriculum tables regardless of
+   the acting user's RLS window; the column locks are plain trigger
+   functions, mirroring prevent_student_profile_modifications. */
+
+CREATE OR REPLACE FUNCTION internal.protect_enrollment_columns()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.user_id IS DISTINCT FROM OLD.user_id THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: enrollment user_id modifications are strictly prohibited.';
+    END IF;
+    IF NEW.class_id IS DISTINCT FROM OLD.class_id THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: enrollment class_id modifications are strictly prohibited.';
+    END IF;
+    IF NEW.enrolled_at IS DISTINCT FROM OLD.enrolled_at THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: enrolled_at timestamp modifications are strictly prohibited.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.protect_enrollment_columns() IS 'Locks the identity columns of class_enrollments (user_id, class_id, enrolled_at) against UPDATE now that the table carries its first UPDATE policy (enrollments_update_educator_or_admin, which exists so the class educator / admin can flip access_scope). Membership identity stays immutable — only access_scope is legitimately mutable. Plain trigger function, mirroring prevent_student_profile_modifications.';
+
+CREATE OR REPLACE FUNCTION internal.prevent_pass_reparent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.class_id IS DISTINCT FROM OLD.class_id THEN
+        RAISE EXCEPTION 'SECURITY VIOLATION: A pass cannot be moved to a different class.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION internal.prevent_pass_reparent() IS 'Blocks moving a class_passes row between classes: a reparent would silently rescope every holder and every targeted announcement / invite that references the pass. Plain trigger function; class_id is set once at creation and never legitimately changes.';
+
+CREATE OR REPLACE FUNCTION internal.validate_pass_item_class()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_class UUID;
+BEGIN
+    SELECT class_id INTO v_class FROM public.class_passes WHERE id = NEW.pass_id;
+
+    IF NEW.topic_id IS NOT NULL THEN
+        IF (SELECT class_id FROM public.topics WHERE id = NEW.topic_id) IS DISTINCT FROM v_class THEN
+            RAISE EXCEPTION 'CONSTRAINT VIOLATION: pass item topic % does not belong to the pass''s class.', NEW.topic_id;
+        END IF;
+    ELSIF NEW.subtopic_id IS NOT NULL THEN
+        IF (SELECT t.class_id
+            FROM public.subtopics s
+            JOIN public.topics t ON t.id = s.topic_id
+            WHERE s.id = NEW.subtopic_id) IS DISTINCT FROM v_class THEN
+            RAISE EXCEPTION 'CONSTRAINT VIOLATION: pass item subtopic % does not belong to the pass''s class.', NEW.subtopic_id;
+        END IF;
+    ELSIF NEW.video_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.video_placements vp
+            WHERE vp.video_id = NEW.video_id
+              AND internal.placement_class_id(vp.topic_id, vp.subtopic_id) = v_class
+        ) THEN
+            RAISE EXCEPTION 'CONSTRAINT VIOLATION: pass item video % is not placed in the pass''s class.', NEW.video_id;
+        END IF;
+    ELSIF NEW.resource_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.resource_placements rp
+            WHERE rp.resource_id = NEW.resource_id
+              AND internal.placement_class_id(rp.topic_id, rp.subtopic_id) = v_class
+        ) THEN
+            RAISE EXCEPTION 'CONSTRAINT VIOLATION: pass item note % is not placed in the pass''s class.', NEW.resource_id;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.validate_pass_item_class() IS 'Cross-table integrity for class_pass_items (a CHECK cannot reach across tables — same rationale as validate_forum_post_video_class): a topic / subtopic item must belong to the pass''s class, and a video / resource item must have at least one live placement resolving (via internal.placement_class_id) to that class. SECURITY DEFINER with empty search_path because admin-on-behalf inserts must validate cleanly regardless of the caller''s RLS window over the curriculum tables.';
+
+CREATE OR REPLACE FUNCTION internal.validate_pass_holder_class()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (SELECT class_id FROM public.class_passes WHERE id = NEW.pass_id) IS DISTINCT FROM NEW.class_id THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: pass % does not belong to class %.', NEW.pass_id, NEW.class_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.validate_pass_holder_class() IS 'Cross-table integrity for class_pass_holders: the held pass must belong to the holder row''s class. A mismatched row would grant nothing (every scope helper joins class_pass_holders.class_id), but the invariant keeps internal.holds_class_pass and the roster UI honest. SECURITY DEFINER, empty search_path, fully-qualified references.';
+
+CREATE OR REPLACE FUNCTION internal.validate_invite_pass_class()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.pass_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF (SELECT class_id FROM public.class_passes WHERE id = NEW.pass_id) IS DISTINCT FROM NEW.class_id THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: invite pass % does not belong to class %.', NEW.pass_id, NEW.class_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.validate_invite_pass_class() IS 'Cross-table integrity for class_invites.pass_id: a scoped invite must reference a pass of its own class (NULL = full-access invite, always valid). SECURITY DEFINER, empty search_path, fully-qualified references.';
+
+CREATE OR REPLACE FUNCTION internal.validate_announcement_pass_class()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.pass_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF (SELECT class_id FROM public.class_passes WHERE id = NEW.pass_id) IS DISTINCT FROM NEW.class_id THEN
+        RAISE EXCEPTION 'CONSTRAINT VIOLATION: announcement pass % does not belong to class %.', NEW.pass_id, NEW.class_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.validate_announcement_pass_class() IS 'Cross-table integrity for announcements.pass_id: a targeted announcement must reference a pass of its own class (NULL = broadcast to the whole class, always valid). SECURITY DEFINER, empty search_path, fully-qualified references.';
+
 /* ==========  RLS HELPER FUNCTIONS  ========== */
 
 CREATE OR REPLACE FUNCTION internal.get_user_role()
@@ -503,11 +620,14 @@ BEGIN
         SELECT 1
         FROM public.video_placements vp
         WHERE vp.video_id = p_video_id
-          AND internal.placement_class_id(vp.topic_id, vp.subtopic_id) IN (SELECT internal.get_user_class_ids())
+          AND (
+            internal.placement_class_id(vp.topic_id, vp.subtopic_id) IN (SELECT internal.get_full_access_class_ids())
+            OR internal.scoped_placement_access(vp.topic_id, vp.subtopic_id, vp.video_id, NULL)
+          )
     );
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION internal.video_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library video is placed in any class the caller is enrolled in or teaches (topic- or subtopic-level, resolved via internal.placement_class_id). Used by videos_select_authorized so the videos policy never reads video_placements under RLS — the other half of the fix that prevents the videos <-> video_placements policy recursion (Postgres 42P17). SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
+COMMENT ON FUNCTION internal.video_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library video is placed somewhere the caller may actually CONSUME it: either in a class where they hold full access (full enrollment or teaching, via internal.get_full_access_class_ids) or through an Access Pass grant covering that placement (internal.scoped_placement_access). Used by videos_select_authorized so the videos policy never reads video_placements under RLS — the other half of the fix that prevents the videos <-> video_placements policy recursion (Postgres 42P17) — and so every downstream consumer of the videos row (lesson page, token mint, continue-watching) inherits scope enforcement for free. SECURITY DEFINER with empty search_path and fully-qualified references neutralises object-shadowing.';
 
 CREATE OR REPLACE FUNCTION internal.owns_resource(p_resource_id UUID)
 RETURNS BOOLEAN AS $$
@@ -527,11 +647,170 @@ BEGIN
         SELECT 1
         FROM public.resource_placements rp
         WHERE rp.resource_id = p_resource_id
-          AND internal.placement_class_id(rp.topic_id, rp.subtopic_id) IN (SELECT internal.get_user_class_ids())
+          AND (
+            internal.placement_class_id(rp.topic_id, rp.subtopic_id) IN (SELECT internal.get_full_access_class_ids())
+            OR internal.scoped_placement_access(rp.topic_id, rp.subtopic_id, NULL, rp.resource_id)
+          )
     );
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION internal.resource_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library note is placed in any class the caller is enrolled in or teaches (topic- or subtopic-level, resolved via internal.placement_class_id). Used by resources_select_authorized so the resources policy never reads resource_placements under RLS — mirrors internal.video_in_user_classes and prevents the resources <-> resource_placements recursion (Postgres 42P17).';
+COMMENT ON FUNCTION internal.resource_in_user_classes(UUID) IS 'Bypasses RLS to check whether a library note is placed somewhere the caller may actually CONSUME it: either in a class where they hold full access (full enrollment or teaching, via internal.get_full_access_class_ids) or through an Access Pass grant covering that placement (internal.scoped_placement_access). Used by resources_select_authorized so the resources policy never reads resource_placements under RLS — mirrors internal.video_in_user_classes and prevents the resources <-> resource_placements recursion (Postgres 42P17). The /api/resources/[id]/download route inherits scope enforcement through this helper with zero code change.';
+
+/* ==========  ACCESS PASS RLS HELPER FUNCTIONS  ==========
+   The content-perimeter helpers for the Access Pass model. All SECURITY
+   DEFINER (empty search_path, fully-qualified) so no curriculum <->
+   class_pass_* policy recursion is possible (the 42P17 class of bug the
+   schema already defends against with owns_video / video_in_user_classes).
+   internal.get_user_class_ids stays UNCHANGED as the membership perimeter
+   (forum, announcements, receipts, sidebar order, the class row itself);
+   these helpers form the stricter CONTENT perimeter. */
+
+CREATE OR REPLACE FUNCTION internal.get_full_access_class_ids()
+RETURNS SETOF UUID AS $$
+BEGIN
+    RETURN QUERY
+        SELECT class_id FROM public.class_enrollments
+        WHERE user_id = (SELECT auth.uid()) AND access_scope = 'full'::public.enrollment_access
+        UNION
+        SELECT id FROM public.classes WHERE educator_id = (SELECT auth.uid());
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.get_full_access_class_ids() IS 'The CONTENT-perimeter twin of internal.get_user_class_ids: class ids where the caller holds a FULL enrollment (access_scope = full) or is the teaching educator. Scoped enrollments are excluded — their content visibility flows through the scoped_* helpers instead. Used by the curriculum select policies (topics / subtopics / placements) and the amended video_in_user_classes / resource_in_user_classes; the membership perimeter (forum, announcements, receipts, class row) deliberately stays on get_user_class_ids so scoped students remain full community members.';
+
+CREATE OR REPLACE FUNCTION internal.scoped_topic_access(p_topic_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_class UUID;
+BEGIN
+    SELECT class_id INTO v_class FROM public.topics WHERE id = p_topic_id;
+    IF v_class IS NULL THEN
+        RETURN FALSE;
+    END IF;
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.class_pass_holders h
+        JOIN public.class_pass_items i ON i.pass_id = h.pass_id
+        WHERE h.user_id = (SELECT auth.uid())
+          AND h.class_id = v_class
+          AND (
+            i.topic_id = p_topic_id
+            OR i.subtopic_id IN (SELECT id FROM public.subtopics WHERE topic_id = p_topic_id)
+            OR (i.video_id IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM public.video_placements vp
+                  WHERE vp.video_id = i.video_id
+                    AND (vp.topic_id = p_topic_id
+                         OR vp.subtopic_id IN (SELECT id FROM public.subtopics WHERE topic_id = p_topic_id))))
+            OR (i.resource_id IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM public.resource_placements rp
+                  WHERE rp.resource_id = i.resource_id
+                    AND (rp.topic_id = p_topic_id
+                         OR rp.subtopic_id IN (SELECT id FROM public.subtopics WHERE topic_id = p_topic_id))))
+          )
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.scoped_topic_access(UUID) IS 'Access Pass check for a topic row: TRUE when one of the caller''s held passes (in the topic''s class) grants the topic itself, a subtopic under it, or a video / note item placed within it — i.e. the topic is either granted or must be revealed as the ancestor of a granted item so the curriculum can render around it. SECURITY DEFINER, empty search_path; probes only the caller''s (tiny) grant set via indexed EXISTS.';
+
+CREATE OR REPLACE FUNCTION internal.scoped_subtopic_access(p_subtopic_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_topic_id UUID;
+    v_class UUID;
+BEGIN
+    SELECT s.topic_id, t.class_id INTO v_topic_id, v_class
+    FROM public.subtopics s
+    JOIN public.topics t ON t.id = s.topic_id
+    WHERE s.id = p_subtopic_id;
+    IF v_class IS NULL THEN
+        RETURN FALSE;
+    END IF;
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.class_pass_holders h
+        JOIN public.class_pass_items i ON i.pass_id = h.pass_id
+        WHERE h.user_id = (SELECT auth.uid())
+          AND h.class_id = v_class
+          AND (
+            i.topic_id = v_topic_id
+            OR i.subtopic_id = p_subtopic_id
+            OR (i.video_id IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM public.video_placements vp
+                  WHERE vp.video_id = i.video_id AND vp.subtopic_id = p_subtopic_id))
+            OR (i.resource_id IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM public.resource_placements rp
+                  WHERE rp.resource_id = i.resource_id AND rp.subtopic_id = p_subtopic_id))
+          )
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.scoped_subtopic_access(UUID) IS 'Access Pass check for a subtopic row: TRUE when one of the caller''s held passes grants the parent topic (a topic grant covers its whole subtree), the subtopic itself, or a video / note item placed on the subtopic (revealing it as the ancestor of a granted item). SECURITY DEFINER, empty search_path.';
+
+CREATE OR REPLACE FUNCTION internal.scoped_placement_access(p_topic_id UUID, p_subtopic_id UUID, p_video_id UUID, p_resource_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_class UUID;
+    v_parent_topic UUID;
+BEGIN
+    v_class := internal.placement_class_id(p_topic_id, p_subtopic_id);
+    IF v_class IS NULL THEN
+        RETURN FALSE;
+    END IF;
+    v_parent_topic := COALESCE(p_topic_id,
+        (SELECT topic_id FROM public.subtopics WHERE id = p_subtopic_id));
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.class_pass_holders h
+        JOIN public.class_pass_items i ON i.pass_id = h.pass_id
+        WHERE h.user_id = (SELECT auth.uid())
+          AND h.class_id = v_class
+          AND (
+            i.topic_id = v_parent_topic
+            OR (p_subtopic_id IS NOT NULL AND i.subtopic_id = p_subtopic_id)
+            OR (p_video_id IS NOT NULL AND i.video_id = p_video_id)
+            OR (p_resource_id IS NOT NULL AND i.resource_id = p_resource_id)
+          )
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.scoped_placement_access(UUID, UUID, UUID, UUID) IS 'The single downward Access Pass check shared by both placement tables and by the amended video_in_user_classes / resource_in_user_classes: given a placement''s polymorphic parent (topic XOR subtopic) plus the placed item id, TRUE when one of the caller''s held passes grants the ancestor topic, the exact subtopic, or the library item itself. Item grants are keyed by library-item id (not placement id) so they survive drag-and-drop placement churn. SECURITY DEFINER, empty search_path, fully-qualified references.';
+
+CREATE OR REPLACE FUNCTION internal.holds_class_pass(p_pass_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.class_pass_holders
+        WHERE pass_id = p_pass_id AND user_id = (SELECT auth.uid())
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.holds_class_pass(UUID) IS 'TRUE when the caller holds the given pass (a class_pass_holders row exists; served by idx_class_pass_holders_pass_user). Used by the announcements select policy (targeted-audience gate) and the class_passes select policy (so a holder can read the name of a pass they hold). SECURITY DEFINER, empty search_path.';
+
+CREATE OR REPLACE FUNCTION internal.pass_class_id(p_pass_id UUID)
+RETURNS UUID AS $$
+DECLARE
+    v_class_id UUID;
+BEGIN
+    SELECT class_id INTO v_class_id FROM public.class_passes WHERE id = p_pass_id;
+    RETURN v_class_id;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.pass_class_id(UUID) IS 'Resolves a pass to its class — the placement_class_id analogue for the Access Pass model — so the class_pass_items / class_pass_holders policies (and the pass-aware RPCs) never read class_passes under RLS (no recursion, no double policy evaluation). SECURITY DEFINER, empty search_path.';
+
+CREATE OR REPLACE FUNCTION internal.video_visible_in_class(p_video_id UUID, p_class_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    IF p_class_id IN (SELECT internal.get_full_access_class_ids()) THEN
+        RETURN TRUE;
+    END IF;
+    RETURN EXISTS (
+        SELECT 1 FROM public.video_placements vp
+        WHERE vp.video_id = p_video_id
+          AND internal.placement_class_id(vp.topic_id, vp.subtopic_id) = p_class_id
+          AND internal.scoped_placement_access(vp.topic_id, vp.subtopic_id, vp.video_id, NULL)
+    );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION internal.video_visible_in_class(UUID, UUID) IS 'Class-scoped "can the caller consume this video IN THIS CLASS" — used by the four forum select policies to gate video_qa thread visibility, so a Q&A thread is visible only where the caller actually has the video. Distinct from the amended video_in_user_classes, which answers "in ANY of my classes": the forum needs the per-class answer so a video the student can see in a DIFFERENT class they hold full access to does not reveal THIS class''s Q&A. SECURITY DEFINER, empty search_path, fully-qualified references.';
 
 /* ==========  PUBLIC RPC FUNCTIONS  ========== */
 /* RPCs deliberately live in the public schema so PostgREST can expose them
@@ -602,7 +881,7 @@ REVOKE EXECUTE ON FUNCTION public.enroll_in_free_class(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.enroll_in_free_class(UUID) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.get_class_invite_preview(p_token TEXT)
-RETURNS TABLE (class_id UUID, class_title TEXT, educator_name TEXT, redeemable BOOLEAN, reason TEXT)
+RETURNS TABLE (class_id UUID, class_title TEXT, educator_name TEXT, redeemable BOOLEAN, reason TEXT, pass_name TEXT)
 AS $$
 BEGIN
     RETURN QUERY
@@ -618,14 +897,16 @@ BEGIN
             WHEN ci.redeemed_at IS NOT NULL THEN 'redeemed'
             WHEN ci.expires_at IS NOT NULL AND ci.expires_at <= NOW() THEN 'expired'
             ELSE 'valid'
-        END
+        END,
+        cp.name
     FROM public.class_invites ci
     JOIN public.classes c ON c.id = ci.class_id
     LEFT JOIN public.profiles_public pp ON pp.id = c.educator_id
+    LEFT JOIN public.class_passes cp ON cp.id = ci.pass_id
     WHERE ci.token = p_token;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION public.get_class_invite_preview(TEXT) IS 'Public (anon-callable) read boundary for the invite landing page: given the secret token, returns the class title, the educator''s display name, and whether the invite is still redeemable (with a reason of revoked / redeemed / expired / valid). Leaks nothing beyond the title + name — never email, note, or issuer — and returns zero rows for unknown tokens, so there is no existence oracle without holding the 192-bit secret. SECURITY DEFINER with empty search_path; the WHERE clause and column list ARE the boundary, following the get_public_educator_profile pattern.';
+COMMENT ON FUNCTION public.get_class_invite_preview(TEXT) IS 'Public (anon-callable) read boundary for the invite landing page: given the secret token, returns the class title, the educator''s display name, whether the invite is still redeemable (with a reason of revoked / redeemed / expired / valid), and the audience pass name (pass_name; NULL = full-access invite). Leaks nothing beyond the title + name + pass label — never email, note, or issuer — and returns zero rows for unknown tokens, so there is no existence oracle without holding the 192-bit secret. The pass name is the same trust surface as the class title (revealed only to secret-holders). SECURITY DEFINER with empty search_path; the WHERE clause and column list ARE the boundary, following the get_public_educator_profile pattern.';
 
 REVOKE EXECUTE ON FUNCTION public.get_class_invite_preview(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_class_invite_preview(TEXT) TO anon, authenticated;
@@ -656,8 +937,20 @@ BEGIN
     /* Idempotent: the same user re-opening their already-redeemed link just lands in the class. */
     IF v_invite.redeemed_at IS NOT NULL THEN
         IF v_invite.redeemed_by = v_uid THEN
-            INSERT INTO public.class_enrollments (user_id, class_id)
-            VALUES (v_uid, v_invite.class_id) ON CONFLICT (user_id, class_id) DO NOTHING;
+            IF v_invite.pass_id IS NOT NULL THEN
+                INSERT INTO public.class_enrollments (user_id, class_id, access_scope)
+                VALUES (v_uid, v_invite.class_id, 'scoped'::public.enrollment_access)
+                ON CONFLICT (user_id, class_id) DO NOTHING;
+                INSERT INTO public.class_pass_holders (user_id, class_id, pass_id, granted_by)
+                VALUES (v_uid, v_invite.class_id, v_invite.pass_id, v_invite.created_by)
+                ON CONFLICT (user_id, class_id, pass_id) DO NOTHING;
+            ELSE
+                INSERT INTO public.class_enrollments (user_id, class_id)
+                VALUES (v_uid, v_invite.class_id)
+                ON CONFLICT (user_id, class_id) DO UPDATE SET access_scope = 'full'::public.enrollment_access;
+                DELETE FROM public.class_pass_holders
+                WHERE user_id = v_uid AND class_id = v_invite.class_id;
+            END IF;
             RETURN v_invite.class_id;
         END IF;
         RAISE EXCEPTION 'This invite has already been used.';
@@ -676,8 +969,23 @@ BEGIN
         RAISE EXCEPTION 'You teach this class — you cannot enrol as a student.';
     END IF;
 
-    INSERT INTO public.class_enrollments (user_id, class_id)
-    VALUES (v_uid, v_invite.class_id) ON CONFLICT (user_id, class_id) DO NOTHING;
+    IF v_invite.pass_id IS NOT NULL THEN
+        /* Scoped invite: enroll scoped; NEVER downgrade an existing enrollment. */
+        INSERT INTO public.class_enrollments (user_id, class_id, access_scope)
+        VALUES (v_uid, v_invite.class_id, 'scoped'::public.enrollment_access)
+        ON CONFLICT (user_id, class_id) DO NOTHING;
+        INSERT INTO public.class_pass_holders (user_id, class_id, pass_id, granted_by)
+        VALUES (v_uid, v_invite.class_id, v_invite.pass_id, v_invite.created_by)
+        ON CONFLICT (user_id, class_id, pass_id) DO NOTHING;
+    ELSE
+        /* Full invite: enroll full; UPGRADES an existing scoped enrollment (the invite is an
+           explicit educator grant — this is the trial-to-paid manual upgrade path via link). */
+        INSERT INTO public.class_enrollments (user_id, class_id)
+        VALUES (v_uid, v_invite.class_id)
+        ON CONFLICT (user_id, class_id) DO UPDATE SET access_scope = 'full'::public.enrollment_access;
+        DELETE FROM public.class_pass_holders
+        WHERE user_id = v_uid AND class_id = v_invite.class_id;
+    END IF;
 
     UPDATE public.class_invites
     SET redeemed_by = v_uid, redeemed_at = NOW()
@@ -686,12 +994,12 @@ BEGIN
     RETURN v_invite.class_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION public.redeem_class_invite(TEXT) IS 'The manual-payment enrollment writer. Validates the secret invite token (exists, not revoked, not expired), enforces single use (idempotent for the same caller — re-opening a redeemed link just re-lands them in the class; anyone else is rejected), honors the optional email binding against auth.users, and blocks the class educator from self-enrolling, then inserts the class_enrollments row and stamps redeemed_by / redeemed_at. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments, exactly like enroll_in_free_class. Deliberately does NOT require is_published or price_cents = 0 — the invite is an explicit grant for an externally-paid (possibly draft) class. SELECT ... FOR UPDATE locks the invite row so two concurrent redeems cannot both win the single use. Returns the class_id for the post-join redirect.';
+COMMENT ON FUNCTION public.redeem_class_invite(TEXT) IS 'The manual-payment enrollment writer. Validates the secret invite token (exists, not revoked, not expired), enforces single use (idempotent for the same caller — re-opening a redeemed link just re-lands them in the class; anyone else is rejected), honors the optional email binding against auth.users, and blocks the class educator from self-enrolling, then inserts the class_enrollments row and stamps redeemed_by / redeemed_at. Access Pass aware: a scoped invite (pass_id set) enrolls with access_scope = scoped and adds the class_pass_holders row, NEVER downgrading an existing enrollment (ON CONFLICT DO NOTHING); a full invite (pass_id NULL) enrolls full and UPGRADES an existing scoped enrollment in place (ON CONFLICT DO UPDATE), clearing the student''s holder rows — the deliberate trial-to-paid link upgrade path. The same branch applies on the idempotent same-redeemer re-open. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments (the holder-row write is likewise sanctioned), exactly like enroll_in_free_class. Deliberately does NOT require is_published or price_cents = 0 — the invite is an explicit grant for an externally-paid (possibly draft) class. SELECT ... FOR UPDATE locks the invite row so two concurrent redeems cannot both win the single use. Returns the class_id for the post-join redirect.';
 
 REVOKE EXECUTE ON FUNCTION public.redeem_class_invite(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.redeem_class_invite(TEXT) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.educator_enroll_student_by_email(p_class_id UUID, p_email TEXT)
+CREATE OR REPLACE FUNCTION public.educator_enroll_student_by_email(p_class_id UUID, p_email TEXT, p_pass_id UUID DEFAULT NULL)
 RETURNS TABLE (status TEXT, student_id UUID, student_name TEXT)
 AS $$
 DECLARE
@@ -707,6 +1015,10 @@ BEGIN
 
     IF NOT ((SELECT internal.is_admin()) OR (SELECT internal.is_class_educator(p_class_id))) THEN
         RAISE EXCEPTION 'Only the class educator or an admin may add students to this class.';
+    END IF;
+
+    IF p_pass_id IS NOT NULL AND internal.pass_class_id(p_pass_id) IS DISTINCT FROM p_class_id THEN
+        RAISE EXCEPTION 'The selected pass does not belong to this class.';
     END IF;
 
     SELECT u.id INTO v_target
@@ -743,17 +1055,26 @@ BEGIN
         RETURN;
     END IF;
 
-    INSERT INTO public.class_enrollments (user_id, class_id)
-    VALUES (v_target, p_class_id)
-    ON CONFLICT (user_id, class_id) DO NOTHING;
+    IF p_pass_id IS NOT NULL THEN
+        INSERT INTO public.class_enrollments (user_id, class_id, access_scope)
+        VALUES (v_target, p_class_id, 'scoped'::public.enrollment_access)
+        ON CONFLICT (user_id, class_id) DO NOTHING;
+        INSERT INTO public.class_pass_holders (user_id, class_id, pass_id, granted_by)
+        VALUES (v_target, p_class_id, p_pass_id, v_uid)
+        ON CONFLICT (user_id, class_id, pass_id) DO NOTHING;
+    ELSE
+        INSERT INTO public.class_enrollments (user_id, class_id)
+        VALUES (v_target, p_class_id)
+        ON CONFLICT (user_id, class_id) DO NOTHING;
+    END IF;
 
     RETURN QUERY SELECT 'enrolled'::TEXT, v_target, v_name;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION public.educator_enroll_student_by_email(UUID, TEXT) IS 'Educator/admin roster writer: resolves an email to a student user id (a step the class educator cannot do under RLS, since they cannot read auth.users / other profiles) and enrolls them into the given class. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments, like enroll_in_free_class. Authorizes the caller as admin OR the class educator (a true EXCEPTION otherwise). Missing user and non-student role are collapsed into a single not_found status so the class owner cannot probe for educator/admin account emails (a residual student-email oracle for the owner is accepted, matching the invite-preview trust surface). Deliberately skips the is_published / price_cents checks — an explicit educator grant for a possibly-draft class, like redeem_class_invite. Does NOT touch user_video_progress (keyed by user+video, not enrollment), so re-adding a student restores their prior progress view. Returns status (enrolled | already_enrolled | not_found), the student id, and their display name.';
+COMMENT ON FUNCTION public.educator_enroll_student_by_email(UUID, TEXT, UUID) IS 'Educator/admin roster writer: resolves an email to a student user id (a step the class educator cannot do under RLS, since they cannot read auth.users / other profiles) and enrolls them into the given class. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments, like enroll_in_free_class. Authorizes the caller as admin OR the class educator (a true EXCEPTION otherwise). Missing user and non-student role are collapsed into a single not_found status so the class owner cannot probe for educator/admin account emails (a residual student-email oracle for the owner is accepted, matching the invite-preview trust surface). Access Pass aware: an optional p_pass_id (validated to belong to p_class_id via internal.pass_class_id) makes a NEW enrollment scoped and adds the class_pass_holders row; already_enrolled returns unchanged and touches NOTHING — scope edits for existing students happen only in the roster access editor, never as a side effect of a duplicate add. Deliberately skips the is_published / price_cents checks — an explicit educator grant for a possibly-draft class, like redeem_class_invite. Does NOT touch user_video_progress (keyed by user+video, not enrollment), so re-adding a student restores their prior progress view. Returns status (enrolled | already_enrolled | not_found), the student id, and their display name.';
 
-REVOKE EXECUTE ON FUNCTION public.educator_enroll_student_by_email(UUID, TEXT) FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION public.educator_enroll_student_by_email(UUID, TEXT) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.educator_enroll_student_by_email(UUID, TEXT, UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.educator_enroll_student_by_email(UUID, TEXT, UUID) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.educator_move_student(p_student_id UUID, p_from_class_id UUID, p_to_class_id UUID)
 RETURNS TEXT
