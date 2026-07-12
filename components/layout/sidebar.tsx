@@ -10,6 +10,7 @@ import { getPendingReportCount } from "@/lib/queries/class-reports";
 import { getUnreadAnnouncementCountsByClass } from "@/lib/queries/announcements";
 import { isClassBrowseEnabled } from "@/lib/config/features";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { SidebarShell } from "@/components/layout/sidebar-shell";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
 
@@ -108,7 +109,7 @@ export async function Sidebar() {
   const homeHref = isPendingEducator ? "/pending" : "/dashboard";
 
   return (
-    <aside className="w-64 bg-card border-r border-border h-screen sticky top-0 flex flex-col md:flex shrink-0">
+    <SidebarShell homeHref={homeHref}>
       <div className="h-16 flex items-center px-6 border-b border-border shrink-0">
         <Link href={homeHref} className="hover:opacity-80 transition-opacity">
           <VoeWordmark />
@@ -134,6 +135,6 @@ export async function Sidebar() {
           <ThemeSwitcher />
         </div>
       </div>
-    </aside>
+    </SidebarShell>
   );
 }
