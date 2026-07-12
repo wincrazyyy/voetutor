@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { SUPPORT_EMAIL } from "@/lib/config/contact";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — VOETutor",
@@ -265,7 +266,7 @@ export default function PrivacyPolicy() {
           <Section id="contact" title="13. Contact us">
             <p>
               Questions about this policy or your data? Email{" "}
-              <a href="mailto:xini@saltancy.com">xini@saltancy.com</a>.
+              <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
             </p>
           </Section>
         </div>

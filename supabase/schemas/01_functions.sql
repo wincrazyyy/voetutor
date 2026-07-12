@@ -97,8 +97,11 @@ BEGIN
         NEW.raw_user_meta_data->>'display_name',
         v_role,
         v_is_approved,
-        (v_role = 'student'::public.user_role
-            AND NEW.raw_user_meta_data->>'must_change_password' = 'true')
+        COALESCE(
+            v_role = 'student'::public.user_role
+            AND NEW.raw_user_meta_data->>'must_change_password' = 'true',
+            FALSE
+        )
     );
 
     /* Students provide extra enrollment details at sign-up (passed in signup metadata); persist them
@@ -120,7 +123,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION internal.handle_new_user() IS 'Automates profile provisioning upon identity creation. Reads intended_role from user-controlled metadata but constrains the resulting state: educator implies is_approved = FALSE (gated until an admin promotes them); anything else lands on a fully-approved student. The admin role is never assignable from this path, neutralising privilege escalation via signup metadata. Also intakes must_change_password from signup metadata for students only, via a total string comparison (never a boolean cast, which would abort account creation on garbage metadata) — TRUE marks accounts provisioned by an educator/admin with a temporary password.';
+COMMENT ON FUNCTION internal.handle_new_user() IS 'Automates profile provisioning upon identity creation. Reads intended_role from user-controlled metadata but constrains the resulting state: educator implies is_approved = FALSE (gated until an admin promotes them); anything else lands on a fully-approved student. The admin role is never assignable from this path, neutralising privilege escalation via signup metadata. Also intakes must_change_password from signup metadata for students only, via a string comparison wrapped in COALESCE(..., FALSE): a boolean cast would abort on garbage metadata, and a bare comparison yields NULL when the key is absent (every student self-signup / invite signup), which would violate the NOT NULL column and abort signup — COALESCE pins the default to FALSE. TRUE marks accounts provisioned by an educator/admin with a temporary password.';
 
 CREATE OR REPLACE FUNCTION internal.maintain_forum_post_upvote_count()
 RETURNS TRIGGER AS $$
