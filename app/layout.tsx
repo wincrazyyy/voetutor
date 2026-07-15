@@ -1,18 +1,49 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel, Cormorant, Montserrat } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { NavProgress } from "@/components/layout/nav-progress";
-
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/config/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
-  title: "VOETutor — Vault of Excellence | Premium IB Tutoring",
-  description: "The Vault of Excellence — a curated marketplace of vetted IB educators. Browse specialist tutors, watch HD video lessons, and learn on demand.",
-  keywords: ["IB tutoring", "IB educators", "video lessons", "exam prep", "online learning", "Vault of Excellence"],
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: "%s · VOETutor",
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: ["IB tutoring", "IB educators", "video lessons", "exam prep", "online learning", "Vault of Excellence", "VOETutor"],
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  category: "education",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0d9488" },
+    { media: "(prefers-color-scheme: dark)", color: "#08312c" },
+  ],
 };
 
 /* Cormorant = serif display (headings, the LCP H1) → preload the weights the headline uses.
