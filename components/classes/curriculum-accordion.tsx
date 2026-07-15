@@ -150,7 +150,7 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
                                 <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(item.size_bytes)} • PDF</span>
                               </div>
                             </div>
-                            <Download className="w-4 h-4 text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-hover:text-primary transition-all mr-2 shrink-0" />
+                            <Download className="w-4 h-4 text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-hover:text-primary transition-all mr-2 shrink-0" />
                           </a>
                         ),
                       )}

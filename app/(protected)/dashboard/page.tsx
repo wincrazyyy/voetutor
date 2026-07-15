@@ -55,7 +55,7 @@ export default async function DashboardHubPage() {
       <StatCards stats={stats} />
       <ContinueWatchingHero item={continueWatching[0] ?? null} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start pt-4">
         <GlobalUpdatesFeed announcements={announcements} viewerId={profile.id} viewerIsAdmin={false} />
         <EnrolledClassesList classes={classes} />
       </div>

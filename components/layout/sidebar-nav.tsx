@@ -416,7 +416,7 @@ function SortableClassRow({
       <button
         type="button"
         aria-label={`Drag to reorder ${cls.title}`}
-        className="pl-2 py-2.5 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 relative after:absolute after:-inset-2 after:content-[''] opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:focus-visible:opacity-100"
+        className="pl-2 py-2.5 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 relative after:absolute after:-inset-2 after:content-[''] opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
         {...attributes}
         {...listeners}
       >

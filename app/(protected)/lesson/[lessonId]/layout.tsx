@@ -111,14 +111,14 @@ export default async function LessonLayout({
   const { lessonId } = await params;
 
   return (
-    <div className="flex flex-col lg:h-dvh bg-background">
-      <header className="hidden h-16 border-b md:flex items-center justify-between px-4 md:px-6 shrink-0 bg-card z-50">
+    <div className="flex flex-col xl:h-dvh bg-background">
+      <header className="hidden h-16 border-b lg:flex items-center justify-between px-4 md:px-6 shrink-0 bg-card z-50">
         <Suspense fallback={<LessonHeaderFallback />}>
           <LessonHeaderContent lessonId={lessonId} />
         </Suspense>
       </header>
 
-      <div className="flex-1 lg:overflow-hidden">{children}</div>
+      <div className="flex-1 xl:overflow-hidden">{children}</div>
     </div>
   );
 }

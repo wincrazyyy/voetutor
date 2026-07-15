@@ -23,7 +23,7 @@ function formatDelta(seconds: number): string {
 
 export function StatCards({ stats }: StatCardsProps) {
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-3">
       <Card className="shadow-sm border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">

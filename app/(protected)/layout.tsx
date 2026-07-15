@@ -10,7 +10,7 @@ export default function ProtectedLayout({
     <UploadManagerProvider>
       <div className="flex h-dvh w-full overflow-hidden bg-background">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/20 pt-14 md:pt-0">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/20 pt-14 lg:pt-0">
           {children}
         </main>
       </div>

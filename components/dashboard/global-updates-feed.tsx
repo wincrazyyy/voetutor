@@ -11,7 +11,7 @@ interface GlobalUpdatesFeedProps {
 
 export function GlobalUpdatesFeed({ announcements, viewerId, viewerIsAdmin }: GlobalUpdatesFeedProps) {
   return (
-    <div className="lg:col-span-8 space-y-6">
+    <div className="md:col-span-8 space-y-6">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold">Global Updates</h2>
       </div>

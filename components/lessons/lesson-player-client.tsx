@@ -84,8 +84,8 @@ export function LessonPlayerClient({
   const isPlayable = video.status === "ready" && Boolean(signedToken);
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:h-full lg:overflow-hidden bg-background">
-      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 lg:overflow-y-auto">
+    <div className="flex-1 flex flex-col xl:flex-row xl:h-full xl:overflow-hidden bg-background">
+      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 xl:overflow-y-auto">
         <div className="w-full aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative border-4 border-card shrink-0">
           {isPlayable ? (
             <>
@@ -179,8 +179,8 @@ export function LessonPlayerClient({
         </div>
       </div>
 
-      <aside className="w-full border-t bg-card flex flex-col lg:h-full lg:w-[400px] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[450px]">
-        <Tabs defaultValue="curriculum" className="w-full flex flex-col lg:h-full">
+      <aside className="w-full border-t bg-card flex flex-col xl:h-full xl:w-[450px] xl:shrink-0 xl:border-l xl:border-t-0">
+        <Tabs defaultValue="curriculum" className="w-full flex flex-col xl:h-full">
           <div className="p-4 border-b border-border bg-card shrink-0">
             <TabsList className="w-full grid grid-cols-3 bg-muted/50 p-1">
               <TabsTrigger value="curriculum" className="text-xs">
@@ -195,9 +195,9 @@ export function LessonPlayerClient({
             </TabsList>
           </div>
 
-          <div className="flex-1 p-0 flex flex-col relative lg:overflow-y-auto">
+          <div className="flex-1 p-0 flex flex-col relative xl:overflow-y-auto">
             <TabsContent value="curriculum" className="m-0 border-none outline-none">
-              <div className="p-4 border-b bg-card z-20 backdrop-blur-md lg:sticky lg:top-0">
+              <div className="p-4 border-b bg-card z-20 backdrop-blur-md xl:sticky xl:top-0">
                 <h2 className="font-bold text-sm">{activeTopic?.title ?? "Course Content"}</h2>
               </div>
               <div className="flex flex-col">
@@ -248,7 +248,7 @@ export function LessonPlayerClient({
                               <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(item.size_bytes)} • PDF</span>
                             </div>
                           </div>
-                          <Download className="w-4 h-4 shrink-0 text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 group-hover:text-primary transition-all mr-2" />
+                          <Download className="w-4 h-4 shrink-0 text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover:opacity-100 group-hover:text-primary transition-all mr-2" />
                         </a>
                       );
                     })}
@@ -257,7 +257,7 @@ export function LessonPlayerClient({
 
                 {activeTopic?.subtopics.map((subtopic) => (
                   <div key={subtopic.id} className="border-b border-border/50 last:border-0 pb-2">
-                    <div className="bg-muted/30 px-4 py-2 text-xs sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest break-words backdrop-blur-md z-10 border-b border-border/50 lg:sticky lg:top-[53px]">
+                    <div className="bg-muted/30 px-4 py-2 text-xs sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest break-words backdrop-blur-md z-10 border-b border-border/50 xl:sticky xl:top-[53px]">
                       {subtopic.title}
                     </div>
 
@@ -327,7 +327,7 @@ export function LessonPlayerClient({
               </p>
             </TabsContent>
 
-            <TabsContent value="discussion" className="m-0 flex flex-col lg:h-full outline-none">
+            <TabsContent value="discussion" className="m-0 flex flex-col xl:h-full outline-none">
               <ForumLessonQA classId={classId} lessonId={lessonId} threads={qaThreads} classEducatorId={classEducatorId} currentUserId={userId} />
             </TabsContent>
           </div>

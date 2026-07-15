@@ -2,8 +2,8 @@ import { Spinner } from "@/components/ui/spinner";
 
 export default function LessonLoading() {
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:h-full lg:overflow-hidden bg-background">
-      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 lg:overflow-y-auto">
+    <div className="flex-1 flex flex-col xl:flex-row xl:h-full xl:overflow-hidden bg-background">
+      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 xl:overflow-y-auto">
         <div className="w-full aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative border-4 border-card shrink-0">
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-black/60 to-transparent text-white">
             <Spinner className="w-16 h-16 text-primary/80" />
@@ -18,7 +18,7 @@ export default function LessonLoading() {
         </div>
       </div>
 
-      <aside className="w-full border-t bg-card flex flex-col lg:h-full lg:w-[400px] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[450px]">
+      <aside className="w-full border-t bg-card flex flex-col xl:h-full xl:w-[450px] xl:shrink-0 xl:border-l xl:border-t-0">
         <div className="p-4 border-b border-border bg-card shrink-0">
           <div className="grid grid-cols-3 gap-1 bg-muted/50 p-1 rounded-md">
             <div className="h-8 rounded bg-muted/60 animate-pulse" />
@@ -26,7 +26,7 @@ export default function LessonLoading() {
             <div className="h-8 rounded bg-muted/60 animate-pulse" />
           </div>
         </div>
-        <div className="flex-1 flex flex-col lg:overflow-y-auto">
+        <div className="flex-1 flex flex-col xl:overflow-y-auto">
           {Array.from({ length: 7 }).map((_, index) => (
             <div key={index} className="px-4 py-3 border-b border-border/50">
               <div className="h-4 w-full rounded bg-muted/40 animate-pulse" />

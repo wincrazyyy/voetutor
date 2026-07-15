@@ -13,9 +13,10 @@ interface SidebarShellProps {
 }
 
 /**
- * Responsive chrome around the server-fetched sidebar content. On desktop (md and up) it renders the
- * original persistent w-64 column unchanged; below md it becomes an off-canvas drawer with a fixed
- * top bar (hamburger + logo) and a tap-to-dismiss backdrop. All transitions are transform/opacity
+ * Responsive chrome around the server-fetched sidebar content. On large screens (lg and up) it renders
+ * the persistent w-64 column; below lg (phones AND tablets / iPad portrait) it becomes an off-canvas
+ * drawer with a fixed top bar (hamburger + logo) and a tap-to-dismiss backdrop. The lg cutoff keeps the
+ * sidebar off narrow tablets so content gets the full width. All transitions are transform/opacity
  * only and gated for reduced motion. State (open/close) lives here because the sidebar itself is a
  * server component and cannot own interactivity.
  */
@@ -76,7 +77,7 @@ export function SidebarShell({ homeHref, children }: SidebarShellProps) {
 
   return (
     <>
-      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 bg-card border-b border-border flex items-center px-4 gap-3">
+      <header className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 bg-card border-b border-border flex items-center px-4 gap-3">
         <button
           ref={triggerRef}
           type="button"
@@ -97,7 +98,7 @@ export function SidebarShell({ homeHref, children }: SidebarShellProps) {
         onClick={() => setOpen(false)}
         aria-hidden
         className={cn(
-          "md:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 motion-reduce:transition-none",
+          "lg:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 motion-reduce:transition-none",
           open ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
       />
@@ -111,8 +112,8 @@ export function SidebarShell({ homeHref, children }: SidebarShellProps) {
         className={cn(
           "w-64 bg-card border-r border-border flex flex-col shrink-0",
           "fixed top-0 left-0 h-dvh z-50 transition-[transform,visibility] duration-300 ease-in-out motion-reduce:transition-none",
-          open ? "translate-x-0 visible" : "-translate-x-full invisible md:visible",
-          "md:sticky md:left-auto md:top-0 md:h-dvh md:z-auto md:translate-x-0",
+          open ? "translate-x-0 visible" : "-translate-x-full invisible lg:visible",
+          "lg:sticky lg:left-auto lg:top-0 lg:h-dvh lg:z-auto lg:translate-x-0",
         )}
       >
         <button
@@ -120,7 +121,7 @@ export function SidebarShell({ homeHref, children }: SidebarShellProps) {
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Close navigation"
-          className="md:hidden absolute top-4 right-3 inline-flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors after:absolute after:-inset-2 after:content-['']"
+          className="lg:hidden absolute top-4 right-3 inline-flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors after:absolute after:-inset-2 after:content-['']"
         >
           <X className="w-5 h-5" />
         </button>

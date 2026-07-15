@@ -44,7 +44,7 @@ export async function EducatorHub() {
         <p className="text-muted-foreground">Manage your classes, post announcements, and track student engagement.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card className="p-6 border-border bg-card shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Total Students</span>
@@ -100,7 +100,7 @@ export async function EducatorHub() {
             </Link>
           </Card>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-2">
             {classes.map((cls) => (
               <Card
                 key={cls.id}

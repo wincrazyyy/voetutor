@@ -12,7 +12,7 @@ interface EnrolledClassesListProps {
 
 export function EnrolledClassesList({ classes }: EnrolledClassesListProps) {
   return (
-    <div className="space-y-6 lg:sticky lg:top-24 lg:col-span-4">
+    <div className="space-y-6 md:sticky md:top-24 md:col-span-4">
       <h2 className="text-2xl font-bold mb-2">My Classes</h2>
 
       {classes.length === 0 ? (

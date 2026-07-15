@@ -83,8 +83,8 @@ export default async function ClassForumPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        <div className="xl:col-span-8 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:col-span-8 space-y-4">
           <div className="flex items-center gap-1.5 border-b border-border pb-2 overflow-x-auto">
             {SORTS.map((s) => {
               const active = s.key === sort;
@@ -115,7 +115,7 @@ export default async function ClassForumPage({
           />
         </div>
 
-        <div className="space-y-6 xl:sticky xl:top-24 xl:col-span-4">
+        <div className="space-y-6 lg:sticky lg:top-24 lg:col-span-4 xl:sticky xl:top-24 xl:col-span-4">
           <ForumSidebar
             classCode={cls.code}
             memberCount={memberCount}
