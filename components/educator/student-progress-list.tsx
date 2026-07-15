@@ -48,9 +48,10 @@ export function StudentProgressList({ students }: { students: StudentEntry[] }) 
               </div>
             </AccordionTrigger>
             <AccordionContent className="p-0">
-              <table className="w-full text-sm">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[36rem] text-sm">
                 <thead>
-                  <tr className="border-y border-border bg-muted/20 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-y border-border bg-muted/20 text-left text-xs md:text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     <th className="px-5 py-2">Lesson</th>
                     <th className="px-5 py-2">Status</th>
                     <th className="px-5 py-2 text-right">Watch Time</th>
@@ -85,7 +86,8 @@ export function StudentProgressList({ students }: { students: StudentEntry[] }) 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );

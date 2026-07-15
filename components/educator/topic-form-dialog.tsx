@@ -57,7 +57,7 @@ export function TopicFormDialog({ classId, mode, topicId, initialTitle = "" }: T
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+        className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground sm:h-7 sm:w-7"
         onClick={openDialog}
         aria-label="Rename topic"
       >
@@ -68,13 +68,13 @@ export function TopicFormDialog({ classId, mode, topicId, initialTitle = "" }: T
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card shadow-lg p-6">
+      <div className="max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg border border-border bg-card shadow-lg p-6">
         <div className="flex items-start justify-between mb-4">
           <h2 className="text-lg font-bold">{mode === "create" ? "Add topic" : "Rename topic"}</h2>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative text-muted-foreground hover:text-foreground after:absolute after:-inset-3 after:content-[''] sm:after:hidden"
             aria-label="Close"
             disabled={pending}
           >

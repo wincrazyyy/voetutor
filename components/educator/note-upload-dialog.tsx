@@ -220,7 +220,7 @@ export function NoteUploadDialog({
       <Button
         size={buttonVariant === "ghost" ? "sm" : "default"}
         variant={buttonVariant}
-        className={buttonClassName ?? (buttonVariant === "ghost" ? "h-7 text-xs gap-1 text-primary" : "gap-2 shadow-md")}
+        className={buttonClassName ?? (buttonVariant === "ghost" ? "h-10 gap-1 text-xs text-primary sm:h-7" : "gap-2 shadow-md")}
         onClick={openDialog}
       >
         {buttonVariant === "ghost" ? <Plus className="w-3 h-3" /> : <UploadCloud className="w-4 h-4" />}
@@ -239,8 +239,8 @@ export function NoteUploadDialog({
       : "Upload";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card shadow-lg p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:items-center">
+      <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="min-w-0">
             <h2 className="text-lg font-bold flex items-center gap-2">
@@ -254,7 +254,7 @@ export function NoteUploadDialog({
           <button
             type="button"
             onClick={closeDialog}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative shrink-0 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             aria-label="Close"
             disabled={pending}
           >
@@ -273,7 +273,7 @@ export function NoteUploadDialog({
               multiple
               onChange={handleFileChange}
               disabled={pending}
-              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20 file:cursor-pointer"
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-2.5 sm:file:py-1.5 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20 file:cursor-pointer"
             />
             {files.length === 1 && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -283,20 +283,20 @@ export function NoteUploadDialog({
               </p>
             )}
             {multiple && (
-              <ul className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+              <ul className="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border sm:max-h-40">
                 {files.map((f, index) => (
                   <li
                     key={`${f.name}-${f.size}-${index}`}
                     className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground"
                   >
                     <FileText className="w-3.5 h-3.5 shrink-0 text-primary/70" />
-                    <span className="truncate flex-1">{f.name}</span>
+                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
                     <span className="shrink-0">{formatBytes(f.size)}</span>
                     <button
                       type="button"
                       onClick={() => removeFile(index)}
                       disabled={pending}
-                      className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                      className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-destructive disabled:opacity-50 sm:size-3.5"
                       aria-label={`Remove ${f.name}`}
                     >
                       <X className="w-3.5 h-3.5" />
@@ -332,7 +332,7 @@ export function NoteUploadDialog({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="ghost" onClick={closeDialog} disabled={pending}>
               Cancel
             </Button>

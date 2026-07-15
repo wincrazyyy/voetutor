@@ -274,7 +274,7 @@ export function ClassPassesManager({
                       ) : null}
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center gap-1">
+                    <div className="flex flex-wrap items-center justify-end gap-1">
                       <Button
                         variant="outline"
                         size="sm"
@@ -294,7 +294,7 @@ export function ClassPassesManager({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-1.5"
+                        className="min-w-11 gap-1.5 sm:min-w-0"
                         disabled={isPending}
                         onClick={() => {
                           setRenamingId(pass.id);
@@ -332,7 +332,7 @@ export function ClassPassesManager({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className={cn("gap-1.5 text-muted-foreground hover:text-destructive")}
+                          className={cn("min-w-11 gap-1.5 text-muted-foreground hover:text-destructive sm:min-w-0")}
                           disabled={isPending}
                           onClick={() => {
                             setConfirmingDelete(pass.id);

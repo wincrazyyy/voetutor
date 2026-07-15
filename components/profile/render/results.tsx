@@ -23,7 +23,7 @@ export function ResultsBlock({ cards }: { cards: ResultCard[] }) {
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 sm:gap-x-6">
       {cards.map((c) => (
         <div key={c.id} className="text-center sm:text-left">
           {c.title ? (
@@ -31,7 +31,7 @@ export function ResultsBlock({ cards }: { cards: ResultCard[] }) {
               {c.title}
             </div>
           ) : null}
-          <div className="mt-1.5 text-3xl font-bold leading-none tracking-tight text-primary tabular-nums break-words sm:text-4xl">
+          <div className="mt-1.5 text-2xl font-bold leading-none tracking-tight text-primary tabular-nums break-words sm:text-4xl">
             {c.value}
           </div>
           {c.helper ? <div className="mt-1.5 text-xs text-muted-foreground">{c.helper}</div> : null}

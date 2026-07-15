@@ -25,8 +25,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 function DataTable({ rows }: { rows: { what: string; why: string }[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <table className="w-full text-sm">
+    <div className="w-full overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-[32rem] text-sm">
         <thead className="bg-muted/50">
           <tr className="text-left">
             <th className="px-4 py-2.5 font-semibold text-foreground">Data</th>
@@ -48,7 +48,7 @@ function DataTable({ rows }: { rows: { what: string; why: string }[] }) {
 
 export default function PrivacyPolicy() {
   return (
-    <main className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
+    <main className="min-h-dvh flex flex-col bg-background selection:bg-primary/20">
       <Navbar />
 
       <article className="w-full max-w-3xl mx-auto px-5 py-12 md:py-16 flex-1">

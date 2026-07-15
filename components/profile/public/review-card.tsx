@@ -38,7 +38,7 @@ export function ReviewCard({
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-semibold text-foreground">{name}</span>
+          <span className="min-w-0 break-words font-semibold text-foreground">{name}</span>
           {review.reviewer_school ? (
             <span className="truncate text-sm text-muted-foreground">· {review.reviewer_school}</span>
           ) : null}
@@ -57,7 +57,7 @@ export function ReviewCard({
           <span className="text-xs text-muted-foreground">{relativeTime(review.created_at)}</span>
         </div>
 
-        <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-foreground/85">
+        <p className="mt-2 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground/85">
           {review.comment}
         </p>
       </div>

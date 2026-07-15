@@ -92,8 +92,8 @@ function EducatorCard({
 
   return (
     <Card className="p-5 border-border bg-card shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <UserAvatar
             avatarUrl={extra?.avatar_url ?? null}
             firstName={educator.first_name}
@@ -101,8 +101,8 @@ function EducatorCard({
             displayName={educator.display_name}
             size="md"
           />
-          <div>
-            <div className="font-semibold">{name}</div>
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{name}</div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {filter === "pending"
                 ? `Signed up ${relativeTime(educator.created_at)}`
@@ -133,7 +133,7 @@ function EducatorCard({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            className="relative flex w-fit items-center gap-1.5 text-xs font-semibold text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground transition-colors"
           >
             {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             {expanded ? "Hide application details" : "Show application details"}
@@ -178,7 +178,7 @@ function EducatorCard({
               )}
 
               {extra.updated_at && (
-                <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                <div className="text-[12px] sm:text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   Last updated {relativeTime(extra.updated_at)}
                 </div>
@@ -207,9 +207,9 @@ function DetailRow({
   value: string;
 }) {
   return (
-    <div className="flex items-start gap-2 rounded-md bg-muted/30 px-3 py-2">
+    <div className="flex min-w-0 items-start gap-2 rounded-md bg-muted/30 px-3 py-2">
       <Icon className="w-3.5 h-3.5 mt-0.5 text-muted-foreground shrink-0" />
-      <div className="text-xs leading-relaxed">
+      <div className="min-w-0 break-words text-xs leading-relaxed">
         <span className="font-semibold uppercase tracking-wider text-muted-foreground mr-2">{label}</span>
         <span className="text-foreground">{value}</span>
       </div>
@@ -220,7 +220,7 @@ function DetailRow({
 function DetailBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-muted/30 px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+      <div className="text-[12px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
       <p className="text-sm leading-relaxed whitespace-pre-line">{value}</p>
     </div>
   );

@@ -122,8 +122,8 @@ export function MarkdownEditor({
 
   return (
     <div className="rounded-md border border-input bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1">
-        <div className="flex items-center gap-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border px-2 py-1">
+        <div className="flex w-full items-center gap-0.5 overflow-x-auto sm:w-auto sm:overflow-visible">
           {tools.map((t) => {
             const Icon = t.icon;
             return (
@@ -134,7 +134,7 @@ export function MarkdownEditor({
                 aria-label={t.label}
                 onClick={t.run}
                 disabled={tab === "preview"}
-                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent sm:h-auto sm:w-auto sm:p-1.5"
               >
                 <Icon className="h-3.5 w-3.5" />
               </button>
@@ -148,7 +148,7 @@ export function MarkdownEditor({
                 aria-label="Embed image"
                 onClick={() => fileRef.current?.click()}
                 disabled={tab === "preview" || uploading}
-                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent sm:h-auto sm:w-auto sm:p-1.5"
               >
                 {uploading ? <Spinner className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
               </button>
@@ -166,14 +166,14 @@ export function MarkdownEditor({
           <button
             type="button"
             onClick={() => setTab("write")}
-            className={cn("rounded px-2 py-1 font-medium", tab === "write" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
+            className={cn("inline-flex min-h-10 shrink-0 items-center rounded px-3 py-1 font-medium sm:min-h-0 sm:px-2", tab === "write" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
           >
             Write
           </button>
           <button
             type="button"
             onClick={() => setTab("preview")}
-            className={cn("rounded px-2 py-1 font-medium", tab === "preview" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
+            className={cn("inline-flex min-h-10 shrink-0 items-center rounded px-3 py-1 font-medium sm:min-h-0 sm:px-2", tab === "preview" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
           >
             Preview
           </button>
@@ -189,7 +189,7 @@ export function MarkdownEditor({
           rows={minRows}
           autoFocus={autoFocus}
           placeholder={placeholder}
-          className="w-full resize-y bg-transparent px-3 py-2 text-sm outline-none"
+          className="w-full resize-y bg-transparent px-3 py-2 text-base outline-none md:text-sm"
         />
       ) : (
         <div className="min-h-[6rem] px-3 py-2">
@@ -203,7 +203,7 @@ export function MarkdownEditor({
 
       {imgError && <p className="border-t border-border px-3 py-1 text-xs text-destructive">{imgError}</p>}
 
-      <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
+      <div className="border-t border-border px-3 py-1 text-xs text-muted-foreground sm:text-[10px]">
         Markdown supported — **bold**, *italic*, lists, `code`, &gt; quotes, [links](url), and image embeds
       </div>
     </div>

@@ -157,7 +157,7 @@ function IconBtn({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
+        "flex size-10 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground sm:size-8",
         danger && "hover:bg-destructive/10 hover:text-destructive",
         className,
       )}
@@ -228,7 +228,7 @@ function LivePreview({
             aria-label="Desktop width"
             onClick={() => setDevice("desktop")}
             className={cn(
-              "flex h-7 w-8 items-center justify-center",
+              "flex h-10 w-11 items-center justify-center sm:h-7 sm:w-8",
               device === "desktop" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -241,7 +241,7 @@ function LivePreview({
             aria-label="Phone width"
             onClick={() => setDevice("phone")}
             className={cn(
-              "flex h-7 w-8 items-center justify-center border-l border-border",
+              "flex h-10 w-11 items-center justify-center border-l border-border sm:h-7 sm:w-8",
               device === "phone" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -259,7 +259,7 @@ function LivePreview({
       <div
         ref={containerRef}
         className="bg-background"
-        style={scrollable ? { maxHeight: "calc(100vh - 9rem)", overflow: "auto" } : undefined}
+        style={scrollable ? { maxHeight: "calc(100dvh - 9rem)", overflow: "auto" } : undefined}
       >
         <div className="mx-auto" style={stageStyle}>
           <div className="flex flex-col px-5 pb-6 sm:px-8">
@@ -348,6 +348,11 @@ export function ProfileBuilder({
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
+  }, []);
+
+  /* On a phone the 768px desktop preview stage CSS-zooms to ~42%; default the preview to the phone stage. */
+  useEffect(() => {
+    if (!window.matchMedia("(min-width: 640px)").matches) setPreviewDevice("phone");
   }, []);
 
   /* Warn before losing unsaved work on tab-close / reload — same pattern as the upload manager. */
@@ -688,12 +693,12 @@ export function ProfileBuilder({
         className="flex min-w-0 flex-col gap-6"
         style={isWide ? { flexBasis: "48rem", flexGrow: 0, flexShrink: 1, minWidth: 0 } : undefined}
       >
-      <div className="sticky top-0 z-20 border-b border-border bg-background/80 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="sticky top-14 z-20 border-b border-border bg-background/80 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:top-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <h1 className="text-xl font-black text-foreground">{adminEdit ? "Edit profile" : "My Profile"}</h1>
             {adminEdit ? (
-              <span className="truncate text-sm font-medium text-muted-foreground">— {editingName}</span>
+              <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">— {editingName}</span>
             ) : null}
             <span
               className={cn(
@@ -772,7 +777,7 @@ export function ProfileBuilder({
             type="button"
             onClick={dismissTip}
             aria-label="Dismiss tip"
-            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+            className="relative shrink-0 rounded p-0.5 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -856,9 +861,9 @@ export function ProfileBuilder({
             <Label htmlFor="pb-rate">Hourly rate (HKD)</Label>
             <Input
               id="pb-rate"
-              type="number"
+              type="text"
               inputMode="numeric"
-              min={0}
+              pattern="[0-9]*"
               placeholder="Leave blank for “Contact for rate”"
               value={hourlyRate}
               onChange={(e) => {
@@ -894,7 +899,7 @@ export function ProfileBuilder({
                   type="button"
                   onClick={() => removeTag(t)}
                   aria-label={`Remove ${t}`}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="relative text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -904,7 +909,7 @@ export function ProfileBuilder({
               id="pb-subjects"
               value={tagDraft}
               placeholder={subjectTags.length ? "Add another…" : "Type a subject, press Enter"}
-              className="min-w-28 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="min-w-28 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm"
               onChange={(e) => {
                 const v = e.target.value;
                 if (v.includes(",")) {
@@ -949,7 +954,7 @@ export function ProfileBuilder({
                 pulseId === section.id && "ring-2 ring-ring",
               )}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                   <Icon className="h-4 w-4" />
                 </div>

@@ -41,7 +41,7 @@ export function AccentSwatches({
         <div
           role="radiogroup"
           aria-label="Section accent"
-          className="flex items-center gap-2"
+          className="flex items-center gap-3 sm:gap-2"
           onKeyDown={(e) => {
             if (e.key === "ArrowRight" || e.key === "ArrowDown") {
               e.preventDefault();
@@ -64,7 +64,7 @@ export function AccentSwatches({
                 tabIndex={selected ? 0 : -1}
                 onClick={() => onChange(o.value)}
                 className={cn(
-                  "relative flex size-7 items-center justify-center rounded-full ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "relative flex size-9 items-center justify-center rounded-full ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:size-7",
                   o.swatch,
                   selected && "ring-2 ring-foreground ring-offset-2",
                 )}

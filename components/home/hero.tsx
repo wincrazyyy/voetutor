@@ -28,14 +28,14 @@ export function Hero({ featured }: { featured: PublicEducatorCard[] }) {
   const animate = !reduced;
 
   return (
-    <section className="relative flex min-h-[100svh] flex-col overflow-hidden">
+    <section className="relative flex min-h-svh flex-col overflow-hidden">
       {/* depth backdrop */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 voe-grid opacity-[0.5]" />
         <div className="absolute left-1/2 top-[36%] h-[44rem] w-[44rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute left-[8%] top-[12%] h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
         <div className="absolute bottom-[8%] right-[10%] h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
-        <VaultMark className="absolute right-[6%] top-1/2 h-[34rem] w-[34rem] -translate-y-1/2 text-primary opacity-[0.04]" />
+        <VaultMark className="absolute right-[6%] top-1/2 hidden h-[34rem] w-[34rem] -translate-y-1/2 text-primary opacity-[0.04] lg:block" />
       </div>
 
       <div className="relative mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-10 px-5 py-16 lg:grid-cols-12 lg:gap-8 lg:py-20">
@@ -50,8 +50,9 @@ export function Hero({ featured }: { featured: PublicEducatorCard[] }) {
             variants={animate ? spineItem : undefined}
             className="mb-5 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-            The Vault · Vetted IB Educators
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+            <span className="sm:hidden">Vetted IB Educators</span>
+            <span className="hidden sm:inline">The Vault · Vetted IB Educators</span>
           </motion.p>
 
           <motion.h1
@@ -94,7 +95,7 @@ export function Hero({ featured }: { featured: PublicEducatorCard[] }) {
               <Link
                 key={s}
                 href={`/educators?subject=${encodeURIComponent(s)}`}
-                className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                className="inline-flex min-h-10 items-center rounded-full border border-border px-4 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground sm:min-h-0 sm:px-3"
               >
                 {s}
               </Link>
@@ -184,7 +185,7 @@ function SeeAllPill() {
   return (
     <Link
       href="/educators"
-      className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/40"
+      className="group inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/40 sm:min-h-0"
     >
       See all educators
       <ArrowRight className="h-3.5 w-3.5 text-primary transition-transform group-hover:translate-x-0.5" />

@@ -319,7 +319,7 @@ function DragHandle({ listeners, attributes, label }: { listeners: ReturnType<ty
   return (
     <button
       type="button"
-      className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+      className="relative text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
       aria-label={label}
       {...attributes}
       {...listeners}
@@ -364,7 +364,7 @@ function SortableVideoRow({
         {statusLabel && (
           <Badge
             variant="secondary"
-            className={`text-[9px] uppercase tracking-wider font-bold shrink-0 ${
+            className={`text-[11px] sm:text-[9px] uppercase tracking-wider font-bold shrink-0 ${
               video.status === "errored" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
             }`}
           >
@@ -373,7 +373,7 @@ function SortableVideoRow({
         )}
       </Link>
       <div className="flex items-center gap-1 shrink-0 pr-2">
-        <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background">
+        <span className="text-xs sm:text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background">
           {formatShortDuration(video.duration)}
         </span>
         <VideoRenameDialog videoId={video.id} classId={classId} initialTitle={video.title} />
@@ -421,7 +421,7 @@ function SortableNoteRow({
         <span className="text-sm font-medium text-muted-foreground truncate">{note.title}</span>
       </a>
       <div className="flex items-center gap-1 shrink-0 pr-2">
-        <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background">
+        <span className="text-xs sm:text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-background">
           {formatBytes(note.size_bytes)}
         </span>
         <NoteRenameDialog resourceId={note.id} classId={classId} initialTitle={note.title} />
@@ -508,14 +508,14 @@ function SortableSubtopic({
 
   return (
     <div ref={setNodeRef} style={style} className={`border-b border-border/50 last:border-0 ${isDragging ? "opacity-40" : ""}`}>
-      <div className="bg-muted/20 px-3 py-2.5 flex items-center justify-between gap-2 border-b border-border/50">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="bg-muted/20 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 sm:flex-nowrap">
+        <div className="flex basis-full items-center gap-2 min-w-0 sm:basis-auto">
           <DragHandle listeners={listeners} attributes={attributes} label="Drag to reorder or move this subtopic" />
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
+          <span className="text-xs sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
             {subtopic.title}
           </span>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-1 sm:flex-nowrap sm:shrink-0">
           <AddNotesToParentDialog
             classId={classId}
             parent={{ kind: "subtopic", id: subtopic.id }}
@@ -591,16 +591,16 @@ function SortableTopic({
       <div ref={openZone.setNodeRef} className="topic-bar flex items-stretch bg-muted/10 hover:bg-muted/40 transition-colors">
         <button
           type="button"
-          className="flex items-center pl-3 pr-1 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+          className="flex min-w-11 items-center pl-3 pr-1 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 sm:min-w-0"
           aria-label="Drag to reorder this topic"
           {...attributes}
           {...listeners}
         >
           <GripVertical className="w-4 h-4" />
         </button>
-        <AccordionPrimitive.Trigger className="flex flex-1 min-w-0 items-center gap-4 p-5 pl-2 text-left outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40">
+        <AccordionPrimitive.Trigger className="flex flex-1 min-w-0 items-center gap-4 p-4 pl-2 text-left outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40 sm:p-5 sm:pl-2">
           <div className="flex flex-col gap-2.5 min-w-0">
-            <span className="text-base font-bold leading-tight">{topic.title}</span>
+            <span className="text-base font-bold leading-tight break-words">{topic.title}</span>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground font-medium">
               <span className="flex items-center gap-1 shrink-0">
                 <Clock className="w-3 h-3" /> {formatShortDuration(topic.total_duration)}
@@ -614,7 +614,7 @@ function SortableTopic({
             </div>
           </div>
         </AccordionPrimitive.Trigger>
-        <div className="flex items-center gap-1 pr-4 pl-1 shrink-0">
+        <div className="flex items-center gap-0.5 pr-2 pl-0 shrink-0 sm:gap-1 sm:pr-4 sm:pl-1">
           <TopicFormDialog classId={classId} mode="rename" topicId={topic.id} initialTitle={topic.title} />
           <DeleteCurriculumItemButton
             kind="topic"
@@ -635,7 +635,7 @@ function SortableTopic({
 
           {/* Topic-level materials: an intro video, a topic-wide note, etc. */}
           <div className="p-3 bg-primary/5 border-b border-border/50 flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Topic Materials</span>
+            <span className="text-xs sm:text-[10px] font-bold uppercase tracking-widest text-primary">Topic Materials</span>
             <div className="flex items-center gap-1">
               <AddVideosToSubtopicDialog
                 classId={classId}
@@ -849,8 +849,8 @@ export function EducatorCurriculumOverview({
 
       {error && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
-          <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Dismiss" className="shrink-0 hover:opacity-70">
+          <span className="min-w-0 break-words">{error}</span>
+          <button type="button" onClick={() => setError(null)} aria-label="Dismiss" className="relative shrink-0 hover:opacity-70 after:absolute after:-inset-3 after:content-[''] sm:after:hidden">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -898,7 +898,7 @@ export function EducatorCurriculumOverview({
                 {activeDrag.kind === "note" && <FileText className="w-4 h-4 text-primary shrink-0" />}
                 {activeDrag.kind === "topic" && <FolderTree className="w-4 h-4 text-primary shrink-0" />}
                 {activeDrag.kind === "subtopic" && <FolderTree className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                <span className="text-sm font-medium truncate max-w-xs">{activeDrag.title}</span>
+                <span className="text-sm font-medium truncate max-w-[60vw] sm:max-w-xs">{activeDrag.title}</span>
               </div>
             ) : null}
           </DragOverlay>

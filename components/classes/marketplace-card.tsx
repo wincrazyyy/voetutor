@@ -24,16 +24,16 @@ export function MarketplaceCard({ cls }: MarketplaceCardProps) {
       <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
       <div className="p-5 flex-1 mt-2 flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-bold leading-tight">{cls.title}</h3>
+          <h3 className="min-w-0 flex-1 break-words text-lg font-bold leading-tight">{cls.title}</h3>
           <Badge
             variant="secondary"
-            className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
+            className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
           >
             {cls.code}
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {cls.educator && (
             <UserAvatar
               avatarUrl={cls.educator.avatar_url}
@@ -43,7 +43,7 @@ export function MarketplaceCard({ cls }: MarketplaceCardProps) {
               size={28}
             />
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="min-w-0 break-words text-xs text-muted-foreground">
             Taught by{" "}
             {cls.educatorProfilePublished && cls.educator_id ? (
               <Link
@@ -67,12 +67,12 @@ export function MarketplaceCard({ cls }: MarketplaceCardProps) {
         </div>
       </div>
 
-      <div className="p-4 bg-muted/20 border-t border-border flex items-center justify-between gap-3">
-        <div className="text-lg font-black">{formatPrice(cls.price_cents, cls.currency)}</div>
+      <div className="flex flex-col items-stretch gap-3 border-t border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 truncate text-lg font-black">{formatPrice(cls.price_cents, cls.currency)}</div>
         {isFree ? (
-          <EnrollFreeButton classId={cls.id} className="min-w-[10rem]" />
+          <EnrollFreeButton classId={cls.id} className="w-full sm:w-auto sm:min-w-[10rem]" />
         ) : (
-          <Button disabled className="min-w-[10rem]" title="Paid checkout coming soon">
+          <Button disabled className="w-full sm:w-auto sm:min-w-[10rem]" title="Paid checkout coming soon">
             Buy (coming soon)
           </Button>
         )}

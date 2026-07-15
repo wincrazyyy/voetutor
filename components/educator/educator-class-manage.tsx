@@ -39,7 +39,7 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
   const totalWatchHours = (stats.total_watch_seconds / 3600).toFixed(1);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
       <TableRefresh
         channel={`announcements:educatorclass:${classId}`}
         subscriptions={[{ table: "announcements", filter: `class_id=eq.${classId}` }]}
@@ -54,10 +54,10 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                <ClipboardList className="w-7 h-7 text-primary" />
-                {cls.title}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+                <ClipboardList className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
+                <span className="min-w-0 break-words">{cls.title}</span>
               </h1>
               <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase tracking-wider font-bold">
                 {cls.code}
@@ -65,21 +65,21 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
             </div>
             <p className="text-muted-foreground">Manage curriculum, post announcements, and track engagement.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href={`/class/${classId}/students`}>
-              <Button variant="outline" className="gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Link href={`/class/${classId}/students`} className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full gap-2 sm:w-auto">
                 <Users className="w-4 h-4" />
                 Manage Students
               </Button>
             </Link>
-            <Link href={`/class/${classId}/edit`}>
-              <Button variant="outline" className="gap-2">
+            <Link href={`/class/${classId}/edit`} className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full gap-2 sm:w-auto">
                 <Settings className="w-4 h-4" />
                 Class Settings
               </Button>
             </Link>
-            <Link href={`/class/${classId}/announce`}>
-              <Button className="gap-2 shadow-md">
+            <Link href={`/class/${classId}/announce`} className="w-full sm:w-auto">
+              <Button className="w-full gap-2 shadow-md sm:w-auto">
                 <Megaphone className="w-4 h-4" />
                 Post Announcement
               </Button>
@@ -134,7 +134,7 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
           />
         </div>
 
-        <div className="xl:col-span-4 space-y-6 sticky top-24">
+        <div className="space-y-6 xl:col-span-4 xl:sticky xl:top-24">
           <AnnouncementsPanel
             classId={classId}
             latest={announcements[0] ?? null}

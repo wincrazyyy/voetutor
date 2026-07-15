@@ -35,9 +35,9 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
     ann.author?.display_name ?? null,
   );
   return (
-    <Card id={`announcement-${ann.id}`} className={cn("scroll-mt-24 p-6 bg-card border shadow-sm transition-all hover:shadow-md", isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border")}>
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
+    <Card id={`announcement-${ann.id}`} className={cn("scroll-mt-24 p-4 sm:p-6 bg-card border shadow-sm transition-all hover:shadow-md", isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border")}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
           {unread && <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-label="Unread" />}
           <UserAvatar
             avatarUrl={ann.author?.avatar_url ?? null}
@@ -46,11 +46,11 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
             displayName={ann.author?.display_name ?? null}
             size={40}
           />
-          <div>
-            <div className="font-bold text-sm text-foreground flex items-center gap-2">
-              {authorName}
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-foreground">
+              <span className="min-w-0 truncate">{authorName}</span>
               {showClassCode && ann.class_code && (
-                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:text-[10px]">
                   {ann.class_code}
                 </span>
               )}
@@ -61,11 +61,11 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {ann.pass_id && (
             <Badge
               variant="secondary"
-              className="bg-gold/10 text-gold border-transparent pointer-events-none max-w-48 gap-1"
+              className="bg-gold/10 text-gold border-transparent pointer-events-none max-w-[7rem] sm:max-w-[12rem] gap-1"
               title={
                 canManage
                   ? `Sent only to holders of this pass`
@@ -89,9 +89,9 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
         </div>
       </div>
 
-      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
-        <Megaphone className="w-5 h-5 text-primary" />
-        {ann.title}
+      <h3 className="mb-3 flex items-center gap-2 text-lg font-bold sm:text-xl">
+        <Megaphone className="w-5 h-5 text-primary shrink-0" />
+        <span className="min-w-0 break-words">{ann.title}</span>
       </h3>
       {isEvent && ann.event_at && (
         <div className="mb-3">
@@ -107,10 +107,10 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
           rel="noopener noreferrer"
           className="mt-4 flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors group"
         >
-          <div className="p-2 bg-background rounded-md text-primary group-hover:bg-primary/10 transition-colors shadow-sm">
+          <div className="p-2 bg-background rounded-md text-primary group-hover:bg-primary/10 transition-colors shadow-sm shrink-0">
             <ExternalLink className="w-4 h-4" />
           </div>
-          <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors flex-1 truncate">
+          <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors min-w-0 flex-1 truncate">
             {ann.link_title ?? ann.link_url}
           </span>
         </Link>

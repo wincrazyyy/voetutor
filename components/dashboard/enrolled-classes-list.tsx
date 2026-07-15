@@ -12,7 +12,7 @@ interface EnrolledClassesListProps {
 
 export function EnrolledClassesList({ classes }: EnrolledClassesListProps) {
   return (
-    <div className="lg:col-span-4 space-y-6 sticky top-24">
+    <div className="space-y-6 lg:sticky lg:top-24 lg:col-span-4">
       <h2 className="text-2xl font-bold mb-2">My Classes</h2>
 
       {classes.length === 0 ? (
@@ -32,10 +32,10 @@ export function EnrolledClassesList({ classes }: EnrolledClassesListProps) {
               <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
               <div className="p-5 flex-1 mt-2">
                 <div className="flex items-start justify-between mb-4 gap-4">
-                  <h3 className="text-lg font-bold leading-tight">{cls.title}</h3>
+                  <h3 className="min-w-0 break-words text-lg font-bold leading-tight">{cls.title}</h3>
                   <Badge
                     variant="secondary"
-                    className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
+                    className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
                   >
                     {cls.code}
                   </Badge>

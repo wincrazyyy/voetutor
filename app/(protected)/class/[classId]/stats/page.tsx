@@ -34,7 +34,7 @@ export default async function ClassStatsPage({
   const watchHours = (stats.total_watch_seconds / 3600).toFixed(1);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
       <div>
         <Link href={`/class/${classId}`}>
           <Button variant="ghost" size="sm" className="mb-6 gap-2 text-muted-foreground hover:text-foreground -ml-2">
@@ -43,10 +43,10 @@ export default async function ClassStatsPage({
           </Button>
         </Link>
 
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <BarChart3 className="w-7 h-7 text-primary" />
-            Class Statistics
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+          <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
+            <span className="min-w-0 break-words">Class Statistics</span>
           </h1>
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase tracking-wider font-bold">
             {cls.code}
@@ -76,28 +76,30 @@ export default async function ClassStatsPage({
             No videos in this class yet.
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="px-5 py-3">Video</th>
-                <th className="px-5 py-3 text-right">Minutes Viewed</th>
-                <th className="px-5 py-3 text-right">Completions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {videoAnalytics.map((video) => (
-                <tr key={video.videoId} className="border-b border-border/50 last:border-0">
-                  <td className="px-5 py-3 font-medium">{video.title}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
-                    {video.minutesViewed > 0 ? video.minutesViewed.toLocaleString() : "—"}
-                  </td>
-                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
-                    {video.completions > 0 ? video.completions.toLocaleString() : "—"}
-                  </td>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3">Video</th>
+                  <th className="px-5 py-3 text-right">Minutes Viewed</th>
+                  <th className="px-5 py-3 text-right">Completions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {videoAnalytics.map((video) => (
+                  <tr key={video.videoId} className="border-b border-border/50 last:border-0">
+                    <td className="px-5 py-3 font-medium">{video.title}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                      {video.minutesViewed > 0 ? video.minutesViewed.toLocaleString() : "—"}
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                      {video.completions > 0 ? video.completions.toLocaleString() : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 

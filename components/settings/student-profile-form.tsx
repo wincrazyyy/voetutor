@@ -64,11 +64,11 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="s-first">First name</Label>
-          <Input id="s-first" required maxLength={100} value={firstName} onChange={edit(setFirstName)} disabled={pending} />
+          <Input id="s-first" required maxLength={100} autoComplete="given-name" value={firstName} onChange={edit(setFirstName)} disabled={pending} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="s-last">Last name</Label>
-          <Input id="s-last" required maxLength={100} value={lastName} onChange={edit(setLastName)} disabled={pending} />
+          <Input id="s-last" required maxLength={100} autoComplete="family-name" value={lastName} onChange={edit(setLastName)} disabled={pending} />
         </div>
       </div>
 
@@ -77,6 +77,8 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
         <Input
           id="s-whatsapp"
           type="tel"
+          inputMode="tel"
+          autoComplete="tel"
           maxLength={50}
           placeholder="+852 1234 5678"
           value={whatsappNumber}
@@ -88,7 +90,7 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="s-school">Name of school</Label>
-          <Input id="s-school" maxLength={200} value={school} onChange={edit(setSchool)} disabled={pending} />
+          <Input id="s-school" maxLength={200} autoComplete="organization" value={school} onChange={edit(setSchool)} disabled={pending} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="s-year">School year</Label>

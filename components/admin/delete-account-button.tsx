@@ -113,13 +113,13 @@ export function DeleteAccountButton({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm sm:items-center">
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-account-title"
-        className="w-full max-w-md rounded-lg border border-destructive/30 bg-card p-6 shadow-lg"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg border border-destructive/30 bg-card p-6 shadow-lg"
         onKeyDown={trapFocus}
       >
         <div className="mb-4 flex items-start justify-between">
@@ -132,7 +132,7 @@ export function DeleteAccountButton({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             aria-label="Close"
             disabled={pending}
           >
@@ -151,7 +151,7 @@ export function DeleteAccountButton({
           <form onSubmit={handleDelete} className="space-y-3">
             <div className="grid gap-2">
               <Label htmlFor="delete-account-confirm">Type this account&apos;s ID to confirm (no pasting):</Label>
-              <p className="select-all break-all rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">
+              <p className="select-all break-all rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-sm leading-relaxed tracking-wide text-foreground sm:text-xs sm:tracking-normal">
                 {accountId}
               </p>
               <Input

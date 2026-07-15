@@ -23,7 +23,7 @@ import { RichTextEditor } from "./rich-text-editor";
 import { uploadEducatorImage } from "./upload-image";
 
 const TEXTAREA_CLASS = cn(
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed shadow-xs",
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-base leading-relaxed md:text-sm",
   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 );
 
@@ -61,7 +61,7 @@ function RemoveButton({ onClick, disabled }: { onClick: () => void; disabled?: b
       disabled={disabled}
       aria-label="Remove"
       title="Remove"
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+      className="flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground sm:size-8"
     >
       <Trash2 className="h-4 w-4" />
     </button>

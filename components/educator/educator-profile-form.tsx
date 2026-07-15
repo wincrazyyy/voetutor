@@ -174,7 +174,7 @@ export function EducatorProfileForm({ educatorId, initial, context = "applicatio
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
+            className="relative inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline after:absolute after:-inset-3 after:content-['']"
           >
             <Pencil className="w-3 h-3" />
             Edit
@@ -316,7 +316,7 @@ export function EducatorProfileForm({ educatorId, initial, context = "applicatio
             value={teachingExperience}
             onChange={(e) => setTeachingExperience(e.target.value)}
             rows={4}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+            className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
             placeholder="Years teaching, exam boards, schools, notable results..."
           />
         </div>
@@ -328,7 +328,7 @@ export function EducatorProfileForm({ educatorId, initial, context = "applicatio
             value={selfIntroduction}
             onChange={(e) => setSelfIntroduction(e.target.value)}
             rows={6}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+            className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
             placeholder="A few paragraphs about your teaching philosophy, style, and what students should expect from you. This may be used publicly — keep it serious."
           />
         </div>

@@ -38,17 +38,17 @@ export async function EducatorHub() {
   const unansweredPosts = classes.reduce((acc, c) => acc + c.unanswered_post_count, 0);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome back, {firstName}!</h1>
         <p className="text-muted-foreground">Manage your classes, post announcements, and track student engagement.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="p-6 border-border bg-card shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Total Students</span>
-            <Users className="w-5 h-5 text-primary" />
+            <Users className="w-5 h-5 text-primary shrink-0" />
           </div>
           <div className="text-3xl font-black">{totalStudents}</div>
           <p className="text-sm text-muted-foreground mt-1">Across {classes.length} {classes.length === 1 ? "class" : "classes"}</p>
@@ -57,7 +57,7 @@ export async function EducatorHub() {
         <Card className="p-6 border-border bg-card shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Lessons Published</span>
-            <PlayCircle className="w-5 h-5 text-primary" />
+            <PlayCircle className="w-5 h-5 text-primary shrink-0" />
           </div>
           <div className="text-3xl font-black">{totalVideos}</div>
           <p className="text-sm text-muted-foreground mt-1">Videos available to students</p>
@@ -66,7 +66,7 @@ export async function EducatorHub() {
         <Card className="p-6 border-border bg-card shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Awaiting Reply</span>
-            <MessageSquare className="w-5 h-5 text-primary" />
+            <MessageSquare className="w-5 h-5 text-primary shrink-0" />
           </div>
           <div className="text-3xl font-black">{unansweredPosts}</div>
           <p className="text-sm text-muted-foreground mt-1">Open forum threads</p>
@@ -74,7 +74,7 @@ export async function EducatorHub() {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <ClipboardList className="w-6 h-6 text-primary" />
             Your Classes
@@ -100,7 +100,7 @@ export async function EducatorHub() {
             </Link>
           </Card>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             {classes.map((cls) => (
               <Card
                 key={cls.id}
@@ -109,10 +109,10 @@ export async function EducatorHub() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
                 <div className="p-5 flex-1 mt-2">
                   <div className="flex items-start justify-between mb-3 gap-4">
-                    <h3 className="text-lg font-bold leading-tight">{cls.title}</h3>
+                    <h3 className="min-w-0 break-words text-lg font-bold leading-tight">{cls.title}</h3>
                     <Badge
                       variant="secondary"
-                      className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
+                      className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
                     >
                       {cls.code}
                     </Badge>
@@ -162,7 +162,7 @@ function BasicHub({ firstName }: { firstName: string }) {
   ];
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome back, {firstName}!</h1>
         <p className="text-muted-foreground">

@@ -33,7 +33,7 @@ const OPTIONS: Array<{
 
 export function RoleSelector({ value, onChange, disabled }: RoleSelectorProps) {
   return (
-    <div role="radiogroup" aria-label="Account type" className="grid grid-cols-2 gap-3">
+    <div role="radiogroup" aria-label="Account type" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {OPTIONS.map((opt) => {
         const Icon = opt.icon;
         const selected = value === opt.role;

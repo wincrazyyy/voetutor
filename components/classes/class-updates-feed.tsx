@@ -14,10 +14,10 @@ interface ClassUpdatesFeedProps {
 
 export function ClassUpdatesFeed({ announcements, classId, viewerId, viewerIsAdmin, educatorName }: ClassUpdatesFeedProps) {
   return (
-    <div className="xl:col-span-7 space-y-6">
+    <div className="order-2 space-y-6 xl:order-none xl:col-span-7">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold">Class Updates</h2>
-        <Link href={`/class/${classId}/announcements`} className="group text-sm font-medium text-primary flex items-center gap-1 hover:underline">
+        <Link href={`/class/${classId}/announcements`} className="group relative text-sm font-medium text-primary flex items-center gap-1 hover:underline after:absolute after:-inset-3 after:content-['']">
           View all
           <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
         </Link>

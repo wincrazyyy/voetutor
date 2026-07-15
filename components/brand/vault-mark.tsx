@@ -59,9 +59,11 @@ export function VaultMark({
 export function VoeWordmark({
   className,
   tone = "default",
+  compactOnMobile = false,
 }: {
   className?: string;
   tone?: "default" | "onPrimary";
+  compactOnMobile?: boolean;
 }) {
   const onPrimary = tone === "onPrimary";
   const textColor = onPrimary ? "text-primary-foreground" : "text-foreground";
@@ -77,7 +79,7 @@ export function VoeWordmark({
         )}
         title="Vault of Excellence"
       />
-      <span className={cn("font-crest leading-none", textColor)}>
+      <span className={cn("font-crest leading-none", textColor, compactOnMobile && "hidden sm:block")}>
         <span className="block text-[0.66rem] font-semibold tracking-[0.22em]">
           VAULT <span className={ofColor}>OF</span>
         </span>

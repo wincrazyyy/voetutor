@@ -53,8 +53,8 @@ export function ForumUpvoteButton({
       aria-pressed={upvoted}
       aria-label={upvoted ? "Remove upvote" : "Upvote"}
       className={cn(
-        "flex flex-col items-center justify-center rounded-md transition-colors",
-        size === "sm" ? "gap-0 px-1.5 py-0.5" : "gap-0.5 px-2 py-1.5",
+        "flex shrink-0 flex-col items-center justify-center rounded-md transition-colors",
+        size === "sm" ? "size-10 gap-0 sm:h-auto sm:w-auto sm:px-1.5 sm:py-0.5" : "w-11 gap-0.5 px-2 py-1.5 sm:w-auto",
         upvoted ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >

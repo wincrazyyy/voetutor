@@ -34,7 +34,7 @@ export default async function ForumThreadPage({
   const replyCount = replies.filter((r) => !r.is_deleted).length;
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
       <ForumRealtime classId={classId} postId={postId} />
       <Link href={`/class/${classId}/forum`}>
         <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
@@ -52,7 +52,7 @@ export default async function ForumThreadPage({
         classEducatorId={cls.educator_id}
       />
 
-      <div className="rounded-xl border border-border bg-card shadow-sm p-5 space-y-5">
+      <div className="rounded-xl border border-border bg-card shadow-sm space-y-5 p-4 sm:p-5">
         <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <MessageCircle className="w-4 h-4" />
           {replyCount} {replyCount === 1 ? "Reply" : "Replies"}

@@ -77,21 +77,21 @@ export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPost
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-card shadow-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg overscroll-contain rounded-lg border border-border bg-card p-4 shadow-lg max-h-[90dvh] overflow-y-auto sm:p-6">
         <div className="flex items-start justify-between mb-4">
           <h2 className="text-lg font-bold">Start a discussion</h2>
-          <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
+          <button type="button" onClick={() => setOpen(false)} className="relative shrink-0 text-muted-foreground hover:text-foreground after:absolute after:-inset-3 after:content-['']" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => setType("general")}
               className={cn(
-                "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center justify-center gap-2 rounded-md border px-3 py-3 text-sm font-medium transition-colors sm:py-2",
                 type === "general" ? "border-primary bg-primary/10 text-primary" : "border-input text-muted-foreground hover:bg-muted",
               )}
             >
@@ -103,7 +103,7 @@ export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPost
               onClick={() => setType("video_qa")}
               disabled={videos.length === 0}
               className={cn(
-                "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                "flex items-center justify-center gap-2 rounded-md border px-3 py-3 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:py-2",
                 type === "video_qa" ? "border-primary bg-primary/10 text-primary" : "border-input text-muted-foreground hover:bg-muted",
               )}
               title={videos.length === 0 ? "No lessons in this class yet" : undefined}
@@ -120,7 +120,7 @@ export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPost
                 id="forum-video"
                 value={videoId}
                 onChange={(e) => setVideoId(e.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
               >
                 <option value="">Select a lesson…</option>
                 {videos.map((v) => (
@@ -138,7 +138,7 @@ export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPost
               onChange={(e) => setTitle(e.target.value)}
               maxLength={FORUM_LIMITS.titleMax}
               placeholder={type === "video_qa" ? "What's your question?" : "What do you want to discuss?"}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
             />
           </div>
 

@@ -13,7 +13,7 @@ export default async function Home() {
   const featured = await listPublishedEducators({ limit: 5 });
 
   return (
-    <main className="flex min-h-screen flex-col bg-background selection:bg-primary/20">
+    <main className="flex min-h-dvh flex-col bg-background selection:bg-primary/20">
       <VaultIntro />
       <Navbar />
       <Hero featured={featured} />

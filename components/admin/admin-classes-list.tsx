@@ -64,7 +64,7 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
               : "Unassigned";
             return (
               <Card key={c.id} className="p-5 border-border shadow-sm bg-card">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1 flex-wrap">
                       <h2 className="text-lg font-bold truncate">{c.title}</h2>
@@ -93,10 +93,10 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                       Taught by <span className="font-semibold text-foreground">{educatorName}</span> · created {relativeTime(c.created_at)}
                     </div>
                   </div>
-                  <div className="shrink-0 flex items-center gap-3">
+                  <div className="flex shrink-0 items-center justify-end gap-3">
                     <Link
                       href={`/class/${c.id}/edit`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      className="relative inline-flex w-fit items-center gap-1 text-xs text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:text-foreground"
                     >
                       Manage
                       <ExternalLink className="w-3 h-3" />
@@ -112,16 +112,16 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mt-4 text-xs font-medium text-muted-foreground">
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-medium text-muted-foreground sm:grid-cols-3">
+                  <div className="col-span-2 min-w-0 bg-muted/30 rounded-md p-2 text-center sm:col-span-1">
                     <div className="text-foreground font-bold text-base">{formatPrice(c.price_cents, c.currency)}</div>
                     <div>Price</div>
                   </div>
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                  <div className="min-w-0 bg-muted/30 rounded-md p-2 text-center">
                     <div className="text-foreground font-bold text-base">{c.student_count}</div>
                     <div>Enrolled</div>
                   </div>
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                  <div className="min-w-0 bg-muted/30 rounded-md p-2 text-center">
                     <div className="text-foreground font-bold text-base">{c.pending_report_count}</div>
                     <div>Open reports</div>
                   </div>

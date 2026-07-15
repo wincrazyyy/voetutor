@@ -83,7 +83,7 @@ export function PortalUploadButton() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-6">
+      <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-primary" />
@@ -92,7 +92,7 @@ export function PortalUploadButton() {
           <button
             type="button"
             onClick={close}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative shrink-0 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -109,10 +109,16 @@ export function PortalUploadButton() {
               multiple
               autoFocus
               onChange={(event) => handleFiles(event.target.files)}
+              className="h-11 file:h-9 sm:h-9 sm:file:h-7"
             />
             <p className="text-[11px] text-muted-foreground">
               Videos upload in the background and land in your library. Add them to classes
               afterwards.
+            </p>
+            <p className="md:hidden text-[11px] text-muted-foreground">
+              Heads up: uploading a multi-gigabyte video from a phone is unreliable — the transfer
+              can drop if the browser is backgrounded or the connection changes. For large videos,
+              upload from a computer.
             </p>
           </div>
 
@@ -142,7 +148,7 @@ export function PortalUploadButton() {
                       onChange={(event) => setTitleAt(index, event.target.value)}
                       maxLength={255}
                     />
-                    <span className="text-[10px] text-muted-foreground truncate">{file.name}</span>
+                    <span className="min-w-0 truncate text-[11px] text-muted-foreground sm:text-[10px]">{file.name}</span>
                   </div>
                 ))}
               </div>
@@ -162,13 +168,13 @@ export function PortalUploadButton() {
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
               maxLength={5000}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              className="rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y md:text-sm"
             />
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="ghost" onClick={close}>
               Cancel
             </Button>

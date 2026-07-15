@@ -346,7 +346,7 @@ export function ImageCropModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-md rounded-lg border border-border bg-card shadow-lg p-6 outline-none"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg outline-none"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onPanelKeyDown}
       >
@@ -359,7 +359,7 @@ export function ImageCropModal({
             Couldn&rsquo;t read this image. Please try a different file.
           </p>
         ) : (
-          <div className="mx-auto w-full max-w-[360px]">
+          <div className="mx-auto w-full max-w-[min(360px,55dvh)]">
             <div
               ref={viewportRef}
               role="group"
@@ -412,7 +412,7 @@ export function ImageCropModal({
                 aria-label="Zoom out"
                 onClick={() => nudgeZoom(-0.25)}
                 disabled={status !== "ready"}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                className="relative text-muted-foreground hover:text-foreground disabled:opacity-50 after:absolute after:-inset-3 after:content-['']"
               >
                 <ZoomOut className="h-4 w-4" />
               </button>
@@ -425,14 +425,14 @@ export function ImageCropModal({
                 aria-label="Zoom"
                 onChange={onSliderChange}
                 disabled={status !== "ready"}
-                className="h-1 flex-1 cursor-pointer accent-primary"
+                className="h-6 flex-1 cursor-pointer accent-primary sm:h-1"
               />
               <button
                 type="button"
                 aria-label="Zoom in"
                 onClick={() => nudgeZoom(0.25)}
                 disabled={status !== "ready"}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                className="relative text-muted-foreground hover:text-foreground disabled:opacity-50 after:absolute after:-inset-3 after:content-['']"
               >
                 <ZoomIn className="h-4 w-4" />
               </button>

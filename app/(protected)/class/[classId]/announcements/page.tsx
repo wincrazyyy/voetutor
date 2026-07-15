@@ -30,7 +30,7 @@ export default async function ClassAnnouncementsPage({
   const unreadIds = announcements.filter((a) => !a.has_read).map((a) => a.id);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
       <MarkAnnouncementsRead unreadIds={unreadIds} />
       <TableRefresh
         channel={`announcements:class:${classId}`}
@@ -47,16 +47,16 @@ export default async function ClassAnnouncementsPage({
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                <Megaphone className="w-7 h-7 text-primary" />
-                Announcements
+            <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+                <Megaphone className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
+                <span className="min-w-0 break-words">Announcements</span>
               </h1>
               <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase tracking-wider font-bold">
                 {cls.code}
               </Badge>
             </div>
-            <p className="text-muted-foreground">Updates and broadcasts for {cls.title}.</p>
+            <p className="text-muted-foreground break-words">Updates and broadcasts for {cls.title}.</p>
           </div>
           {canPost && (
             <Link href={`/class/${classId}/announce`}>

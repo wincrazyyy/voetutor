@@ -48,7 +48,7 @@ export default async function EducatorsDirectoryPage({
   });
 
   return (
-    <main className="flex min-h-screen flex-col bg-background selection:bg-primary/20">
+    <main className="flex min-h-dvh flex-col bg-background selection:bg-primary/20">
       <Navbar />
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 md:py-16">
@@ -74,7 +74,10 @@ export default async function EducatorsDirectoryPage({
               name="q"
               defaultValue={q ?? ""}
               placeholder="Search educators, subjects…"
-              className="h-12 w-full rounded-full border border-input bg-background pl-11 pr-4 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              className="h-12 w-full min-w-0 rounded-full border border-input bg-background pl-11 pr-4 text-base outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
             />
           </form>
 
@@ -120,7 +123,7 @@ function SubjectPill({ label, href, active }: { label: string; href: string; act
     <Link
       href={href}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+        "inline-flex min-h-11 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors sm:min-h-0",
         active
           ? "border-primary bg-primary/10 text-primary"
           : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",

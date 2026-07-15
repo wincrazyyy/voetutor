@@ -38,9 +38,9 @@ export function ProfileHeader({
     <header className="grid grid-cols-1 pb-9 pt-12 sm:pb-10 sm:pt-16 lg:grid-cols-[3rem_1fr] lg:gap-x-6">
       <div className="flex flex-col gap-y-7 lg:col-start-2">
         {/* Band 1 — identity */}
-        <div className="flex items-stretch gap-5 sm:gap-7">
+        <div className="flex items-stretch gap-4 sm:gap-7">
           {avatarOk && profile.avatar_url ? (
-            <div className="relative w-28 shrink-0 self-stretch overflow-hidden rounded-[var(--radius)] border border-border bg-muted ring-1 ring-primary/10 min-h-[8.5rem] sm:w-32 sm:min-h-[10rem] lg:w-36 dark:ring-primary/20">
+            <div className="relative w-24 shrink-0 self-stretch overflow-hidden rounded-[var(--radius)] border border-border bg-muted ring-1 ring-primary/10 min-h-[8.5rem] sm:w-32 sm:min-h-[10rem] lg:w-36 dark:ring-primary/20">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={profile.avatar_url} alt={name} className="block h-full w-full object-cover object-center" />
             </div>
@@ -60,7 +60,7 @@ export function ProfileHeader({
 
             <h1
               className={cn(
-                "mt-2.5 text-balance font-serif text-[2rem] font-semibold leading-[1.06] tracking-[-0.02em] text-foreground sm:text-[2.75rem]",
+                "mt-2.5 text-balance break-words font-serif text-[1.75rem] font-semibold leading-[1.06] tracking-[-0.02em] text-foreground sm:text-[2.75rem]",
                 avatarOk ? "max-w-[16ch] lg:text-5xl" : "max-w-[20ch] lg:text-6xl",
               )}
             >
@@ -122,7 +122,7 @@ export function ProfileHeader({
             {showClassesCta ? (
               <Link
                 href="/classes"
-                className="text-sm font-semibold text-primary hover:underline sm:text-right"
+                className="relative inline-flex items-center text-sm font-semibold text-primary after:absolute after:-inset-2 after:content-[''] hover:underline sm:text-right sm:after:hidden"
               >
                 {classesLabel} →
               </Link>

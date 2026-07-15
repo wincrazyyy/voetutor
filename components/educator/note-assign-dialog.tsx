@@ -68,7 +68,7 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
 
   if (!open) {
     return (
-      <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={openDialog}>
+      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={openDialog}>
         <Layers className="w-3.5 h-3.5" />
         Manage placements
       </Button>
@@ -81,7 +81,7 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-lg border border-border bg-card shadow-lg">
-        <div className="flex items-start justify-between gap-4 p-6 pb-4 border-b border-border">
+        <div className="flex items-start justify-between gap-4 p-4 pb-4 border-b border-border sm:p-6 sm:pb-4">
           <div className="min-w-0">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Layers className="w-5 h-5 text-primary shrink-0" />
@@ -92,7 +92,7 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="relative shrink-0 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             aria-label="Close"
             disabled={pending}
           >
@@ -101,7 +101,7 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5 sm:px-6">
             {!hasNodes ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 You have no topics yet. Add topics and subtopics to a class first, then place notes
@@ -113,7 +113,7 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
                   <div className="flex items-center gap-2 text-sm font-bold">
                     <FolderTree className="w-4 h-4 text-primary shrink-0" />
                     <span className="truncate">{cls.title}</span>
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted rounded px-1.5 py-0.5 shrink-0">
+                    <span className="text-[11px] sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted rounded px-1.5 py-0.5 shrink-0">
                       {cls.code}
                     </span>
                   </div>
@@ -122,26 +122,26 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
                   ) : (
                     cls.topics.map((topic) => (
                       <div key={topic.id} className="pl-6 space-y-1.5">
-                        <label className="flex items-center gap-2.5 py-1 text-sm cursor-pointer font-semibold hover:text-primary transition-colors">
+                        <label className="flex min-h-11 items-center gap-2.5 py-1 text-sm cursor-pointer font-semibold hover:text-primary transition-colors sm:min-h-0">
                           <Checkbox
                             checked={selected.has(`topic:${topic.id}`)}
                             onCheckedChange={() => toggle(`topic:${topic.id}`)}
                             disabled={pending}
                           />
-                          <span className="truncate">{topic.title}</span>
-                          <span className="text-[10px] font-normal text-muted-foreground">(topic-level)</span>
+                          <span className="min-w-0 truncate">{topic.title}</span>
+                          <span className="shrink-0 text-[10px] font-normal text-muted-foreground">(topic-level)</span>
                         </label>
                         {topic.subtopics.map((subtopic) => (
                           <label
                             key={subtopic.id}
-                            className="flex items-center gap-2.5 pl-5 py-1 text-sm cursor-pointer hover:text-primary transition-colors"
+                            className="flex min-h-11 items-center gap-2.5 pl-5 py-1 text-sm cursor-pointer hover:text-primary transition-colors sm:min-h-0"
                           >
                             <Checkbox
                               checked={selected.has(`subtopic:${subtopic.id}`)}
                               onCheckedChange={() => toggle(`subtopic:${subtopic.id}`)}
                               disabled={pending}
                             />
-                            <span className="truncate">{subtopic.title}</span>
+                            <span className="min-w-0 truncate">{subtopic.title}</span>
                           </label>
                         ))}
                       </div>
@@ -152,9 +152,9 @@ export function NoteAssignDialog({ resourceId, noteTitle, currentParents, tree }
             )}
           </div>
 
-          {error && <p className="px-6 text-sm text-destructive">{error}</p>}
+          {error && <p className="px-4 text-sm text-destructive sm:px-6">{error}</p>}
 
-          <div className="flex items-center justify-between gap-2 p-6 pt-4 border-t border-border">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-4 pt-4 border-t border-border sm:p-6 sm:pt-4">
             <span className="text-xs text-muted-foreground">
               {selectedCount} location{selectedCount === 1 ? "" : "s"} selected
             </span>

@@ -26,7 +26,7 @@ export function SubjectLanes() {
           </div>
           <Link
             href="/educators"
-            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+            className="group relative inline-flex items-center gap-1.5 text-sm font-medium text-primary after:absolute after:-inset-3 after:content-['']"
           >
             All educators
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

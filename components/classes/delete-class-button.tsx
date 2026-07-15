@@ -65,8 +65,8 @@ export function DeleteClassButton({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-card shadow-lg p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:items-center">
+      <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg border border-destructive/30 bg-card p-6 shadow-lg">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-destructive" />
@@ -75,7 +75,7 @@ export function DeleteClassButton({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative shrink-0 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             aria-label="Close"
             disabled={pending}
           >
@@ -102,6 +102,9 @@ export function DeleteClassButton({
                 onChange={(e) => setConfirmation(e.target.value)}
                 autoComplete="off"
                 autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="text"
                 autoFocus
                 disabled={pending}
               />
@@ -109,11 +112,11 @@ export function DeleteClassButton({
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
+            <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" variant="destructive" loading={pending} disabled={!matches} loadingText="Deleting...">
+              <Button type="submit" variant="destructive" loading={pending} disabled={!matches} loadingText="Deleting..." className="w-full sm:w-auto">
                 I understand, delete this class
               </Button>
             </div>

@@ -29,7 +29,7 @@ function VideoLink({ video, classId }: { video: VideoWithProgress; classId: stri
             <PlayCircle className="w-4 h-4 text-muted-foreground shrink-0" />
           )}
         </div>
-        <span className={`font-medium text-sm leading-tight ${video.is_completed ? "text-muted-foreground" : "text-foreground"}`}>
+        <span className={`min-w-0 break-words font-medium text-sm leading-tight ${video.is_completed ? "text-muted-foreground" : "text-foreground"}`}>
           {video.title}
         </span>
       </div>
@@ -50,7 +50,7 @@ function NoteLink({ note }: { note: NoteWithPlacement }) {
       <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors truncate">
         {note.title}
       </span>
-      <span className="text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
+      <span className="text-xs sm:text-[10px] text-muted-foreground ml-auto border border-border px-1.5 py-0.5 rounded bg-background shrink-0">
         {formatBytes(note.size_bytes)}
       </span>
     </a>
@@ -91,7 +91,7 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
               <AccordionTrigger className="p-5 md:p-6 bg-muted/10 hover:bg-muted/40 transition-colors border-b border-border hover:no-underline [&[data-state=open]]:bg-muted/40 text-left pt-6">
                 <div className="flex flex-col gap-3 w-full pr-2">
                   <div className="flex items-start justify-between gap-4">
-                    <h3 className="text-base font-bold leading-tight">{topic.title}</h3>
+                    <h3 className="text-base font-bold leading-tight min-w-0 break-words">{topic.title}</h3>
                     <div className="shrink-0 mt-0.5">
                       {topic.status === "completed" && <CheckCircle2 className="w-4 h-4 text-primary" />}
                     </div>
@@ -115,7 +115,7 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
                 <div className="flex flex-col">
                   {hasTopicMaterials && (
                     <div className="p-4 bg-primary/5 border-b border-border/50 flex flex-col gap-2">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Materials</div>
+                      <div className="text-xs sm:text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Topic Materials</div>
                       {topic.items.map((item) =>
                         item.kind === "video" ? (
                           <Link
@@ -150,7 +150,7 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
                                 <span className="text-xs text-muted-foreground mt-0.5">{formatBytes(item.size_bytes)} • PDF</span>
                               </div>
                             </div>
-                            <Download className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2 shrink-0" />
+                            <Download className="w-4 h-4 text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-hover:text-primary transition-all mr-2 shrink-0" />
                           </a>
                         ),
                       )}
@@ -159,7 +159,7 @@ export function CurriculumAccordion({ curriculum, classId }: CurriculumAccordion
 
                   {topic.subtopics.map((subtopic) => (
                     <div key={subtopic.id} className="border-b border-border/50 last:border-0">
-                      <div className="bg-muted/20 px-4 py-2.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border/50">
+                      <div className="bg-muted/20 px-4 py-2.5 text-xs sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border/50 break-words">
                         {subtopic.title}
                       </div>
 

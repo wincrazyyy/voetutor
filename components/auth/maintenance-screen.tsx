@@ -75,7 +75,7 @@ export function MaintenanceScreen() {
   return (
     <div
       style={{ background: C.bg, color: C.text }}
-      className="flex min-h-screen items-center justify-center px-6 py-12"
+      className="flex min-h-dvh items-center justify-center px-6 py-12"
     >
       <div className="flex w-full max-w-md flex-col items-center text-center">
         {/* Maintenance copy — slides up when the panel opens */}
@@ -109,7 +109,7 @@ export function MaintenanceScreen() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: reduce ? 0 : 0.15 }}
                 style={{ color: C.link }}
-                className="mt-9 text-sm underline-offset-4 hover:underline"
+                className="mt-9 inline-flex min-h-11 items-center px-3 text-sm underline-offset-4 hover:underline sm:min-h-0 sm:px-0"
               >
                 Administrator sign-in
               </motion.button>
@@ -129,7 +129,7 @@ export function MaintenanceScreen() {
               style={{ background: C.panelBg, borderColor: C.panelBorder }}
               className="mt-9 w-full rounded-2xl border p-6 text-left backdrop-blur-sm"
             >
-              <span style={{ color: C.faint, letterSpacing: "0.18em" }} className="text-[11px] font-semibold uppercase">
+              <span style={{ color: C.faint, letterSpacing: "0.18em" }} className="text-xs font-semibold uppercase sm:text-[11px]">
                 Maintenance mode
               </span>
               <h2 style={{ color: C.heading, fontFamily: SERIF }} className="mt-1.5 text-xl font-semibold">
@@ -155,7 +155,7 @@ export function MaintenanceScreen() {
                     disabled={loading}
                     placeholder="admin@voetutor.com"
                     style={{ background: C.inputBg, borderColor: C.inputBorder, color: C.text }}
-                    className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-[#6f938b] focus:border-[#2dd4bf] disabled:opacity-60"
+                    className="w-full rounded-lg border px-3.5 py-2.5 text-base outline-none transition-colors placeholder:text-[#6f938b] focus:border-[#2dd4bf] disabled:opacity-60 md:text-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -171,7 +171,7 @@ export function MaintenanceScreen() {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                     style={{ background: C.inputBg, borderColor: C.inputBorder, color: C.text }}
-                    className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-[#2dd4bf] disabled:opacity-60"
+                    className="w-full rounded-lg border px-3.5 py-2.5 text-base outline-none transition-colors focus:border-[#2dd4bf] disabled:opacity-60 md:text-sm"
                   />
                 </div>
 
@@ -202,7 +202,7 @@ export function MaintenanceScreen() {
                   setError(null);
                 }}
                 style={{ color: C.faint }}
-                className="mt-4 w-full text-center text-xs hover:underline"
+                className="mt-4 flex min-h-11 w-full items-center justify-center text-center text-xs hover:underline sm:min-h-0"
               >
                 Back
               </button>

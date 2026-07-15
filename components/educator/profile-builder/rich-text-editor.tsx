@@ -28,7 +28,7 @@ import type { InlineDoc } from "@/lib/types/profile-doc";
  * output on save regardless. Links are inserted via an inline panel (no native window.prompt).
  */
 const CONTENT_CLASS = cn(
-  "min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed",
+  "min-h-24 rounded-md border border-input bg-background px-3 py-2 text-base leading-relaxed md:text-sm",
   "focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
   "[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
   "[&_a]:text-primary [&_a]:underline [&_mark]:rounded-sm [&_mark]:bg-[hsl(var(--accent-gold)/0.3)] [&_mark]:px-0.5",
@@ -55,7 +55,7 @@ function ToolbarButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+        "flex size-10 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:size-7",
         active && "bg-background text-primary",
       )}
     >
@@ -182,7 +182,7 @@ export function RichTextEditor({
               aria-label="Link URL"
               aria-invalid={linkInvalid}
               placeholder="https://"
-              className="h-8 min-w-0 flex-1"
+              className="h-10 min-w-0 flex-1 sm:h-8"
               onChange={(e) => setLinkUrl(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {

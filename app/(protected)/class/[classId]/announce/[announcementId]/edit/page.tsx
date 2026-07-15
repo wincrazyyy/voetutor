@@ -28,7 +28,7 @@ export default async function EditAnnouncementPage({
   if (!canManage) redirect(`/class/${classId}`);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
       <div>
         <Link href={`/class/${classId}`}>
           <Button variant="ghost" size="sm" className="mb-6 gap-2 text-muted-foreground hover:text-foreground -ml-2">
@@ -37,16 +37,16 @@ export default async function EditAnnouncementPage({
           </Button>
         </Link>
 
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Megaphone className="w-7 h-7 text-primary" />
-            Edit Announcement
+        <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+          <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <Megaphone className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
+            <span className="min-w-0 break-words">Edit Announcement</span>
           </h1>
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase tracking-wider font-bold">
             {cls.code}
           </Badge>
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground break-words">
           Editing an announcement in <span className="font-semibold text-foreground">{cls.title}</span>.
         </p>
       </div>

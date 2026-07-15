@@ -81,7 +81,7 @@ export function AnnouncementForm({ classId, authorId, announcement, passes = [] 
   };
 
   return (
-    <Card className="p-6 border-border shadow-sm bg-card">
+    <Card className="p-4 sm:p-6 border-border shadow-sm bg-card">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="grid gap-2">
           <Label htmlFor="ann-title">Title</Label>
@@ -113,7 +113,7 @@ export function AnnouncementForm({ classId, authorId, announcement, passes = [] 
             id="ann-type"
             value={type}
             onChange={(e) => setType(e.target.value as AnnouncementType)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
           >
             <option value="standard">Standard</option>
             <option value="important">Important</option>
@@ -128,7 +128,7 @@ export function AnnouncementForm({ classId, authorId, announcement, passes = [] 
               id="ann-audience"
               value={passId}
               onChange={(e) => setPassId(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
             >
               <option value="">Everyone in this class</option>
               {passes.map((pass) => (
@@ -183,8 +183,8 @@ export function AnnouncementForm({ classId, authorId, announcement, passes = [] 
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={() => router.back()} disabled={pending}>
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="ghost" onClick={() => router.back()} disabled={pending} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button
@@ -192,6 +192,7 @@ export function AnnouncementForm({ classId, authorId, announcement, passes = [] 
             loading={pending}
             loadingText="Saving…"
             disabled={!title.trim() || !content.trim()}
+            className="w-full sm:w-auto"
           >
             {isEdit ? "Save Changes" : "Post Announcement"}
           </Button>

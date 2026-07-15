@@ -50,6 +50,11 @@ export function ClassSearchBar({
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
             type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder={PLACEHOLDERS[field]}
@@ -57,7 +62,7 @@ export function ClassSearchBar({
           />
         </div>
         <Select value={field} onValueChange={(v) => onFieldChange(v as ClassSearchField)}>
-          <SelectTrigger className="sm:w-48" aria-label="Search field">
+          <SelectTrigger className="w-full sm:w-48" aria-label="Search field">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

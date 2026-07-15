@@ -45,6 +45,8 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         <Input
           id="email"
           type="email"
+          inputMode="email"
+          autoComplete="email"
           placeholder="ada@example.com"
           required
           value={email}
@@ -56,13 +58,14 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       <div className="grid gap-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
-          <Link href="/auth/forgot-password" className="text-xs text-muted-foreground hover:text-primary hover:underline">
+          <Link href="/auth/forgot-password" className="relative text-xs text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-primary hover:underline">
             Forgot password?
           </Link>
         </div>
         <Input
           id="password"
           type="password"
+          autoComplete="current-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}

@@ -223,7 +223,7 @@ export function AddStudentCard({
               : "Create a VOETutor account for a student who doesn't have one. You'll get a link to send them — one click signs them in and lets them set their own password."}
           </p>
         </div>
-        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="shrink-0">
+        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full min-w-0 sm:w-auto sm:shrink-0">
           <TabsList>
             <TabsTrigger value="existing">Existing account</TabsTrigger>
             <TabsTrigger value="new">New account</TabsTrigger>
@@ -245,6 +245,8 @@ export function AddStudentCard({
               <Input
                 id="roster-email"
                 type="email"
+                inputMode="email"
+                autoComplete="off"
                 value={email}
                 maxLength={255}
                 disabled={isPending}
@@ -370,6 +372,8 @@ export function AddStudentCard({
               <Input
                 id="new-email"
                 type="email"
+                inputMode="email"
+                autoComplete="off"
                 value={newEmail}
                 maxLength={255}
                 disabled={isPending}
@@ -390,7 +394,7 @@ export function AddStudentCard({
               <button
                 type="button"
                 onClick={() => setShowDetails((v) => !v)}
-                className="flex items-center gap-1.5 self-start text-sm font-medium text-muted-foreground outline-none hover:text-foreground"
+                className="relative flex items-center gap-1.5 self-start text-sm font-medium text-muted-foreground outline-none after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
               >
                 {showDetails ? (
                   <ChevronDown className="h-4 w-4" />
@@ -411,6 +415,7 @@ export function AddStudentCard({
                     <Input
                       id="new-whatsapp"
                       type="tel"
+                      inputMode="tel"
                       maxLength={50}
                       placeholder="+852 1234 5678"
                       value={whatsappNumber}

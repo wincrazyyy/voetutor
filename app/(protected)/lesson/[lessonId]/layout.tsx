@@ -63,7 +63,7 @@ async function LessonHeaderContent({ lessonId }: { lessonId: string }) {
             <div className="h-4 w-px bg-border hidden md:block shrink-0"></div>
             <div className="flex flex-col min-w-0">
               {ctx.topicTitle && (
-                <span className="text-[10px] uppercase tracking-widest font-bold text-primary leading-none mb-1 truncate">
+                <span className="text-xs sm:text-[10px] uppercase tracking-widest font-bold text-primary leading-none mb-1 truncate">
                   {ctx.topicTitle}
                 </span>
               )}
@@ -111,14 +111,14 @@ export default async function LessonLayout({
   const { lessonId } = await params;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <header className="h-16 border-b flex items-center justify-between px-4 md:px-6 shrink-0 bg-card z-50">
+    <div className="flex flex-col lg:h-dvh bg-background">
+      <header className="hidden h-16 border-b md:flex items-center justify-between px-4 md:px-6 shrink-0 bg-card z-50">
         <Suspense fallback={<LessonHeaderFallback />}>
           <LessonHeaderContent lessonId={lessonId} />
         </Suspense>
       </header>
 
-      <div className="flex-1 overflow-hidden">{children}</div>
+      <div className="flex-1 lg:overflow-hidden">{children}</div>
     </div>
   );
 }

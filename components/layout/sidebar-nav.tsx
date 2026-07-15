@@ -238,7 +238,7 @@ export function SidebarNav({
                 <Icon className="w-5 h-5" />
                 <span className="flex-1">{link.name}</span>
                 {typeof badge === "number" && badge > 0 && (
-                  <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5">
+                  <Badge variant="secondary" className="bg-primary/15 text-primary text-xs sm:text-[10px] px-1.5 h-5 shrink-0">
                     {badge}
                   </Badge>
                 )}
@@ -416,7 +416,7 @@ function SortableClassRow({
       <button
         type="button"
         aria-label={`Drag to reorder ${cls.title}`}
-        className="pl-2 py-2.5 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="pl-2 py-2.5 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 relative after:absolute after:-inset-2 after:content-[''] opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:focus-visible:opacity-100"
         {...attributes}
         {...listeners}
       >
@@ -438,7 +438,7 @@ function SortableClassRow({
         />
         <TruncatedClassTitle title={cls.title} suppressTooltip={isDragging} />
         {unread > 0 && (
-          <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] px-1.5 h-5 shrink-0">
+          <Badge variant="secondary" className="bg-primary/15 text-primary text-xs sm:text-[10px] px-1.5 h-5 shrink-0">
             {unread}
           </Badge>
         )}

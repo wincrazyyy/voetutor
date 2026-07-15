@@ -71,18 +71,18 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
             {note.placements.map((placement) => (
               <span
                 key={placement.placement_id}
-                className="inline-flex items-center gap-1 text-[11px] rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
+                className="inline-flex min-w-0 max-w-full items-center gap-1 text-[11px] rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
                 title={
                   placement.subtopic_title
                     ? `${placement.class_title} → ${placement.topic_title} → ${placement.subtopic_title}`
                     : `${placement.class_title} → ${placement.topic_title} (topic-level)`
                 }
               >
-                <span className="font-medium text-foreground truncate max-w-[10rem]">
+                <span className="min-w-0 font-medium text-foreground truncate max-w-[10rem]">
                   {placement.class_title}
                 </span>
-                <span className="opacity-60">·</span>
-                <span className="truncate max-w-[10rem]">
+                <span className="shrink-0 opacity-60">·</span>
+                <span className="min-w-0 truncate max-w-[10rem]">
                   {placement.subtopic_title ?? placement.topic_title}
                 </span>
               </span>
@@ -92,7 +92,7 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
 
         {error && <p className="text-xs text-destructive">{error}</p>}
 
-        <div className="flex items-center gap-2 mt-auto pt-1">
+        <div className="flex flex-wrap items-center gap-2 mt-auto pt-1">
           <NoteAssignDialog
             resourceId={note.id}
             noteTitle={note.title}
@@ -104,8 +104,8 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
             tree={tree}
           />
           {confirmingDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <span className="min-w-0 text-xs text-muted-foreground">
                 {classCount === 0
                   ? "Delete this note permanently?"
                   : `Delete from ${classCount} class${classCount === 1 ? "" : "es"}?`}
@@ -113,7 +113,7 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
               <Button
                 size="sm"
                 variant="destructive"
-                className="h-8 text-xs"
+                className="text-xs"
                 onClick={handleDelete}
                 loading={pending}
                 loadingText="Deleting..."
@@ -123,7 +123,7 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 text-xs"
+                className="text-xs"
                 onClick={() => setConfirmingDelete(false)}
                 disabled={pending}
               >
@@ -134,7 +134,7 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+              className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
               onClick={() => setConfirmingDelete(true)}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -186,6 +186,8 @@ export function NoteLibraryList({ notes, tree }: NoteLibraryListProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
           type="search"
+          inputMode="search"
+          enterKeyHint="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search notes by title or class…"

@@ -31,7 +31,7 @@ import {
 } from "@/app/actions/educator-reviews";
 
 const TEXTAREA_CLASS =
-  "w-full min-h-[5.5rem] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30";
+  "w-full min-h-[5.5rem] rounded-md border border-input bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 md:text-sm";
 
 interface ReviewFormState {
   rating: number;
@@ -65,7 +65,7 @@ function RatingInput({
             aria-label={`${star} star${star === 1 ? "" : "s"}`}
             disabled={disabled}
             onClick={() => onChange(star)}
-            className="rounded p-0.5 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
+            className="rounded p-2 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed sm:p-0.5"
           >
             <Star
               className={cn(
@@ -245,7 +245,7 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                 setAddForm(EMPTY_FORM);
               }}
               aria-label="Cancel"
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              className="relative rounded p-0.5 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -323,7 +323,7 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="font-semibold text-foreground">{name}</span>
                         {r.reviewer_school ? (
-                          <span className="truncate text-sm text-muted-foreground">· {r.reviewer_school}</span>
+                          <span className="min-w-0 truncate text-sm text-muted-foreground">· {r.reviewer_school}</span>
                         ) : null}
                         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           {r.source === "imported" ? "Imported" : "Verified"}
@@ -368,7 +368,7 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                     </div>
                   </div>
 
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">{r.comment}</p>
+                  <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground/85">{r.comment}</p>
 
                   <div className="flex items-center justify-end">
                     {confirming ? (

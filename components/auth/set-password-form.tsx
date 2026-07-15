@@ -97,6 +97,7 @@ export function SetPasswordForm({
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="New password"
                   required
                   minLength={8}
@@ -115,7 +116,7 @@ export function SetPasswordForm({
                   type="button"
                   onClick={handleSignOut}
                   disabled={isSigningOut || isLoading}
-                  className="underline underline-offset-4 outline-none hover:text-foreground"
+                  className="relative underline underline-offset-4 outline-none after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
                 >
                   Sign out
                 </button>

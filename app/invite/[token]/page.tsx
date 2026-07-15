@@ -49,7 +49,7 @@ export default async function InvitePage({
   if (!preview) {
     return (
       <InviteChrome>
-        <Card className="flex flex-col items-center gap-3 border-border p-8 text-center shadow-sm">
+        <Card className="flex flex-col items-center gap-3 border-border p-6 text-center shadow-sm sm:p-8">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <MailX className="h-6 w-6 text-muted-foreground" />
           </div>
@@ -89,13 +89,13 @@ export default async function InvitePage({
 
   return (
     <InviteChrome>
-      <Card className="flex flex-col items-center gap-4 border-border p-8 text-center shadow-sm">
+      <Card className="flex flex-col items-center gap-4 border-border p-6 text-center shadow-sm sm:p-8">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <KeyRound className="h-6 w-6 text-primary" />
         </div>
         <div className="space-y-2">
           <h1 className="font-serif text-2xl font-bold tracking-tight">You&apos;re invited</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed break-words">
             You&apos;ve been invited to <strong className="text-foreground">{preview.class_title}</strong>
             {preview.pass_name ? (
               <>

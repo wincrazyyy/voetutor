@@ -79,7 +79,7 @@ export function AddNotesToParentDialog({
 
   if (!open) {
     return (
-      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={openDialog}>
+      <Button size="sm" variant="ghost" className="h-10 text-xs gap-1 sm:h-7" onClick={openDialog}>
         <Plus className="w-3 h-3" />
         Add notes
       </Button>
@@ -88,7 +88,7 @@ export function AddNotesToParentDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-lg border border-border bg-card shadow-lg">
+      <div className="w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-lg border border-border bg-card shadow-lg">
         <div className="flex items-start justify-between gap-4 p-6 pb-4 border-b border-border">
           <div className="min-w-0">
             <h2 className="text-lg font-bold flex items-center gap-2">
@@ -100,7 +100,7 @@ export function AddNotesToParentDialog({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="relative text-muted-foreground hover:text-foreground shrink-0 after:absolute after:-inset-3 after:content-[''] sm:after:hidden"
             aria-label="Close"
             disabled={pending}
           >
@@ -108,8 +108,8 @@ export function AddNotesToParentDialog({
           </button>
         </div>
 
-        <div className="px-6 pt-4 flex items-center justify-between gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        <div className="px-6 pt-4 flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Add from your library
           </span>
           <NoteUploadDialog
@@ -130,6 +130,9 @@ export function AddNotesToParentDialog({
                 if (event.key === "Enter") event.preventDefault();
               }}
               placeholder="Search your notes…"
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
               className="h-9"
               disabled={pending}
             />
@@ -152,14 +155,14 @@ export function AddNotesToParentDialog({
                 return (
                   <label
                     key={note.id}
-                    className={`flex items-center gap-3 rounded-md px-2 py-2 cursor-pointer transition-colors ${
+                    className={`flex min-h-11 items-center gap-3 rounded-md px-2 py-2 cursor-pointer transition-colors sm:min-h-0 ${
                       checked ? "bg-primary/5" : "hover:bg-muted/50"
                     }`}
                   >
                     <Checkbox checked={checked} onCheckedChange={() => toggle(note.id)} disabled={pending} />
                     <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="text-sm font-medium truncate flex-1 min-w-0">{note.title}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
+                    <span className="text-xs sm:text-[10px] text-muted-foreground shrink-0">
                       {formatBytes(note.size_bytes)}
                     </span>
                   </label>

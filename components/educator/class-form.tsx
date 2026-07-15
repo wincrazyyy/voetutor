@@ -66,7 +66,7 @@ export function ClassForm({ initial, mode }: ClassFormProps) {
             name="description"
             defaultValue={initial?.description ?? ""}
             rows={5}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+            className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
             placeholder="What students will learn, who it's for, and how the class is structured."
           />
           <p className="text-xs text-muted-foreground">Shown on the marketplace card.</p>

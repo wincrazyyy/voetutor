@@ -17,11 +17,11 @@ export default async function ReportsPage() {
   const reports = await getPendingReports();
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-6">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3 mb-2">
-          <Flag className="w-7 h-7 text-primary" />
-          Class Reports
+        <h1 className="mb-2 flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+          <Flag className="w-6 h-6 shrink-0 text-primary sm:w-7 sm:h-7" />
+          <span className="min-w-0 break-words">Class Reports</span>
         </h1>
         <p className="text-muted-foreground">
           Review user-submitted reports. Unpublishing a class removes it from the marketplace and resolves every pending report against it.
@@ -46,9 +46,9 @@ export default async function ReportsPage() {
 
             return (
               <Card key={r.id} className="p-5 border-border shadow-sm bg-card">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-bold">{classTitle}</h2>
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                    <h2 className="min-w-0 break-words text-lg font-bold">{classTitle}</h2>
                     <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase tracking-wider font-bold">
                       {classCode}
                     </Badge>
@@ -61,7 +61,7 @@ export default async function ReportsPage() {
                   {r.class && (
                     <Link
                       href={`/class/${r.class.id}/edit`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      className="relative inline-flex w-fit items-center gap-1 text-xs text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
                     >
                       View class
                       <ExternalLink className="w-3 h-3" />
@@ -73,7 +73,7 @@ export default async function ReportsPage() {
                   Reported by <span className="font-semibold text-foreground">{reporterName}</span> · {relativeTime(r.created_at)}
                 </div>
 
-                <p className="text-sm bg-muted/40 border border-border rounded-md p-3 whitespace-pre-wrap mb-4">
+                <p className="text-sm bg-muted/40 border border-border rounded-md p-3 whitespace-pre-wrap break-words mb-4">
                   {r.reason}
                 </p>
 

@@ -66,6 +66,7 @@ export function UpdatePasswordForm({
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="New password"
                   required
                   minLength={8}

@@ -60,7 +60,7 @@ export async function StudentClassView({ cls, userId }: { cls: Class; userId: st
   const unreadAnnouncementIds = announcements.filter((a) => !a.has_read).map((a) => a.id);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
       <MarkAnnouncementsRead unreadIds={unreadAnnouncementIds} />
       <TableRefresh
         channel={`announcements:studentclass:${classId}`}
@@ -101,7 +101,7 @@ export async function StudentClassView({ cls, userId }: { cls: Class; userId: st
           educatorName={educatorName}
         />
 
-        <div className="xl:col-span-5 space-y-8 sticky top-24">
+        <div className="order-1 space-y-8 xl:order-none xl:col-span-5 xl:sticky xl:top-24">
           <CommunityBanner classId={classId} />
           <CurriculumAccordion curriculum={curriculum} classId={classId} />
         </div>

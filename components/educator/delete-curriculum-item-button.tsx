@@ -49,7 +49,7 @@ export function DeleteCurriculumItemButton({
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+        className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive sm:h-7 sm:w-7"
         onClick={() => {
           setError(null);
           setOpen(true);
@@ -63,7 +63,7 @@ export function DeleteCurriculumItemButton({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-card shadow-lg p-6">
+      <div className="max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg border border-destructive/30 bg-card shadow-lg p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-destructive" />
@@ -72,7 +72,7 @@ export function DeleteCurriculumItemButton({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative text-muted-foreground hover:text-foreground after:absolute after:-inset-3 after:content-[''] sm:after:hidden"
             aria-label="Close"
             disabled={pending}
           >

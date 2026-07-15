@@ -38,7 +38,7 @@ export function UnplaceNoteButton({ placementId, onError }: UnplaceNoteButtonPro
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+        className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive shrink-0 sm:h-7 sm:w-7"
         onClick={() => setConfirming(true)}
         aria-label="Remove from here"
         title="Remove from here"
@@ -49,11 +49,11 @@ export function UnplaceNoteButton({ placementId, onError }: UnplaceNoteButtonPro
   }
 
   return (
-    <div className="flex items-center gap-0.5 shrink-0">
+    <div className="flex items-center gap-1.5 shrink-0 sm:gap-0.5">
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+        className="h-10 w-10 p-0 text-destructive hover:text-destructive sm:h-7 sm:w-7"
         onClick={handleRemove}
         loading={pending}
         loadingText={null}
@@ -65,7 +65,7 @@ export function UnplaceNoteButton({ placementId, onError }: UnplaceNoteButtonPro
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 w-7 p-0 text-muted-foreground"
+        className="h-10 w-10 p-0 text-muted-foreground sm:h-7 sm:w-7"
         onClick={() => setConfirming(false)}
         disabled={pending}
         aria-label="Cancel"

@@ -38,14 +38,14 @@ export function ContinueWatchingHero({ item }: ContinueWatchingHeroProps) {
     <Card className="w-full relative overflow-hidden border-2 border-primary/20 bg-card shadow-md">
       <div className="absolute top-0 left-0 w-1.5 h-full bg-primary"></div>
       <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 items-center gap-5">
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <Play className="w-6 h-6 text-primary ml-1" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Continue Watching</div>
-            <h2 className="text-xl font-bold mb-1">{item.video_title}</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-xl font-bold mb-1 break-words">{item.video_title}</h2>
+            <p className="text-sm text-muted-foreground break-words">
               {item.subtopic_title} • {item.class_code} • {remainingLabel}
             </p>
           </div>

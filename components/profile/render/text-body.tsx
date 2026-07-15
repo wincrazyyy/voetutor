@@ -17,7 +17,7 @@ const HTTPS = /^https:\/\//i;
 export function TextBody({ doc }: { doc: InlineDoc }) {
   if (!doc || doc.type !== "doc" || !Array.isArray(doc.content)) return null;
   return (
-    <div className="space-y-3 text-base leading-relaxed text-foreground/90 sm:text-lg">
+    <div className="space-y-3 break-words text-base leading-relaxed text-foreground/90 sm:text-lg">
       {doc.content.map(renderBlock)}
     </div>
   );

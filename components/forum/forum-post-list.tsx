@@ -56,7 +56,7 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
 
               <div className="flex-1 p-4 sm:p-5 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <UserAvatar
                       avatarUrl={post.author?.avatar_url ?? null}
                       firstName={post.author?.first_name ?? null}
@@ -64,9 +64,9 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
                       displayName={post.author?.display_name ?? null}
                       size={20}
                     />
-                    <span className="font-semibold text-foreground">{authorName}</span>
+                    <span className="min-w-0 max-w-full truncate font-semibold text-foreground">{authorName}</span>
                     {classEducatorId && post.author?.id === classEducatorId && (
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[11px] uppercase tracking-wider font-bold pointer-events-none sm:text-[9px]">
                         Educator
                       </Badge>
                     )}
@@ -74,10 +74,10 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
                     <span>{relativeTime(post.created_at)}</span>
                   </div>
                   {post.type === "video_qa" && post.video_id ? (
-                    <Link href={`/lesson/${post.video_id}?from=${post.class_id}`}>
-                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors gap-1.5 text-[10px] cursor-pointer">
-                        <PlayCircle className="w-3 h-3" />
-                        {post.video_title ?? "Video Q&A"}
+                    <Link href={`/lesson/${post.video_id}?from=${post.class_id}`} className="min-w-0 max-w-full">
+                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors gap-1.5 max-w-full text-[11px] cursor-pointer sm:text-[10px]">
+                        <PlayCircle className="w-3 h-3 shrink-0" />
+                        <span className="min-w-0 truncate">{post.video_title ?? "Video Q&A"}</span>
                       </Badge>
                     </Link>
                   ) : (
@@ -104,7 +104,7 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
                 <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
                   <Link
                     href={`/class/${classId}/forum/${post.id}`}
-                    className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors"
+                    className="flex items-center gap-1.5 bg-muted/30 px-3 py-3 rounded-md hover:bg-muted transition-colors sm:px-2.5 sm:py-1.5"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                     {post.reply_count} {post.reply_count === 1 ? "Reply" : "Replies"}

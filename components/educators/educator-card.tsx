@@ -32,15 +32,16 @@ function rateLabel(cents: number | null): string {
 }
 
 /** The visual content of a card — shared by the static and 3D variants. Interior elements carry a
- *  `translateZ` so the 3D variant gets real depth-parallax as the card tilts (preserve-3d on parent). */
-function CardInner({ educator }: { educator: PublicEducatorCard }) {
+ *  `translateZ` (only when `depth` — the 3D tilt variant) so the tilt gets real depth-parallax as the
+ *  card tilts (preserve-3d on parent); on touch/static cards the layers are dropped (no no-op GPU layers). */
+function CardInner({ educator, depth }: { educator: PublicEducatorCard; depth: boolean }) {
   const name = getDisplayName(educator.first_name, educator.last_name, educator.display_name);
   const tags = (educator.subject_tags ?? []).filter(Boolean);
 
   return (
     <div className="relative flex h-full flex-col gap-4 rounded-[var(--radius)] bg-card p-5">
       <div className="flex items-start gap-3">
-        <div style={{ transform: "translateZ(40px)" }} className="shrink-0">
+        <div style={depth ? { transform: "translateZ(40px)" } : undefined} className="shrink-0">
           <UserAvatar
             avatarUrl={educator.avatar_url}
             firstName={educator.first_name}
@@ -53,7 +54,7 @@ function CardInner({ educator }: { educator: PublicEducatorCard }) {
           <div className="flex items-center gap-1.5">
             <span className="truncate font-serif text-lg font-semibold leading-tight text-foreground">{name}</span>
             {educator.is_verified && educator.tier === "premium" ? (
-              <span style={{ transform: "translateZ(60px)" }} title="Verified educator">
+              <span style={depth ? { transform: "translateZ(60px)" } : undefined} title="Verified educator">
                 <BadgeCheck className="h-4 w-4 shrink-0 text-gold" aria-label="Verified educator" />
               </span>
             ) : null}
@@ -71,7 +72,7 @@ function CardInner({ educator }: { educator: PublicEducatorCard }) {
       ) : null}
 
       {tags.length ? (
-        <div style={{ transform: "translateZ(24px)" }} className="flex flex-wrap gap-1.5">
+        <div style={depth ? { transform: "translateZ(24px)" } : undefined} className="flex flex-wrap gap-1.5">
           {tags.slice(0, 2).map((t) => (
             <span
               key={t}
@@ -89,8 +90,8 @@ function CardInner({ educator }: { educator: PublicEducatorCard }) {
       ) : null}
 
       <div
-        style={{ transform: "translateZ(16px)" }}
-        className="mt-auto flex items-center justify-between border-t border-border pt-3"
+        style={depth ? { transform: "translateZ(16px)" } : undefined}
+        className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3"
       >
         <span className="text-sm font-semibold tabular-nums text-foreground">{rateLabel(educator.hourly_rate_cents)}</span>
         <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
@@ -147,7 +148,7 @@ export function EducatorCard({ educator, interactive, dimmed, onActiveChange, cl
         className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-t-[var(--radius)] bg-gradient-to-r from-transparent via-gold/40 to-transparent"
         aria-hidden
       />
-      <CardInner educator={educator} />
+      <CardInner educator={educator} depth={tiltOn} />
       {/* spotlight ring on hover/focus */}
       <div
         className="pointer-events-none absolute inset-0 rounded-[var(--radius)] opacity-0 ring-1 ring-inset ring-gold/50 transition-opacity duration-200 group-hover/card:opacity-100 group-focus-visible/card:opacity-100"

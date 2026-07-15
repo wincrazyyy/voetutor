@@ -25,7 +25,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 export default function TermsOfService() {
   return (
-    <main className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
+    <main className="min-h-dvh flex flex-col bg-background selection:bg-primary/20">
       <Navbar />
 
       <article className="w-full max-w-3xl mx-auto px-5 py-12 md:py-16 flex-1">

@@ -65,7 +65,9 @@ export function StudentsList({ students, currentUserId }: StudentsListProps) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search students by name…"
           aria-label="Search students"
-          className="h-11 w-full rounded-full border border-input bg-background pl-10 pr-4 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          inputMode="search"
+          enterKeyHint="search"
+          className="h-11 w-full rounded-full border border-input bg-background pl-10 pr-4 text-base outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
         />
       </div>
 

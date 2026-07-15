@@ -13,11 +13,11 @@ export default async function AdminHubPage() {
   ]);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
-          <ShieldCheck className="w-7 h-7 text-primary" />
-          Admin Hub
+        <h1 className="mb-2 flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+          <ShieldCheck className="w-6 h-6 shrink-0 text-primary sm:w-7 sm:h-7" />
+          <span className="min-w-0 break-words">Admin Hub</span>
         </h1>
         <p className="text-muted-foreground">Approve educators, moderate reports, and manage every class on the platform.</p>
       </div>

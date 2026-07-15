@@ -47,7 +47,7 @@ export function NoteRenameDialog({ resourceId, classId, initialTitle }: NoteRena
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+        className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground sm:h-7 sm:w-7"
         onClick={openDialog}
         aria-label="Rename note"
       >
@@ -64,7 +64,7 @@ export function NoteRenameDialog({ resourceId, classId, initialTitle }: NoteRena
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
+            className="relative shrink-0 text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground"
             aria-label="Close"
             disabled={pending}
           >

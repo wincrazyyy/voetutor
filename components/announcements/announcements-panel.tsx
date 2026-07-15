@@ -23,7 +23,7 @@ export function AnnouncementsPanel({ classId, latest, hasUnread }: Announcements
     <Card className={cn("relative p-5 shadow-sm bg-card", hasUnread ? "border-primary/30 ring-1 ring-primary/15" : "border-border")}>
       {hasUnread && (
         <span className="absolute top-4 right-4 flex h-2.5 w-2.5" aria-label="Unread announcement">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+          <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping motion-reduce:animate-none" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
         </span>
       )}
@@ -37,10 +37,10 @@ export function AnnouncementsPanel({ classId, latest, hasUnread }: Announcements
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
             {latest.type === "important" && (
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[10px] pointer-events-none">Important</Badge>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-xs sm:text-[10px] pointer-events-none">Important</Badge>
             )}
             {latest.type === "event" && (
-              <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent text-[10px] pointer-events-none">Event</Badge>
+              <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent text-xs sm:text-[10px] pointer-events-none">Event</Badge>
             )}
             <span>{relativeTime(latest.created_at)}</span>
           </div>

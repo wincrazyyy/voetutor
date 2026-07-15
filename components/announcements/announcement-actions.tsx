@@ -34,7 +34,7 @@ export function AnnouncementActions({ classId, announcementId, size = "sm" }: An
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center justify-end gap-1">
       <Button variant="ghost" size={size} className="text-muted-foreground" asChild>
         <Link href={`/class/${classId}/announce/${announcementId}/edit`}>
           <Pencil className="w-3.5 h-3.5" />

@@ -106,12 +106,13 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         </fieldset>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="first-name">First name</Label>
           <Input
             id="first-name"
             type="text"
+            autoComplete="given-name"
             placeholder="Ada"
             required
             value={firstName}
@@ -124,6 +125,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           <Input
             id="last-name"
             type="text"
+            autoComplete="family-name"
             placeholder="Lovelace"
             required
             value={lastName}
@@ -138,6 +140,8 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         <Input
           id="email"
           type="email"
+          inputMode="email"
+          autoComplete="email"
           placeholder="ada@example.com"
           required
           value={email}
@@ -156,6 +160,8 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
             <Input
               id="whatsapp"
               type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               placeholder="+852 1234 5678"
               required
               maxLength={50}
@@ -170,6 +176,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
               <Input
                 id="school"
                 type="text"
+                autoComplete="organization"
                 placeholder="e.g. Island School"
                 required
                 maxLength={200}
@@ -214,6 +221,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           <Input
             id="password"
             type="password"
+            autoComplete="new-password"
             required
             minLength={8}
             value={password}
@@ -226,6 +234,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           <Input
             id="repeat-password"
             type="password"
+            autoComplete="new-password"
             required
             minLength={8}
             value={repeatPassword}

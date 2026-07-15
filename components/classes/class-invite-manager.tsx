@@ -351,12 +351,13 @@ export function ClassInviteManager({
                     </p>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex flex-wrap items-center justify-end gap-1">
                     {invite.status === "pending" ? (
                       <>
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="min-w-11 sm:min-w-0"
                           onClick={() => copy(invite.id, inviteUrl(invite.token))}
                           disabled={isPending}
                         >
@@ -372,6 +373,7 @@ export function ClassInviteManager({
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="min-w-11 sm:min-w-0"
                           onClick={() => revoke(invite.id)}
                           loading={busy === `revoke:${invite.id}`}
                           disabled={isPending}
@@ -409,7 +411,7 @@ export function ClassInviteManager({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-muted-foreground hover:text-destructive"
+                        className="min-w-11 text-muted-foreground hover:text-destructive sm:min-w-0"
                         onClick={() => setConfirmingDelete(invite.id)}
                         disabled={isPending}
                       >

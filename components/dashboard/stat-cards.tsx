@@ -23,13 +23,13 @@ function formatDelta(seconds: number): string {
 
 export function StatCards({ stats }: StatCardsProps) {
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="grid gap-6 lg:grid-cols-3">
       <Card className="shadow-sm border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
             Videos Watched
           </CardTitle>
-          <PlayCircle className="w-5 h-5 text-primary" />
+          <PlayCircle className="w-5 h-5 text-primary shrink-0" />
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-black text-foreground">
@@ -49,7 +49,7 @@ export function StatCards({ stats }: StatCardsProps) {
           <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
             Question Bank
           </CardTitle>
-          <BookOpen className="w-5 h-5 text-primary" />
+          <BookOpen className="w-5 h-5 text-primary shrink-0" />
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-black text-foreground">—</div>
@@ -62,7 +62,7 @@ export function StatCards({ stats }: StatCardsProps) {
           <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
             Study Time (This Week)
           </CardTitle>
-          <Clock className="w-5 h-5 text-primary" />
+          <Clock className="w-5 h-5 text-primary shrink-0" />
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-black text-foreground">

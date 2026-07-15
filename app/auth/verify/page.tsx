@@ -66,11 +66,15 @@ function VerifyForm() {
             <Input
               id="token"
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              enterKeyHint="done"
               placeholder="Enter 6-digit code"
               required
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="text-center tracking-[0.5em] font-mono text-lg"
+              className="text-center font-mono text-lg tracking-[0.5em] placeholder:text-sm placeholder:tracking-normal sm:placeholder:text-lg sm:placeholder:tracking-[0.5em]"
               maxLength={6}
             />
           </div>
@@ -87,7 +91,7 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-dvh items-center justify-center p-4">
       <Suspense fallback={<div className="text-muted-foreground">Loading...</div>}>
         <VerifyForm />
       </Suspense>

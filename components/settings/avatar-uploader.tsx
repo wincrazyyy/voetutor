@@ -82,7 +82,7 @@ export function AvatarUploader({
   };
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="flex flex-wrap items-center gap-5 sm:flex-nowrap">
       <div className="relative shrink-0">
         <UserAvatar
           avatarUrl={avatarUrl}
@@ -98,7 +98,7 @@ export function AvatarUploader({
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
             <Camera className="h-4 w-4" />

@@ -52,7 +52,7 @@ const COMPONENTS: Components = {
     }
     return <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">{children}</code>;
   },
-  pre: ({ children }) => <pre className="mb-2 last:mb-0">{children}</pre>,
+  pre: ({ children }) => <pre className="mb-2 last:mb-0 overflow-x-auto">{children}</pre>,
   h1: ({ children }) => <h3 className="mb-2 mt-1 text-base font-bold">{children}</h3>,
   h2: ({ children }) => <h3 className="mb-2 mt-1 text-base font-bold">{children}</h3>,
   h3: ({ children }) => <h4 className="mb-1.5 mt-1 text-sm font-bold">{children}</h4>,
@@ -60,7 +60,7 @@ const COMPONENTS: Components = {
   hr: () => <hr className="my-3 border-border" />,
   table: ({ children }) => (
     <div className="mb-2 last:mb-0 overflow-x-auto">
-      <table className="w-full border-collapse text-sm">{children}</table>
+      <table className="w-full min-w-[24rem] border-collapse text-sm">{children}</table>
     </div>
   ),
   th: ({ children }) => <th className="border border-border px-2 py-1 text-left font-semibold">{children}</th>,

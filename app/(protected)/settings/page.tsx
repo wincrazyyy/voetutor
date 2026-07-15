@@ -26,7 +26,7 @@ export default async function SettingsPage() {
   const effectiveAvatarUrl = profile.avatar_url ?? educatorProfile?.avatar_url ?? null;
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
           <SettingsIcon className="w-7 h-7 text-primary" />

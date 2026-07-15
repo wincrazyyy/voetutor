@@ -108,9 +108,9 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
           />
         </div>
 
-        <div className="flex-1 p-5 min-w-0">
+        <div className="min-w-0 flex-1 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <UserAvatar
                 avatarUrl={post.author?.avatar_url ?? null}
                 firstName={post.author?.first_name ?? null}
@@ -118,9 +118,9 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                 displayName={post.author?.display_name ?? null}
                 size={20}
               />
-              <span className="font-semibold text-foreground">{authorName}</span>
+              <span className="min-w-0 max-w-full truncate font-semibold text-foreground">{authorName}</span>
               {classEducatorId && post.author?.id === classEducatorId && (
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[11px] uppercase tracking-wider font-bold pointer-events-none sm:text-[9px]">
                   Educator
                 </Badge>
               )}
@@ -130,10 +130,10 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
             </div>
 
             {post.type === "video_qa" && post.video_id ? (
-              <Link href={`/lesson/${post.video_id}?from=${post.class_id}`}>
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors gap-1.5 text-[10px] cursor-pointer">
-                  <PlayCircle className="w-3 h-3" />
-                  {post.video_title ?? "Video Q&A"}
+              <Link href={`/lesson/${post.video_id}?from=${post.class_id}`} className="min-w-0 max-w-full">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors gap-1.5 max-w-full text-[11px] cursor-pointer sm:text-[10px]">
+                  <PlayCircle className="w-3 h-3 shrink-0" />
+                  <span className="min-w-0 truncate">{post.video_title ?? "Video Q&A"}</span>
                 </Badge>
               </Link>
             ) : (
@@ -150,7 +150,7 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={FORUM_LIMITS.titleMax}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
               />
               <MarkdownEditor value={content} onChange={setContent} minRows={6} uploaderId={currentUserId} />
               {error && <p className="text-xs text-destructive">{error}</p>}
@@ -166,7 +166,7 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
           ) : (
             <>
               <div className="flex items-start gap-2 mb-2">
-                <h1 className="text-xl font-bold leading-tight text-foreground flex-1">{post.title}</h1>
+                <h1 className="min-w-0 flex-1 break-words text-xl font-bold leading-tight text-foreground">{post.title}</h1>
                 {post.is_pinned && (
                   <span className="flex items-center gap-1.5 text-primary bg-primary/10 px-2.5 py-1 rounded-md text-xs font-semibold shrink-0">
                     <Pin className="w-3.5 h-3.5" />
@@ -209,7 +209,7 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                     </Button>
                   )}
                   {canDelete && confirmDelete && (
-                    <span className="flex items-center gap-1 text-sm">
+                    <span className="flex flex-wrap items-center gap-1 text-sm">
                       <span className="text-muted-foreground">Delete this thread?</span>
                       <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={doDelete} loading={pending}>
                         Yes, delete

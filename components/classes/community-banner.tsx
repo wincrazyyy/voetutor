@@ -18,7 +18,7 @@ export function CommunityBanner({ classId }: CommunityBannerProps) {
               <MessageSquare className="w-5 h-5" />
               <h3>Class Forum</h3>
             </div>
-            <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            <ArrowRight className="w-4 h-4 text-primary opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all" />
           </div>
           <p className="text-sm text-muted-foreground">Ask questions, share resources, and collaborate with your peers.</p>
         </Link>

@@ -175,18 +175,18 @@ export function ClassRoster({
                     {showAccess ? (
                       <span className="mt-0.5 flex flex-wrap items-center gap-1">
                         {access.scope === "full" ? (
-                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs md:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Full
                           </span>
                         ) : access.passes.length === 0 ? (
-                          <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                          <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs md:text-[10px] font-semibold uppercase tracking-wider text-destructive">
                             Restricted · no passes
                           </span>
                         ) : (
                           access.passes.map((pass) => (
                             <span
                               key={pass.id}
-                              className="inline-flex max-w-40 items-center truncate rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold text-gold"
+                              className="inline-flex max-w-[10rem] items-center truncate rounded-full bg-gold/10 px-2 py-0.5 text-xs md:text-[10px] font-semibold text-gold"
                             >
                               {pass.name}
                             </span>
@@ -197,7 +197,7 @@ export function ClassRoster({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   {showAccess ? (
                     <StudentAccessEditor
                       classId={classId}
@@ -210,10 +210,10 @@ export function ClassRoster({
                   {otherClasses.length === 0 ? (
                     <span className="text-xs text-muted-foreground">No other classes</span>
                   ) : moveTarget ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">
                         Move to{" "}
-                        <span className="font-semibold text-foreground">
+                        <span className="min-w-0 break-words font-semibold text-foreground">
                           {otherClasses.find((c) => c.id === moveTarget)?.title ?? "class"}
                         </span>
                         ?

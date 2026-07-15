@@ -87,14 +87,14 @@ export default async function EducatorPublicProfilePage({ params }: PageProps) {
     : await getPublicEducatorReviews(profile.educator_id);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <div className="border-b border-border">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-3 sm:px-8">
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <VoeWordmark />
           </Link>
           {browseEnabled ? (
-            <Link href="/classes" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            <Link href="/classes" className="relative inline-flex items-center text-sm font-medium text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground sm:after:hidden">
               Browse classes
             </Link>
           ) : null}

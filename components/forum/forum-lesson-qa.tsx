@@ -32,10 +32,10 @@ interface ForumLessonQAProps {
 export function ForumLessonQA({ classId, lessonId, threads, classEducatorId, currentUserId }: ForumLessonQAProps) {
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-border bg-muted/20 sticky top-0 z-10 flex flex-col gap-3">
+      <div className="p-4 border-b border-border bg-muted/20 z-10 flex flex-col gap-3 lg:sticky lg:top-0">
         <AskQuestion classId={classId} lessonId={lessonId} uploaderId={currentUserId} />
         <Link href={`/class/${classId}/forum`} className="group self-end">
-          <span className="text-xs font-medium text-primary flex items-center gap-1 hover:underline">
+          <span className="min-h-11 text-xs font-medium text-primary flex items-center gap-1 hover:underline sm:min-h-0">
             View all class discussions
             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
           </span>
@@ -108,7 +108,7 @@ function AskQuestion({ classId, lessonId, uploaderId }: { classId: string; lesso
     <form onSubmit={submit} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-bold">Ask about this lesson</span>
-        <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
+        <button type="button" onClick={() => setOpen(false)} className="relative text-muted-foreground hover:text-foreground after:absolute after:-inset-3 after:content-['']" aria-label="Close">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -117,7 +117,8 @@ function AskQuestion({ classId, lessonId, uploaderId }: { classId: string; lesso
         onChange={(e) => setTitle(e.target.value)}
         maxLength={FORUM_LIMITS.titleMax}
         placeholder="Your question"
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        enterKeyHint="done"
+        className="w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
       />
       <MarkdownEditor value={content} onChange={setContent} minRows={3} placeholder="Add any details…" uploaderId={uploaderId} />
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -176,15 +177,15 @@ function LessonThread({
         />
         <div className="flex flex-col gap-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              {studentName}
+            <span className="min-w-0 text-sm font-bold text-foreground flex items-center gap-1.5">
+              <span className="truncate">{studentName}</span>
               {threadByEducator && (
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[10px] sm:text-[9px] uppercase tracking-wider font-bold pointer-events-none">
                   Educator
                 </Badge>
               )}
             </span>
-            <span className="text-[10px] text-muted-foreground">{relativeTime(thread.created_at)}</span>
+            <span className="shrink-0 text-xs sm:text-[10px] text-muted-foreground">{relativeTime(thread.created_at)}</span>
           </div>
           <Link href={`/class/${classId}/forum/${thread.id}`} className="hover:underline">
             <p className="text-sm font-semibold text-foreground leading-relaxed">{thread.title}</p>
@@ -194,7 +195,7 @@ function LessonThread({
       </div>
 
       {thread.replies.length > 0 && (
-        <div className="flex flex-col gap-4 pl-8 mt-1 border-l-2 border-muted/50 ml-[15px]">
+        <div className="flex flex-col gap-4 pl-4 sm:pl-8 mt-1 border-l-2 border-muted/50 ml-[15px]">
           {thread.replies.map((reply) => {
             const replyName = reply.is_deleted
               ? "[deleted]"
@@ -229,15 +230,15 @@ function LessonThread({
                 )}
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                      {replyName}
+                    <span className="min-w-0 text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <span className="truncate">{replyName}</span>
                       {!reply.is_deleted && replyByEducator && (
-                        <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[10px] sm:text-[9px] uppercase tracking-wider font-bold pointer-events-none">
                           Educator
                         </Badge>
                       )}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{relativeTime(reply.created_at)}</span>
+                    <span className="shrink-0 text-xs sm:text-[10px] text-muted-foreground">{relativeTime(reply.created_at)}</span>
                   </div>
                   {reply.is_deleted ? (
                     <p className="text-sm italic text-muted-foreground">[deleted]</p>
@@ -251,7 +252,7 @@ function LessonThread({
         </div>
       )}
 
-      <div className="pl-8">
+      <div className="pl-4 sm:pl-8">
         {replying ? (
           <ForumReplyComposer
             classId={classId}

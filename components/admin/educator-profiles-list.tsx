@@ -84,7 +84,9 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search educators by name, subject, headline…"
           aria-label="Search educators"
-          className="h-11 w-full rounded-full border border-input bg-background pl-10 pr-4 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          inputMode="search"
+          enterKeyHint="search"
+          className="h-11 w-full rounded-full border border-input bg-background pl-10 pr-4 text-base outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
         />
       </div>
 
@@ -110,8 +112,8 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
           const name = getDisplayName(educator.first_name, educator.last_name, educator.display_name);
 
           return (
-            <Card key={educator.id} className="flex flex-row items-center gap-4 border-border bg-card p-4 shadow-sm">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Card key={educator.id} className="flex flex-col items-start gap-3 border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex w-full min-w-0 flex-1 items-center gap-3">
                 <UserAvatar
                   avatarUrl={ep?.avatar_url ?? null}
                   firstName={educator.first_name}
@@ -154,7 +156,7 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-1.5">
+              <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
                 {state === "live" ? (
                   <Button variant="outline" size="icon-sm" asChild title="View public profile" aria-label="View public profile">
                     <Link href={`/educators/${educator.id}`} target="_blank" rel="noopener noreferrer">

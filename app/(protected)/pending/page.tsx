@@ -20,13 +20,13 @@ export default async function PendingApprovalPage() {
   const educatorProfile = await getEducatorProfile(profile.id);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
-      <Card className="p-8 border-primary/20 bg-primary/5">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-3xl mx-auto w-full space-y-6">
+      <Card className="p-6 sm:p-8 border-primary/20 bg-primary/5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <Hourglass className="w-6 h-6 text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold">Awaiting admin approval</h1>
             <Badge variant="secondary" className="bg-primary/10 text-primary mt-1 capitalize">
               Educator (pending)

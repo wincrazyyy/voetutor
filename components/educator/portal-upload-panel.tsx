@@ -48,7 +48,7 @@ function UploadRow({
               type="button"
               onClick={onRetry}
               aria-label="Retry upload"
-              className="text-muted-foreground hover:text-foreground"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground sm:size-4"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -56,7 +56,7 @@ function UploadRow({
               type="button"
               onClick={onDismiss}
               aria-label="Dismiss"
-              className="text-muted-foreground hover:text-foreground"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground sm:size-4"
             >
               <X className="w-4 h-4" />
             </button>
@@ -66,7 +66,7 @@ function UploadRow({
             type="button"
             onClick={job.status === "success" ? onDismiss : onCancel}
             aria-label={job.status === "success" ? "Dismiss" : "Cancel upload"}
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground sm:size-4"
           >
             <X className="w-4 h-4" />
           </button>
@@ -76,13 +76,13 @@ function UploadRow({
       {inFlight && (
         <div className="flex items-center gap-2">
           <Progress value={job.progress} className="h-1.5 flex-1" />
-          <span className="text-[10px] text-muted-foreground w-8 text-right">{job.progress}%</span>
+          <span className="w-9 text-right text-[11px] text-muted-foreground sm:w-8 sm:text-[10px]">{job.progress}%</span>
         </div>
       )}
       {job.status === "queued" && <p className="text-[11px] text-muted-foreground">Queued</p>}
       {job.status === "success" && <p className="text-[11px] text-primary">Uploaded — processing</p>}
       {job.status === "error" && job.error && (
-        <p className="text-[11px] text-destructive truncate">{job.error}</p>
+        <p className="text-[11px] text-destructive break-words sm:truncate">{job.error}</p>
       )}
     </div>
   );

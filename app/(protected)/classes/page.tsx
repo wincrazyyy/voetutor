@@ -23,11 +23,11 @@ export default async function ClassesPage() {
   if (profile.role === "admin") {
     const classes = await getAllClassesForAdmin();
     return (
-      <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3 mb-2">
-            <Store className="w-7 h-7 text-primary" />
-            All Classes
+          <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl mb-2">
+            <Store className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
+            <span className="min-w-0 break-words">All Classes</span>
           </h1>
           <p className="text-muted-foreground">
             Every class on the platform. Search, review, and remove classes.
@@ -41,11 +41,11 @@ export default async function ClassesPage() {
   const classes = await getPublishedClasses(profile.id);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3 mb-2">
-          <Store className="w-7 h-7 text-primary" />
-          Browse Classes
+        <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl mb-2">
+          <Store className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
+          <span className="min-w-0 break-words">Browse Classes</span>
         </h1>
         <p className="text-muted-foreground">
           Discover classes from our educators. Enrol in a free class instantly; paid checkout is coming soon.

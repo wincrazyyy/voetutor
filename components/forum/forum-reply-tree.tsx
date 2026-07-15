@@ -126,10 +126,10 @@ function ReplyNode({
   const indented = depth > 0 && depth <= FORUM_LIMITS.maxVisualNestingDepth;
 
   return (
-    <div className={cn(indented && "pl-4 border-l-2 border-border/60")}>
+    <div className={cn(indented && "border-l border-border/60 pl-2 sm:border-l-2 sm:pl-4")}>
       <div className="flex gap-2">
         {!reply.is_deleted && (
-          <div className="shrink-0 pt-0.5">
+          <div className="hidden shrink-0 pt-0.5 sm:block">
             <ForumUpvoteButton
               classId={classId}
               postId={postId}
@@ -156,16 +156,16 @@ function ReplyNode({
                 size={20}
               />
             )}
-            <span className={cn("font-semibold", reply.is_deleted ? "text-muted-foreground italic" : "text-foreground")}>
+            <span className={cn("min-w-0 max-w-full truncate font-semibold", reply.is_deleted ? "text-muted-foreground italic" : "text-foreground")}>
               {authorName}
             </span>
             {!reply.is_deleted && isOP && (
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[11px] uppercase tracking-wider font-bold pointer-events-none sm:text-[9px]">
                 OP
               </Badge>
             )}
             {!reply.is_deleted && isClassEducator && (
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[9px] uppercase tracking-wider font-bold pointer-events-none">
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-transparent text-[11px] uppercase tracking-wider font-bold pointer-events-none sm:text-[9px]">
                 Educator
               </Badge>
             )}
@@ -196,7 +196,19 @@ function ReplyNode({
           )}
 
           {!editing && (
-            <div className="mt-1.5 flex items-center gap-1">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              {!reply.is_deleted && (
+                <div className="sm:hidden">
+                  <ForumUpvoteButton
+                    classId={classId}
+                    postId={postId}
+                    replyId={reply.id}
+                    initialCount={reply.upvotes}
+                    initialUpvoted={reply.has_upvoted}
+                    size="sm"
+                  />
+                </div>
+              )}
               {!reply.is_deleted && (
                 <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={() => setReplying((v) => !v)}>
                   <ReplyIcon className="w-3.5 h-3.5" />
@@ -216,7 +228,7 @@ function ReplyNode({
                 </Button>
               )}
               {canDelete && confirmDelete && (
-                <span className="flex items-center gap-1 text-xs">
+                <span className="flex flex-wrap items-center gap-1 text-xs">
                   <span className="text-muted-foreground">Delete?</span>
                   <Button type="button" variant="ghost" size="xs" className="text-destructive" onClick={doDelete} loading={pending}>
                     Yes

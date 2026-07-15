@@ -15,11 +15,11 @@ export default async function ContentLibraryPage() {
   ]);
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
+    <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
-          <Library className="w-7 h-7 text-primary" />
-          Content Library
+        <h1 className="mb-2 flex min-w-0 items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          <Library className="w-6 h-6 shrink-0 text-primary sm:w-7 sm:h-7" />
+          <span className="min-w-0 break-words">Content Library</span>
         </h1>
         <p className="text-muted-foreground">
           Upload videos and PDF notes once, then place them into any of your classes — the same item
