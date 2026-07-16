@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -30,10 +31,12 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
+      /* Stay loading through the push: router.push resolves immediately but the dashboard takes
+         seconds to render, and clearing here would leave the button reading "Log in" the whole time.
+         The component unmounts on navigation, so this never leaks. */
       router.push(next || "/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
-    } finally {
       setIsLoading(false);
     }
   };

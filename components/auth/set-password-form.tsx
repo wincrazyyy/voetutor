@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -59,11 +59,11 @@ export function SetPasswordForm({
         .eq("id", user.id);
       if (clearError) throw clearError;
 
+      /* Stay loading through the push — see login-form. */
       router.push("/dashboard");
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -73,8 +73,9 @@ export function SetPasswordForm({
     setIsSigningOut(true);
     try {
       await supabase.auth.signOut();
+      /* Stay loading through the push — see login-form. */
       router.push("/auth/login");
-    } finally {
+    } catch {
       setIsSigningOut(false);
     }
   };

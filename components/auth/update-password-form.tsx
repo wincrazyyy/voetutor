@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { validatePassword } from "@/lib/utils/password";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { useState } from "react";
 
 export function UpdatePasswordForm({
@@ -41,10 +41,10 @@ export function UpdatePasswordForm({
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      /* Stay loading through the push — see login-form. */
       router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
   };

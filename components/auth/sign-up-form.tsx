@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -79,10 +80,10 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
       if (signUpError) throw signUpError;
       const verifyParams = new URLSearchParams({ email, intent: effectiveRole });
       if (next) verifyParams.set("next", next);
+      /* Stay loading through the push — see login-form. */
       router.push(`/auth/verify?${verifyParams.toString()}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong while creating your account.");
-    } finally {
       setIsLoading(false);
     }
   };

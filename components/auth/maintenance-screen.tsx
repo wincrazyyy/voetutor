@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -48,6 +48,7 @@ export function MaintenanceScreen() {
       const userId = data.user?.id;
       if (!userId) {
         setError("Could not sign in.");
+        setLoading(false);
         return;
       }
 
@@ -60,14 +61,16 @@ export function MaintenanceScreen() {
       if ((profile as { role?: string } | null)?.role !== "admin") {
         await supabase.auth.signOut();
         setError("This sign-in is for administrators only.");
+        setLoading(false);
         return;
       }
 
+      /* Stay loading through the replace — see login-form. Every rejecting path above clears it
+         explicitly, so there is no finally. */
       router.replace("/");
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
-    } finally {
       setLoading(false);
     }
   };
