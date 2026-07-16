@@ -26,7 +26,7 @@ export function StatCards({ stats }: StatCardsProps) {
     <div className="grid gap-6 md:grid-cols-3">
       <Card className="shadow-sm border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider md:min-h-[2.5rem] xl:min-h-0">
             Videos Watched
           </CardTitle>
           <PlayCircle className="w-5 h-5 text-primary shrink-0" />
@@ -46,7 +46,7 @@ export function StatCards({ stats }: StatCardsProps) {
 
       <Card className="shadow-sm border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider md:min-h-[2.5rem] xl:min-h-0">
             Question Bank
           </CardTitle>
           <BookOpen className="w-5 h-5 text-primary shrink-0" />
@@ -59,7 +59,7 @@ export function StatCards({ stats }: StatCardsProps) {
 
       <Card className="shadow-sm border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider md:min-h-[2.5rem] xl:min-h-0">
             Study Time (This Week)
           </CardTitle>
           <Clock className="w-5 h-5 text-primary shrink-0" />

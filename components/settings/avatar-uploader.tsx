@@ -82,7 +82,7 @@ export function AvatarUploader({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-5 sm:flex-nowrap">
+    <div className="flex flex-col items-start gap-4 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-5">
       <div className="relative shrink-0">
         <UserAvatar
           avatarUrl={avatarUrl}

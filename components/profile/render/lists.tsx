@@ -1,5 +1,4 @@
 import type { ListColumn } from "@/lib/types/profile-doc";
-import { gridClass } from "./grid";
 
 /**
  * Titled pill columns (courses / schools / skills) rendered as a quiet keyword index — outline
@@ -7,10 +6,22 @@ import { gridClass } from "./grid";
  * grid never strands a lone trailing column; one list becomes a full-width chip cloud. The count
  * line only renders if a label is set.
  */
+
+/**
+ * Local grid map rather than the shared gridClass: pills need real text width, and the shared
+ * 3-column step at lg leaves only ~189px inside a max-w-3xl body, wrapping most chips onto 2-3
+ * lines. Holding 2 columns until xl keeps them on one line. photos.tsx still uses gridClass.
+ */
+const LIST_GRID: Record<1 | 2 | 3, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+};
+
 export function ListsBlock({ lists }: { lists: ListColumn[] }) {
   const cols = Math.min(Math.max(lists.length, 1), 3) as 1 | 2 | 3;
   return (
-    <div className={`grid gap-x-8 gap-y-6 ${gridClass(cols)}`}>
+    <div className={`grid gap-x-8 gap-y-6 ${LIST_GRID[cols]}`}>
       {lists.map((col) => (
         <div key={col.id} className="space-y-2.5">
           {col.title ? (

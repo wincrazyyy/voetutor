@@ -183,11 +183,12 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
               <ForumMarkdown content={post.content} />
 
               {(canEdit || canDelete || canResolve) && (
-                <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-3">
+                <div className="mt-4 grid grid-cols-2 gap-1.5 border-t border-border/50 pt-3 [&>button]:justify-start sm:flex sm:flex-wrap sm:items-center sm:[&>button]:justify-center">
                   {canResolve && (
                     <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={toggleResolved} loading={pending}>
                       {post.is_resolved ? <Circle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                      {post.is_resolved ? "Mark unresolved" : "Mark resolved"}
+                      <span className="sm:hidden">{post.is_resolved ? "Unresolve" : "Resolve"}</span>
+                      <span className="hidden sm:inline">{post.is_resolved ? "Mark unresolved" : "Mark resolved"}</span>
                     </Button>
                   )}
                   {canModerate && (
@@ -209,7 +210,7 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                     </Button>
                   )}
                   {canDelete && confirmDelete && (
-                    <span className="flex flex-wrap items-center gap-1 text-sm">
+                    <span className="col-span-2 flex flex-wrap items-center gap-1 text-sm">
                       <span className="text-muted-foreground">Delete this thread?</span>
                       <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={doDelete} loading={pending}>
                         Yes, delete

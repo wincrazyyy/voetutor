@@ -80,8 +80,8 @@ export function Hero({ featured }: { featured: PublicEducatorCard[] }) {
               className="group flex h-14 w-full max-w-md items-center gap-3 rounded-full border border-input bg-card/80 pl-5 pr-2 text-sm shadow-sm ring-offset-background backdrop-blur transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate text-muted-foreground">Search IB educators, subjects…</span>
-              <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+              <span className="min-w-0 truncate text-muted-foreground">Search IB educators, subjects…</span>
+              <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
                 <span className="hidden sm:inline">Find your educator</span>
                 <span className="sm:hidden">Browse</span>
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

@@ -40,7 +40,7 @@ export function ForumSearchableList({ posts, classId, classEducatorId, emptyHint
           enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search discussions by title, body, or author…"
+          placeholder="Search discussions…"
           aria-label="Search discussions"
           className="h-11 w-full min-w-0 rounded-full border border-input bg-background pl-10 pr-4 text-base outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
         />

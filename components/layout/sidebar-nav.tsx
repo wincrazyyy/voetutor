@@ -304,8 +304,11 @@ function TruncatedClassTitle({ title, suppressTooltip }: { title: string; suppre
     if (el) setIsTruncated(el.scrollWidth > el.clientWidth);
   }, [title]);
 
+  /* Below lg the name wraps and is read directly: the drawer is a touch surface, and the Radix
+     tooltip that reveals a truncated name never opens on touch. lg:truncate restores the desktop
+     single line — and with it the scrollWidth probe below, which only trips under nowrap. */
   const span = (
-    <span ref={attachRef} className="flex-1 truncate">
+    <span ref={attachRef} className="min-w-0 flex-1 break-words lg:truncate">
       {title}
     </span>
   );

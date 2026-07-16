@@ -48,8 +48,8 @@ export function ProfileHeader({
 
           <div className="flex min-w-0 flex-1 flex-col justify-center">
             {profile.role_label ? (
-              <div className="flex items-center gap-2.5">
-                <span className="h-px w-6 shrink-0 bg-primary" aria-hidden />
+              <div className="flex items-start gap-2.5 sm:items-center">
+                <span className="mt-2 h-px w-6 shrink-0 bg-primary sm:mt-0" aria-hidden />
                 <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   {profile.role_label}
                 </span>

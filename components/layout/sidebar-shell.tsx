@@ -110,7 +110,7 @@ export function SidebarShell({ homeHref, children }: SidebarShellProps) {
           ? ({ role: "dialog", "aria-modal": true, "aria-label": "Navigation" } as const)
           : {})}
         className={cn(
-          "w-64 bg-card border-r border-border flex flex-col shrink-0",
+          "w-72 lg:w-64 bg-card border-r border-border flex flex-col shrink-0",
           "fixed top-0 left-0 h-dvh z-50 transition-[transform,visibility] duration-300 ease-in-out motion-reduce:transition-none",
           open ? "translate-x-0 visible" : "-translate-x-full invisible lg:visible",
           "lg:sticky lg:left-auto lg:top-0 lg:h-dvh lg:z-auto lg:translate-x-0",

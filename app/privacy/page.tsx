@@ -26,18 +26,18 @@ function Section({ id, title, children }: { id: string; title: string; children:
 function DataTable({ rows }: { rows: { what: string; why: string }[] }) {
   return (
     <div className="w-full overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-[32rem] text-sm">
-        <thead className="bg-muted/50">
+      <table className="block w-full text-sm sm:table sm:min-w-[32rem]">
+        <thead className="hidden bg-muted/50 sm:table-header-group">
           <tr className="text-left">
             <th className="px-4 py-2.5 font-semibold text-foreground">Data</th>
             <th className="px-4 py-2.5 font-semibold text-foreground">Why we hold it</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="block sm:table-row-group">
           {rows.map((row) => (
-            <tr key={row.what} className="border-t border-border align-top">
-              <td className="px-4 py-2.5 font-medium text-foreground">{row.what}</td>
-              <td className="px-4 py-2.5 text-muted-foreground">{row.why}</td>
+            <tr key={row.what} className="block border-t border-border align-top sm:table-row">
+              <td className="block px-4 pt-3 pb-1 font-medium text-foreground sm:table-cell sm:py-2.5">{row.what}</td>
+              <td className="block px-4 pb-3 text-muted-foreground sm:table-cell sm:py-2.5">{row.why}</td>
             </tr>
           ))}
         </tbody>

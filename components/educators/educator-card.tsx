@@ -60,7 +60,7 @@ function CardInner({ educator, depth }: { educator: PublicEducatorCard; depth: b
             ) : null}
           </div>
           {educator.role_label ? (
-            <p className="mt-0.5 truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="mt-0.5 line-clamp-2 text-xs font-medium uppercase tracking-wider text-muted-foreground xl:block xl:overflow-hidden xl:text-ellipsis xl:whitespace-nowrap">
               {educator.role_label}
             </p>
           ) : null}

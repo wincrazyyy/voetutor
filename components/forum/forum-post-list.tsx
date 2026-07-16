@@ -55,7 +55,7 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
               </div>
 
               <div className="flex-1 p-4 sm:p-5 min-w-0">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex flex-wrap items-center sm:justify-between gap-2 mb-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <UserAvatar
                       avatarUrl={post.author?.avatar_url ?? null}
@@ -70,8 +70,10 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
                         Educator
                       </Badge>
                     )}
-                    <span>•</span>
-                    <span>{relativeTime(post.created_at)}</span>
+                    <span className="flex items-center gap-2">
+                      <span>•</span>
+                      <span>{relativeTime(post.created_at)}</span>
+                    </span>
                   </div>
                   {post.type === "video_qa" && post.video_id ? (
                     <Link href={`/lesson/${post.video_id}?from=${post.class_id}`} className="min-w-0 max-w-full">
@@ -111,7 +113,7 @@ export function ForumPostList({ posts, classId, classEducatorId, emptyHint }: Fo
                   </Link>
 
                   {post.is_resolved && (
-                    <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-500/10 px-2.5 py-1.5 rounded-md">
+                    <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-500/10 px-3 py-3 rounded-md sm:px-2.5 sm:py-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Answered
                     </span>

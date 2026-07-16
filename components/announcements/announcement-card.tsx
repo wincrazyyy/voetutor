@@ -37,7 +37,7 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
   return (
     <Card id={`announcement-${ann.id}`} className={cn("scroll-mt-24 p-4 sm:p-6 bg-card border shadow-sm transition-all hover:shadow-md", isImportant ? "border-primary/30 ring-1 ring-primary/10" : "border-border")}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           {unread && <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-label="Unread" />}
           <UserAvatar
             avatarUrl={ann.author?.avatar_url ?? null}

@@ -87,7 +87,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         New to VOETutor?{" "}
         <Link
           href={next ? `/auth/sign-up?next=${encodeURIComponent(next)}` : "/auth/sign-up"}
-          className="text-primary font-semibold hover:underline"
+          className="relative text-primary font-semibold after:absolute after:-inset-3 after:content-[''] hover:underline"
         >
           Create an account
         </Link>

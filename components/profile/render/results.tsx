@@ -27,7 +27,7 @@ export function ResultsBlock({ cards }: { cards: ResultCard[] }) {
       {cards.map((c) => (
         <div key={c.id} className="text-center sm:text-left">
           {c.title ? (
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="min-h-[2rem] text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground xl:min-h-0">
               {c.title}
             </div>
           ) : null}
