@@ -95,7 +95,7 @@ export function AddVideosToSubtopicDialog({
 
   if (!open) {
     return (
-      <Button size="sm" variant="ghost" className="h-10 text-xs gap-1 sm:h-7" onClick={openDialog}>
+      <Button size="sm" variant="ghost" className="h-10 text-xs gap-1 sm:h-10 xl:h-7" onClick={openDialog}>
         <Plus className="w-3 h-3" />
         Add videos
       </Button>

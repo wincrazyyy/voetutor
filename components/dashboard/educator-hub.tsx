@@ -46,7 +46,7 @@ export async function EducatorHub() {
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="p-6 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 md:min-h-[2.5rem] xl:min-h-0">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Total Students</span>
             <Users className="w-5 h-5 text-primary shrink-0" />
           </div>
@@ -55,7 +55,7 @@ export async function EducatorHub() {
         </Card>
 
         <Card className="p-6 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 md:min-h-[2.5rem] xl:min-h-0">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Lessons Published</span>
             <PlayCircle className="w-5 h-5 text-primary shrink-0" />
           </div>
@@ -64,7 +64,7 @@ export async function EducatorHub() {
         </Card>
 
         <Card className="p-6 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 md:min-h-[2.5rem] xl:min-h-0">
             <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Awaiting Reply</span>
             <MessageSquare className="w-5 h-5 text-primary shrink-0" />
           </div>
@@ -104,7 +104,7 @@ export async function EducatorHub() {
             {classes.map((cls) => (
               <Card
                 key={cls.id}
-                className="flex flex-col overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow bg-card relative"
+                className="flex flex-col gap-0 overflow-hidden border border-border py-0 shadow-sm hover:shadow-md transition-shadow bg-card relative"
               >
                 <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
                 <div className="p-5 flex-1 mt-2">

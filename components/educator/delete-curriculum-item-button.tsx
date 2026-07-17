@@ -49,7 +49,7 @@ export function DeleteCurriculumItemButton({
       <Button
         size="sm"
         variant="ghost"
-        className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive sm:h-7 sm:w-7"
+        className="h-10 w-10 p-0 sm:h-10text-muted-foreground hover:text-destructive xl:h-7 xl:w-7"
         onClick={() => {
           setError(null);
           setOpen(true);

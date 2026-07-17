@@ -145,7 +145,7 @@ export function RichTextEditor({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-0.5 rounded-md border border-border bg-muted/40 p-1">
+      <div className="grid grid-cols-4 place-items-center gap-0.5 rounded-md border border-border bg-muted/40 p-1 sm:flex sm:flex-wrap sm:items-center">
         <ToolbarButton label="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
           <BoldIcon className="h-4 w-4" />
         </ToolbarButton>
@@ -164,7 +164,7 @@ export function RichTextEditor({
         <ToolbarButton label="Link" active={linkActive || linkOpen} onClick={openLinkPanel}>
           <Link2 className="h-4 w-4" />
         </ToolbarButton>
-        <div className="mx-0.5 h-5 w-px bg-border" aria-hidden />
+        <div className="mx-0.5 hidden h-5 w-px bg-border sm:block" aria-hidden />
         <ToolbarButton label="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
           <ListIcon className="h-4 w-4" />
         </ToolbarButton>

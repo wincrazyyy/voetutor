@@ -64,7 +64,7 @@ export default async function AdminHubPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Link href="/admin/educators">
-          <Card className="p-5 border-border bg-card shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+          <Card className="p-5 border-border bg-card shadow-sm flex flex-row items-center gap-4 hover:border-primary/40 transition-colors">
             <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <Users className="w-5 h-5 text-primary" />
             </div>
@@ -76,7 +76,7 @@ export default async function AdminHubPage() {
         </Link>
 
         <Link href="/admin/students">
-          <Card className="p-5 border-border bg-card shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+          <Card className="p-5 border-border bg-card shadow-sm flex flex-row items-center gap-4 hover:border-primary/40 transition-colors">
             <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <GraduationCap className="w-5 h-5 text-primary" />
             </div>
@@ -88,7 +88,7 @@ export default async function AdminHubPage() {
         </Link>
 
         <Link href="/classes">
-          <Card className="p-5 border-border bg-card shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+          <Card className="p-5 border-border bg-card shadow-sm flex flex-row items-center gap-4 hover:border-primary/40 transition-colors">
             <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <BookOpen className="w-5 h-5 text-primary" />
             </div>

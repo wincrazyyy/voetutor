@@ -128,7 +128,7 @@ export function AnnouncementForm({ classId, authorId, announcement, passes = [] 
               id="ann-audience"
               value={passId}
               onChange={(e) => setPassId(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
+              className="w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
             >
               <option value="">Everyone in this class</option>
               {passes.map((pass) => (

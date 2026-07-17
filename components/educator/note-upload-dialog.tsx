@@ -220,7 +220,7 @@ export function NoteUploadDialog({
       <Button
         size={buttonVariant === "ghost" ? "sm" : "default"}
         variant={buttonVariant}
-        className={buttonClassName ?? (buttonVariant === "ghost" ? "h-10 gap-1 text-xs text-primary sm:h-7" : "gap-2 shadow-md")}
+        className={buttonClassName ?? (buttonVariant === "ghost" ? "h-10 gap-1 text-xs text-primary sm:h-10 xl:h-7" : "gap-2 shadow-md")}
         onClick={openDialog}
       >
         {buttonVariant === "ghost" ? <Plus className="w-3 h-3" /> : <UploadCloud className="w-4 h-4" />}

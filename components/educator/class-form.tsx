@@ -100,14 +100,21 @@ export function ClassForm({ initial, mode }: ClassFormProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
         {saved && !error && <p className="text-sm text-primary">Saved.</p>}
 
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={() => router.back()} disabled={pending}>
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => router.back()}
+            disabled={pending}
+            className="w-full sm:w-auto"
+          >
             Cancel
           </Button>
           <Button
             type="submit"
             loading={pending}
             loadingText={mode === "create" ? "Creating..." : "Saving..."}
+            className="w-full sm:w-auto"
           >
             {mode === "create" ? "Create Class" : "Save Changes"}
           </Button>

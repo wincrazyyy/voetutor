@@ -319,7 +319,7 @@ function DragHandle({ listeners, attributes, label }: { listeners: ReturnType<ty
   return (
     <button
       type="button"
-      className="relative text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
+      className="relative text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 after:absolute after:-inset-3 after:content-[''] xl:after:hidden"
       aria-label={label}
       {...attributes}
       {...listeners}
@@ -565,6 +565,8 @@ function SortableTopic({
   libraryNotes,
   activeKind,
   onError,
+  isOpen,
+  onToggle,
 }: {
   topic: TopicWithChildren;
   classId: string;
@@ -572,6 +574,8 @@ function SortableTopic({
   libraryNotes: LibraryNote[];
   activeKind: Kind | null;
   onError: (message: string) => void;
+  isOpen: boolean;
+  onToggle: (topicId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `${TID}${topic.id}`,
@@ -591,7 +595,7 @@ function SortableTopic({
       <div ref={openZone.setNodeRef} className="topic-bar flex items-stretch bg-muted/10 hover:bg-muted/40 transition-colors">
         <button
           type="button"
-          className="flex min-w-11 items-center pl-3 pr-1 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 sm:min-w-0"
+          className="flex min-w-11 items-center pl-3 pr-1 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 xl:min-w-0"
           aria-label="Drag to reorder this topic"
           {...attributes}
           {...listeners}
@@ -623,7 +627,14 @@ function SortableTopic({
             name={topic.title}
             summary={`${pluralise(topic.subtopics.length, "subtopic")} and ${pluralise(topic.total_videos, "video")}`}
           />
-          <ChevronDown className="topic-chevron w-4 h-4 text-muted-foreground transition-transform duration-200" />
+          <button
+            type="button"
+            onClick={() => onToggle(topic.id)}
+            aria-label={isOpen ? "Collapse topic" : "Expand topic"}
+            className="relative flex h-10 w-10 items-center justify-center text-muted-foreground xl:h-4 xl:w-4"
+          >
+            <ChevronDown className="topic-chevron w-4 h-4 transition-transform duration-200" />
+          </button>
         </div>
       </div>
 
@@ -886,6 +897,10 @@ export function EducatorCurriculumOverview({
                   libraryNotes={libraryNotes}
                   activeKind={activeDrag?.kind ?? null}
                   onError={setError}
+                  isOpen={openTopics.includes(topic.id)}
+                  onToggle={(id) =>
+                    setOpenTopics((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+                  }
                 />
               ))}
             </SortableContext>

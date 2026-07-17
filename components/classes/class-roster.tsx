@@ -186,9 +186,9 @@ export function ClassRoster({
                           access.passes.map((pass) => (
                             <span
                               key={pass.id}
-                              className="inline-flex max-w-[10rem] items-center truncate rounded-full bg-gold/10 px-2 py-0.5 text-xs md:text-[10px] font-semibold text-gold"
+                              className="inline-flex min-w-0 max-w-[10rem] items-center rounded-full bg-gold/10 px-2 py-0.5 text-xs md:text-[10px] font-semibold text-gold"
                             >
-                              {pass.name}
+                              <span className="truncate">{pass.name}</span>
                             </span>
                           ))
                         )}

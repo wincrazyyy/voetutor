@@ -56,7 +56,7 @@ export function SubtopicFormDialog({
 
   if (!open) {
     return mode === "create" ? (
-      <Button size="sm" variant="ghost" className="h-10 text-xs gap-1 sm:h-7" onClick={openDialog}>
+      <Button size="sm" variant="ghost" className="h-10 text-xs gap-1 sm:h-10 xl:h-7" onClick={openDialog}>
         <Plus className="w-3 h-3" />
         Add Subtopic
       </Button>
@@ -64,7 +64,7 @@ export function SubtopicFormDialog({
       <Button
         size="sm"
         variant="ghost"
-        className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground sm:h-7 sm:w-7"
+        className="h-10 w-10 p-0 sm:h-10text-muted-foreground hover:text-foreground xl:h-7 xl:w-7"
         onClick={openDialog}
         aria-label="Rename subtopic"
       >

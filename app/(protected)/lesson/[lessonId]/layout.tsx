@@ -53,7 +53,12 @@ async function LessonHeaderContent({ lessonId }: { lessonId: string }) {
     <>
       <div className="flex items-center gap-4 overflow-hidden">
         <Link href={ctx?.classId ? `/class/${ctx.classId}` : "/dashboard"} className="shrink-0">
-          <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Back to curriculum"
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Back to Curriculum</span>
           </Button>
@@ -87,7 +92,12 @@ function LessonHeaderFallback() {
   return (
     <div className="flex items-center gap-4 overflow-hidden">
       <Link href="/dashboard" className="shrink-0">
-        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Back to curriculum"
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:inline">Back to Curriculum</span>
         </Button>
@@ -112,7 +122,10 @@ export default async function LessonLayout({
 
   return (
     <div className="flex flex-col xl:h-dvh bg-background">
-      <header className="hidden h-16 border-b lg:flex items-center justify-between px-4 md:px-6 shrink-0 bg-card z-50">
+      {/* z-50 only from lg: below it the nav drawer (z-50) and its backdrop (z-40) overlay this
+          header, and as a flex item its z-index applies — an unscoped z-50 would paint the header
+          over the open drawer, since it sits later in DOM order than the sidebar. */}
+      <header className="flex h-16 border-b items-center justify-between px-4 md:px-6 shrink-0 bg-card lg:z-50">
         <Suspense fallback={<LessonHeaderFallback />}>
           <LessonHeaderContent lessonId={lessonId} />
         </Suspense>

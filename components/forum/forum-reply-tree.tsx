@@ -169,9 +169,11 @@ function ReplyNode({
                 Educator
               </Badge>
             )}
-            <span>•</span>
-            <span>{relativeTime(reply.created_at)}</span>
-            {edited && <span className="italic">(edited)</span>}
+            <span className="flex items-center gap-2">
+              <span>•</span>
+              <span>{relativeTime(reply.created_at)}</span>
+              {edited && <span className="italic">(edited)</span>}
+            </span>
           </div>
 
           {editing ? (

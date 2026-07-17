@@ -124,9 +124,11 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                   Educator
                 </Badge>
               )}
-              <span>•</span>
-              <span>{relativeTime(post.created_at)}</span>
-              {edited && <span className="italic">(edited)</span>}
+              <span className="flex items-center gap-2">
+                <span>•</span>
+                <span>{relativeTime(post.created_at)}</span>
+                {edited && <span className="italic">(edited)</span>}
+              </span>
             </div>
 
             {post.type === "video_qa" && post.video_id ? (
@@ -165,19 +167,23 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
             </div>
           ) : (
             <>
-              <div className="flex items-start gap-2 mb-2">
-                <h1 className="min-w-0 flex-1 break-words text-xl font-bold leading-tight text-foreground">{post.title}</h1>
-                {post.is_pinned && (
-                  <span className="flex items-center gap-1.5 text-primary bg-primary/10 px-2.5 py-1 rounded-md text-xs font-semibold shrink-0">
-                    <Pin className="w-3.5 h-3.5" />
-                    Pinned
-                  </span>
-                )}
-                {post.is_resolved && (
-                  <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-md text-xs font-semibold shrink-0">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Answered
-                  </span>
+              <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row">
+                <h1 className="w-full min-w-0 flex-1 break-words text-xl font-bold leading-tight text-foreground sm:w-auto">{post.title}</h1>
+                {(post.is_pinned || post.is_resolved) && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    {post.is_pinned && (
+                      <span className="flex items-center gap-1.5 text-primary bg-primary/10 px-2.5 py-1 rounded-md text-xs font-semibold shrink-0">
+                        <Pin className="w-3.5 h-3.5" />
+                        Pinned
+                      </span>
+                    )}
+                    {post.is_resolved && (
+                      <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-md text-xs font-semibold shrink-0">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Answered
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <ForumMarkdown content={post.content} />

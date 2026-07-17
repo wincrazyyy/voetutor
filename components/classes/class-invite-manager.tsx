@@ -258,7 +258,7 @@ export function ClassInviteManager({
         ) : null}
 
         <div>
-          <Button onClick={generate} loading={busy === "generate"} disabled={isPending} loadingText="Generating…" className="gap-2">
+          <Button onClick={generate} loading={busy === "generate"} disabled={isPending} loadingText="Generating…" className="w-full gap-2 sm:w-auto">
             <Link2 className="h-4 w-4" />
             Generate link
           </Button>

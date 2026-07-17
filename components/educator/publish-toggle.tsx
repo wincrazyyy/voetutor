@@ -29,7 +29,7 @@ export function PublishToggle({ classId, isPublished }: PublishToggleProps) {
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-stretch gap-2 sm:items-end">
       <Button
         variant={isPublished ? "outline" : "default"}
         size="sm"

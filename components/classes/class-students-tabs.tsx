@@ -30,14 +30,14 @@ export function ClassStudentsTabs({
     <Tabs defaultValue="roster" className="w-full">
       <TabsList>
         <TabsTrigger value="roster" className="gap-1.5">
-          <Users className="h-4 w-4" />
+          <Users className="hidden h-4 w-4 sm:block" />
           Roster
           <span className="ml-1 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">
             {studentCount}
           </span>
         </TabsTrigger>
         <TabsTrigger value="invites" className="gap-1.5">
-          <Link2 className="h-4 w-4" />
+          <Link2 className="hidden h-4 w-4 sm:block" />
           Invite links
           {pendingInviteCount > 0 ? (
             <span className="ml-1 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">
@@ -46,7 +46,7 @@ export function ClassStudentsTabs({
           ) : null}
         </TabsTrigger>
         <TabsTrigger value="passes" className="gap-1.5">
-          <Ticket className="h-4 w-4" />
+          <Ticket className="hidden h-4 w-4 sm:block" />
           Access passes
           {passCount > 0 ? (
             <span className="ml-1 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">

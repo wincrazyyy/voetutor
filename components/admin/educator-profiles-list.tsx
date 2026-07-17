@@ -156,31 +156,85 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
                 </div>
               </div>
 
-              <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
+              {/* Native `title` tooltips never fire on touch, so below `lg` every action renders a
+                  labelled twin instead. The `lg:inline-flex` copies are the icon-only desktop row. */}
+              <div className="flex w-full shrink-0 flex-wrap items-center justify-start gap-1.5 sm:w-auto sm:justify-end">
                 {state === "live" ? (
-                  <Button variant="outline" size="icon-sm" asChild title="View public profile" aria-label="View public profile">
-                    <Link href={`/educators/${educator.id}`} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <span title="This profile isn't public yet" className="inline-flex">
+                  <>
+                    <Button variant="outline" size="sm" asChild className="lg:hidden" aria-label="View public profile">
+                      <Link href={`/educators/${educator.id}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        View
+                      </Link>
+                    </Button>
                     <Button
                       variant="outline"
                       size="icon-sm"
+                      asChild
+                      className="hidden lg:inline-flex"
+                      title="View public profile"
+                      aria-label="View public profile"
+                    >
+                      <Link href={`/educators/${educator.id}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       disabled
+                      className="lg:hidden"
                       aria-label="View public profile — not public yet"
                     >
                       <ExternalLink className="h-4 w-4" />
+                      View
                     </Button>
-                  </span>
+                    <span title="This profile isn't public yet" className="hidden lg:inline-flex">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        disabled
+                        aria-label="View public profile — not public yet"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </span>
+                  </>
                 )}
-                <Button variant="outline" size="icon-sm" asChild title="Manage reviews" aria-label="Manage reviews">
+                <Button variant="outline" size="sm" asChild className="lg:hidden" aria-label="Manage reviews">
+                  <Link href={`/admin/educators/${educator.id}/reviews`}>
+                    <Star className="h-4 w-4" />
+                    Reviews
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  asChild
+                  className="hidden lg:inline-flex"
+                  title="Manage reviews"
+                  aria-label="Manage reviews"
+                >
                   <Link href={`/admin/educators/${educator.id}/reviews`}>
                     <Star className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button size="icon-sm" asChild title="Edit profile" aria-label="Edit profile">
+                <Button size="sm" asChild className="lg:hidden" aria-label="Edit profile">
+                  <Link href={`/admin/educators/${educator.id}/edit`}>
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Link>
+                </Button>
+                <Button
+                  size="icon-sm"
+                  asChild
+                  className="hidden lg:inline-flex"
+                  title="Edit profile"
+                  aria-label="Edit profile"
+                >
                   <Link href={`/admin/educators/${educator.id}/edit`}>
                     <Pencil className="h-4 w-4" />
                   </Link>
@@ -199,7 +253,11 @@ export function EducatorProfilesList({ educators, educatorProfiles, currentUserI
                       </>
                     }
                   />
-                ) : null}
+                ) : (
+                  /* Holds the Delete column on the signed-in admin's own row, which has no Delete
+                     button — without it the other actions re-flow into Delete's slot. */
+                  <div aria-hidden className="size-9 shrink-0 sm:size-8" />
+                )}
               </div>
             </Card>
           );

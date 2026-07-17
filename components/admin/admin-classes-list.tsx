@@ -93,10 +93,10 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                       Taught by <span className="font-semibold text-foreground">{educatorName}</span> · created {relativeTime(c.created_at)}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center justify-end gap-3">
+                  <div className="flex shrink-0 items-center justify-start gap-3 sm:justify-end">
                     <Link
                       href={`/class/${c.id}/edit`}
-                      className="relative inline-flex w-fit items-center gap-1 text-xs text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:text-foreground"
+                      className="relative inline-flex w-fit items-center gap-1 text-sm text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground sm:text-xs"
                     >
                       Manage
                       <ExternalLink className="w-3 h-3" />
@@ -112,7 +112,7 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-medium text-muted-foreground sm:grid-cols-3">
+                <div className="mt-0 grid grid-cols-2 gap-2 text-xs font-medium text-muted-foreground sm:mt-4 sm:grid-cols-3">
                   <div className="col-span-2 min-w-0 bg-muted/30 rounded-md p-2 text-center sm:col-span-1">
                     <div className="text-foreground font-bold text-base">{formatPrice(c.price_cents, c.currency)}</div>
                     <div>Price</div>

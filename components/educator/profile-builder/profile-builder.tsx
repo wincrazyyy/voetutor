@@ -693,16 +693,16 @@ export function ProfileBuilder({
         className="flex min-w-0 flex-col gap-6"
         style={isWide ? { flexBasis: "48rem", flexGrow: 0, flexShrink: 1, minWidth: 0 } : undefined}
       >
-      <div className="sticky top-14 z-20 border-b border-border bg-background/80 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:top-0">
+      <div className="sticky top-14 z-20 border-b border-border bg-background py-3 lg:top-0 lg:bg-background/80 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/60">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex min-w-0 items-center gap-2">
-            <h1 className="text-xl font-black text-foreground">{adminEdit ? "Edit profile" : "My Profile"}</h1>
+            <h1 className="shrink-0 text-xl font-black text-foreground">{adminEdit ? "Edit profile" : "My Profile"}</h1>
             {adminEdit ? (
               <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">— {editingName}</span>
             ) : null}
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+                "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium",
                 isPublished ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
               )}
             >
@@ -731,23 +731,35 @@ export function ProfileBuilder({
                 <span className="hidden sm:inline">{showPreview ? "Hide preview" : "Preview"}</span>
               </Button>
             ) : null}
-            <Button size="sm" onClick={save} loading={isPending} loadingText="Saving…" aria-label="Save">
+            <Button size="sm" onClick={save} loading={isPending} loadingText="Saving…">
               {justSaved && !dirty ? (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              <span className="hidden sm:inline">{justSaved && !dirty ? "Saved" : "Save"}</span>
+              <span>{justSaved && !dirty ? "Saved" : "Save"}</span>
             </Button>
             {isPublished ? (
-              <Button variant="secondary" size="sm" onClick={unpublish} loading={isPending} aria-label="Unpublish">
-                <span className="hidden sm:inline">Unpublish</span>
-                <X className="h-3.5 w-3.5 sm:hidden" />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={unpublish}
+                loading={isPending}
+                aria-label="Unpublish"
+                className="sm:px-2.5"
+              >
+                Unpublish
               </Button>
             ) : (
-              <Button variant="secondary" size="sm" onClick={publish} loading={isPending} aria-label="Publish">
-                <span className="hidden sm:inline">Publish</span>
-                <CheckCircle2 className="h-3.5 w-3.5 sm:hidden" />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={publish}
+                loading={isPending}
+                aria-label="Publish"
+                className="sm:px-2.5"
+              >
+                Publish
               </Button>
             )}
           </div>
@@ -789,7 +801,7 @@ export function ProfileBuilder({
           <h2 className="text-sm font-bold text-foreground">The top of your page</h2>
           <p className="text-xs text-muted-foreground">Your name is shown automatically.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
           {avatarUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -955,13 +967,15 @@ export function ProfileBuilder({
               )}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                  <Icon className="h-4 w-4" />
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className="truncate text-sm font-semibold text-foreground">{TYPE_LABEL[section.type]}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">Section {index + 1}</span>
                 </div>
-                <span className="text-sm font-semibold text-foreground">{TYPE_LABEL[section.type]}</span>
-                <span className="text-xs tabular-nums text-muted-foreground">Section {index + 1}</span>
 
-                <div className="ml-auto flex items-center gap-1">
+                <div className="ml-auto flex shrink-0 items-center gap-1">
                   {confirming ? (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Delete?</span>

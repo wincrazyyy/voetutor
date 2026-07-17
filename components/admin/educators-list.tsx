@@ -91,7 +91,7 @@ function EducatorCard({
   );
 
   return (
-    <Card className="p-5 border-border bg-card shadow-sm">
+    <Card className="gap-0 p-5 border-border bg-card shadow-sm">
       <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <UserAvatar
@@ -103,13 +103,15 @@ function EducatorCard({
           />
           <div className="min-w-0">
             <div className="truncate font-semibold">{name}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {filter === "pending"
-                ? `Signed up ${relativeTime(educator.created_at)}`
-                : educator.approved_at
-                  ? `Approved ${relativeTime(educator.approved_at)}`
-                  : "Approved"}
-            </div>
+            {filter === "pending" ? (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Signed up {relativeTime(educator.created_at)}
+              </div>
+            ) : educator.approved_at ? (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Approved {relativeTime(educator.approved_at)}
+              </div>
+            ) : null}
           </div>
         </div>
 

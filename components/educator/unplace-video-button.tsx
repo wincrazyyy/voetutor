@@ -40,7 +40,7 @@ export function UnplaceVideoButton({ placementId, onError }: UnplaceVideoButtonP
       <Button
         size="sm"
         variant="ghost"
-        className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive sm:h-7 sm:w-7"
+        className="h-10 w-10 p-0 sm:h-10text-muted-foreground hover:text-destructive xl:h-7 xl:w-7"
         onClick={() => setConfirming(true)}
         aria-label="Remove from subtopic"
         title="Remove from subtopic"
@@ -55,7 +55,7 @@ export function UnplaceVideoButton({ placementId, onError }: UnplaceVideoButtonP
       <Button
         size="sm"
         variant="ghost"
-        className="h-10 w-10 p-0 text-destructive hover:text-destructive sm:h-7 sm:w-7"
+        className="h-10 w-10 p-0 sm:h-10text-destructive hover:text-destructive xl:h-7 xl:w-7"
         onClick={handleRemove}
         loading={pending}
         loadingText={null}
@@ -67,7 +67,7 @@ export function UnplaceVideoButton({ placementId, onError }: UnplaceVideoButtonP
       <Button
         size="sm"
         variant="ghost"
-        className="h-10 w-10 p-0 text-muted-foreground sm:h-7 sm:w-7"
+        className="h-10 w-10 p-0 sm:h-10text-muted-foreground xl:h-7 xl:w-7"
         onClick={() => setConfirming(false)}
         disabled={pending}
         aria-label="Cancel"

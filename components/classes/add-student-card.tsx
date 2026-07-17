@@ -469,7 +469,7 @@ export function AddStudentCard({
                 loading={busy === "create"}
                 disabled={isPending || !canCreate}
                 loadingText="Creating account…"
-                className="gap-2"
+                className="w-full gap-2 sm:w-auto"
               >
                 <KeyRound className="h-4 w-4" />
                 Create account

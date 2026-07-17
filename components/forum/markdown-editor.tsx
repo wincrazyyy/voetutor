@@ -123,7 +123,7 @@ export function MarkdownEditor({
   return (
     <div className="rounded-md border border-input bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring">
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border px-2 py-1">
-        <div className="flex w-full items-center gap-0.5 overflow-x-auto sm:w-auto sm:overflow-visible">
+        <div className="flex w-full items-center justify-between overflow-x-auto sm:w-auto sm:justify-start sm:gap-0.5 sm:overflow-visible">
           {tools.map((t) => {
             const Icon = t.icon;
             return (

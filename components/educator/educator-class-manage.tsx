@@ -52,7 +52,7 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
           </Button>
         </Link>
 
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
           <div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
               <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -65,7 +65,7 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
             </div>
             <p className="text-muted-foreground">Manage curriculum, post announcements, and track engagement.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
             <Link href={`/class/${classId}/students`} className="w-full sm:w-auto">
               <Button variant="outline" className="w-full gap-2 sm:w-auto">
                 <Users className="w-4 h-4" />

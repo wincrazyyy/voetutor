@@ -69,7 +69,7 @@ function LibraryVideoCard({
   return (
     <Card className="flex flex-col sm:flex-row gap-4 p-4 border-border bg-card shadow-sm">
       <div
-        className="relative w-full sm:w-40 aspect-video rounded-md bg-muted shrink-0 overflow-hidden flex items-center justify-center bg-cover bg-center"
+        className="relative w-full sm:w-40 sm:self-start aspect-video rounded-md bg-muted shrink-0 overflow-hidden flex items-center justify-center bg-cover bg-center"
         style={hasThumb ? { backgroundImage: `url(${video.thumbnail_url})` } : undefined}
       >
         {!hasThumb && <PlayCircle className="w-8 h-8 text-muted-foreground/60" />}

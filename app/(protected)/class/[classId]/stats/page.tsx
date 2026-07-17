@@ -77,22 +77,22 @@ export default async function ClassStatsPage({
           </div>
         ) : (
           <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-sm">
+            <table className="w-full min-w-0 text-sm sm:min-w-[34rem]">
               <thead>
                 <tr className="border-b border-border text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3">Video</th>
-                  <th className="px-5 py-3 text-right">Minutes Viewed</th>
-                  <th className="px-5 py-3 text-right">Completions</th>
+                  <th className="px-3 py-3 sm:px-5">Video</th>
+                  <th className="px-3 py-3 text-right sm:px-5">Minutes Viewed</th>
+                  <th className="px-3 py-3 text-right sm:px-5">Completions</th>
                 </tr>
               </thead>
               <tbody>
                 {videoAnalytics.map((video) => (
                   <tr key={video.videoId} className="border-b border-border/50 last:border-0">
-                    <td className="px-5 py-3 font-medium">{video.title}</td>
-                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                    <td className="px-3 py-3 font-medium sm:px-5">{video.title}</td>
+                    <td className="px-3 py-3 text-right tabular-nums text-muted-foreground sm:px-5">
                       {video.minutesViewed > 0 ? video.minutesViewed.toLocaleString() : "—"}
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                    <td className="px-3 py-3 text-right tabular-nums text-muted-foreground sm:px-5">
                       {video.completions > 0 ? video.completions.toLocaleString() : "—"}
                     </td>
                   </tr>
@@ -120,7 +120,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-5 border-border bg-card shadow-sm">
       <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</div>
-      <div className="text-2xl font-black">{value}</div>
+      <div className="mt-auto text-2xl font-black">{value}</div>
     </Card>
   );
 }

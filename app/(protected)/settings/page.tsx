@@ -90,7 +90,7 @@ export default async function SettingsPage() {
             </p>
             <Link
               href="/profile"
-              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+              className="relative mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary after:absolute after:-inset-3 after:content-[''] hover:underline"
             >
               Edit public profile →
             </Link>

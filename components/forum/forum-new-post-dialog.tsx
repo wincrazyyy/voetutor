@@ -120,7 +120,7 @@ export function ForumNewPostDialog({ classId, videos, uploaderId }: ForumNewPost
                 id="forum-video"
                 value={videoId}
                 onChange={(e) => setVideoId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
+                className="w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
               >
                 <option value="">Select a lesson…</option>
                 {videos.map((v) => (

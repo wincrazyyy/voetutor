@@ -139,14 +139,14 @@ export function LessonPlayerClient({
 
         <div className="flex items-center justify-between mt-6 shrink-0">
           {previousVideo ? (
-            <Button asChild variant="outline" className="rounded-full gap-2 group">
+            <Button asChild variant="outline" className="rounded-full gap-2 group sm:min-w-[7.5rem] xl:min-w-0">
               <Link href={`/lesson/${previousVideo}?from=${classId}`}>
                 <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 <span className="hidden sm:inline">Previous</span>
               </Link>
             </Button>
           ) : (
-            <Button variant="outline" className="rounded-full gap-2" disabled>
+            <Button variant="outline" className="rounded-full gap-2 sm:min-w-[7.5rem] xl:min-w-0" disabled>
               <ChevronLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Previous</span>
             </Button>
@@ -164,14 +164,14 @@ export function LessonPlayerClient({
           </Button>
 
           {nextVideo ? (
-            <Button asChild variant="outline" className="rounded-full gap-2 group">
+            <Button asChild variant="outline" className="rounded-full gap-2 group sm:min-w-[7.5rem] xl:min-w-0">
               <Link href={`/lesson/${nextVideo}?from=${classId}`}>
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
           ) : (
-            <Button variant="outline" className="rounded-full gap-2" disabled>
+            <Button variant="outline" className="rounded-full gap-2 sm:min-w-[7.5rem] xl:min-w-0" disabled>
               <span className="hidden sm:inline">Next</span>
               <ChevronRight className="w-4 h-4" />
             </Button>

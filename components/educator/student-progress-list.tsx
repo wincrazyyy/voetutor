@@ -33,12 +33,13 @@ export function StudentProgressList({ students }: { students: StudentEntry[] }) 
         return (
           <AccordionItem key={student.user_id} value={student.user_id} className="border-border">
             <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30">
-              <div className="flex items-center gap-4 w-full pr-4">
+              <div className="flex items-center gap-3 w-full pr-1 sm:gap-4 sm:pr-4">
                 <UserAvatar avatarUrl={null} firstName={null} lastName={null} displayName={student.name} size="sm" />
                 <div className="flex flex-col items-start min-w-0">
                   <span className="text-sm font-bold text-foreground truncate">{student.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {student.completed_count} / {student.total_videos} lessons completed · {completionPct}%
+                    {student.completed_count} / {student.total_videos}{" "}
+                    <span className="whitespace-nowrap">lessons completed · {completionPct}%</span>
                   </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground font-medium shrink-0">

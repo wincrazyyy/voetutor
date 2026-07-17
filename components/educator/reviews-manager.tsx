@@ -230,8 +230,10 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
 
       <div className="rounded-md border border-primary/15 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
         <strong className="text-primary">Imported reviews</strong> are testimonials you bring in from
-        students you taught elsewhere. They show a small <span className="font-medium">“Imported”</span> label
-        so visitors know they aren&apos;t verified platform reviews. Be honest — only add real quotes.
+        students you taught elsewhere. They show a small{" "}
+        <span className="font-medium">“Imported”</span>{" "}
+        label so visitors know they aren&apos;t verified platform reviews. Be honest — only add real
+        quotes.
       </div>
 
       {adding ? (
@@ -361,7 +363,13 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                           <span className="hidden sm:inline">{r.is_visible ? "Hide" : "Show"}</span>
                         </Button>
                       ) : null}
-                      <Button variant="ghost" size="sm" onClick={() => startEdit(r)} disabled={isPending}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEdit(r)}
+                        disabled={isPending}
+                        aria-label="Edit review"
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Edit</span>
                       </Button>
@@ -389,6 +397,7 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                         className="text-muted-foreground hover:text-destructive"
                         onClick={() => setConfirmingDelete(r.id)}
                         disabled={isPending}
+                        aria-label="Delete review"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Delete</span>

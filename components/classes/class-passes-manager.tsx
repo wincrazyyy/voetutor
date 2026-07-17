@@ -294,6 +294,7 @@ export function ClassPassesManager({
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label="Rename pass"
                         className="min-w-11 gap-1.5 sm:min-w-0"
                         disabled={isPending}
                         onClick={() => {
@@ -332,6 +333,7 @@ export function ClassPassesManager({
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label="Delete pass"
                           className={cn("min-w-11 gap-1.5 text-muted-foreground hover:text-destructive sm:min-w-0")}
                           disabled={isPending}
                           onClick={() => {

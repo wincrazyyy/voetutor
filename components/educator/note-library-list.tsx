@@ -41,7 +41,7 @@ function LibraryNoteCard({ note, tree }: { note: LibraryNote; tree: PlacementTre
   };
 
   return (
-    <Card className="flex gap-4 p-4 border-border bg-card shadow-sm">
+    <Card className="flex flex-row gap-4 p-4 border-border bg-card shadow-sm">
       <div className="w-12 h-12 rounded-md bg-primary/10 shrink-0 flex items-center justify-center">
         <FileText className="w-6 h-6 text-primary" />
       </div>
