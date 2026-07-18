@@ -33,7 +33,12 @@ const FULLBLEED = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
   </g>
 </svg>`;
 
-/* 1200×630 OpenGraph / social-share card: dark teal vault gradient + the crest + wordmark + tagline.
+/* 1200×630 OpenGraph / social-share card: dark teal vault gradient + a CENTERED crest+wordmark lockup.
+   The lockup is horizontally centered on purpose — WhatsApp (and other compact/desktop link previews)
+   derive their small square thumbnail by center-cropping this image to its central 630×630, so the
+   whole mark must live inside that centre square. A left-anchored crest (the old layout) got sliced
+   off and the square showed only cropped wordmark text. The crest sits in a rounded teal tile — the
+   same shape as the favicon / apple-icon — so the tiny square reads as a proper app icon.
    Text uses widely-available serif/sans so it rasterizes reliably on this machine. */
 const OG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
   <defs>
@@ -45,14 +50,13 @@ const OG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="20" y="20" width="1160" height="590" rx="24" fill="none" stroke="${GOLD}" stroke-opacity="0.35" stroke-width="2"/>
-  <g transform="translate(150 315) scale(0.62) translate(-256 -272)">
-    <circle cx="256" cy="272" r="150" fill="#ffffff" fill-opacity="0.06"/>
-    ${keyhole()}
-  </g>
-  <text x="470" y="286" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-weight="700" fill="#ffffff" letter-spacing="2">VOETutor</text>
-  <text x="472" y="342" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="700" fill="${GOLD}" letter-spacing="8">VAULT OF EXCELLENCE</text>
-  <line x1="472" y1="372" x2="1044" y2="372" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>
-  <text x="472" y="422" font-family="'Segoe UI', Arial, sans-serif" font-size="29" fill="#d6efe9">Premium IB video tutoring · vetted educators</text>
+  <rect x="524" y="112" width="152" height="152" rx="34" fill="${TEAL}"/>
+  <rect x="524" y="112" width="152" height="152" rx="34" fill="none" stroke="${GOLD}" stroke-opacity="0.45" stroke-width="2"/>
+  <g transform="translate(600 188) scale(0.44) translate(-256 -262)">${keyhole()}</g>
+  <text x="600" y="360" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="90" font-weight="700" fill="#ffffff" letter-spacing="2">VOETutor</text>
+  <text x="600" y="408" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="29" font-weight="700" fill="${GOLD}" letter-spacing="7">VAULT OF EXCELLENCE</text>
+  <line x1="430" y1="438" x2="770" y2="438" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>
+  <text x="600" y="482" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="27" fill="#d6efe9">Premium IB video tutoring · vetted educators</text>
 </svg>`;
 
 /* Minimal PNG-in-ICO container (16/32/48). PNG-encoded ICO entries are supported by every current browser. */
