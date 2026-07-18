@@ -123,25 +123,64 @@ export function placementsUnderClassFilter(topicIds: string[], subtopicIds: stri
 
 /**
  * Placed videos for a class — one entry per placement (topic- or subtopic-level), each carrying its
- * video's id + title, ordered by order_index. A shared video placed twice appears twice; callers that
- * want distinct videos dedupe by id. Shared by the stats, roster, and analytics queries so the
- * topic+subtopic resolution lives in one place.
+ * video's id + title, in **curriculum reading order**: topics by order_index, then a topic's own
+ * topic-level materials, then each of its subtopics (by order_index) and their content. `order_index`
+ * is a PER-NODE sequence, so a flat global sort would interleave unrelated nodes — this mirrors the
+ * order students see in `getCurriculumForClass`. A shared video placed twice appears twice; callers
+ * that want distinct videos dedupe by id (first-seen wins, preserving reading order). Shared by the
+ * stats, roster, and analytics queries so the topic+subtopic resolution lives in one place.
  */
 export async function placedVideoRowsForClass(
   supabase: SupabaseServerClient,
   classId: string,
 ): Promise<Array<{ id: string; title: string; order_index: number }>> {
-  const { topicIds, subtopicIds } = await classNodeIds(supabase, classId);
-  const orFilter = placementsUnderClassFilter(topicIds, subtopicIds);
+  const [{ data: topicsRaw }, { data: subtopicsRaw }] = await Promise.all([
+    supabase.from("topics").select("id").eq("class_id", classId).order("order_index", { ascending: true }),
+    supabase
+      .from("subtopics")
+      .select("id, topic_id, topics!inner(class_id)")
+      .eq("topics.class_id", classId)
+      .order("order_index", { ascending: true }),
+  ]);
+
+  const topics = (topicsRaw ?? []) as Array<{ id: string }>;
+  const subtopics = (subtopicsRaw ?? []) as unknown as Array<{ id: string; topic_id: string }>;
+
+  const orFilter = placementsUnderClassFilter(
+    topics.map((t) => t.id),
+    subtopics.map((s) => s.id),
+  );
   if (!orFilter) return [];
+
   const { data } = await supabase
     .from("video_placements")
-    .select("order_index, videos!inner(id, title)")
+    .select("topic_id, subtopic_id, order_index, videos!inner(id, title)")
     .or(orFilter)
     .order("order_index", { ascending: true });
-  return ((data ?? []) as unknown as Array<{ order_index: number; videos: { id: string; title: string } }>).map(
-    (r) => ({ id: r.videos.id, title: r.videos.title, order_index: r.order_index }),
-  );
+
+  const placements = (data ?? []) as unknown as Array<{
+    topic_id: string | null;
+    subtopic_id: string | null;
+    order_index: number;
+    videos: { id: string; title: string };
+  }>;
+
+  const out: Array<{ id: string; title: string; order_index: number }> = [];
+  const emit = (accept: (p: (typeof placements)[number]) => boolean) => {
+    for (const p of placements) {
+      if (accept(p)) out.push({ id: p.videos.id, title: p.videos.title, order_index: p.order_index });
+    }
+  };
+
+  /* `placements` and `subtopics` arrive order_index-ordered from the DB, so iterating topics in order
+     and filtering per node reproduces the exact curriculum sequence without a further sort. */
+  for (const topic of topics) {
+    emit((p) => p.topic_id === topic.id);
+    for (const sub of subtopics.filter((s) => s.topic_id === topic.id)) {
+      emit((p) => p.subtopic_id === sub.id);
+    }
+  }
+  return out;
 }
 
 /**
