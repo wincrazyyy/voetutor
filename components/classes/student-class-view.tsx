@@ -56,7 +56,10 @@ export async function StudentClassView({ cls, userId }: { cls: Class; userId: st
       })),
     ),
   ]);
-  const nextVideo = allVideos.find((v) => !v.is_completed && v.topic_status !== "locked") ?? null;
+  /* Surface the next unwatched lesson regardless of topic `status` — status is visual-only now (not
+     settable on the educator board), and topics default to 'locked', so gating on it left this hero
+     permanently stuck on "All caught up" even with unwatched lessons remaining. */
+  const nextVideo = allVideos.find((v) => !v.is_completed) ?? null;
   const unreadAnnouncementIds = announcements.filter((a) => !a.has_read).map((a) => a.id);
 
   return (

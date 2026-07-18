@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { getEnrolledClasses } from "@/lib/queries/classes";
 import { getAnnouncementsForUser } from "@/lib/queries/announcements";
-import { getContinueWatching, getDashboardStats } from "@/lib/queries/progress";
+import { getResumeLesson, getNextLesson, getDashboardStats } from "@/lib/queries/progress";
 import { getDisplayName } from "@/lib/utils/format";
 
 import { StatCards } from "@/components/dashboard/stat-cards";
@@ -27,12 +27,19 @@ export default async function DashboardHubPage() {
     return <EducatorHub />;
   }
 
-  const [classes, announcements, continueWatching, stats] = await Promise.all([
+  const [classes, announcements, resume] = await Promise.all([
     getEnrolledClasses(profile.id),
     getAnnouncementsForUser(10),
-    getContinueWatching(profile.id, 1),
-    getDashboardStats(profile.id),
+    getResumeLesson(profile.id),
   ]);
+
+  /* Stats needs the class summaries; the next-lesson fallback only runs when there's nothing to
+     resume, so an actively-watching student pays for neither the fallback nor its curriculum walk. */
+  const [stats, nextLesson] = await Promise.all([
+    getDashboardStats(profile.id, classes),
+    resume ? Promise.resolve(null) : getNextLesson(profile.id, classes),
+  ]);
+  const heroLesson = resume ?? nextLesson;
 
   const firstName = profile.first_name ?? getDisplayName(profile.first_name, profile.last_name, profile.display_name);
 
@@ -53,7 +60,7 @@ export default async function DashboardHubPage() {
       </div>
 
       <StatCards stats={stats} />
-      <ContinueWatchingHero item={continueWatching[0] ?? null} />
+      <ContinueWatchingHero lesson={heroLesson} />
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start pt-4">
         <GlobalUpdatesFeed announcements={announcements} viewerId={profile.id} viewerIsAdmin={false} />

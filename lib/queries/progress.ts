@@ -1,82 +1,142 @@
 import { createClient } from "@/lib/supabase/server";
 import { intervalToSeconds } from "@/lib/utils/format";
+import { getCurriculumForClass, type CurriculumItem, type VideoWithProgress } from "@/lib/queries/curriculum";
+import type { EnrolledClassSummary } from "@/lib/queries/classes";
 
-export interface ContinueWatchingItem {
+/**
+ * The lesson the dashboard hero points a student at. `mode` distinguishes a half-watched video to
+ * RESUME from the NEXT unwatched lesson to start. `context_title` is the subtopic title, or the topic
+ * title for a topic-level video. Topic- AND subtopic-level placements both count (a video can be
+ * placed directly on a topic, not only inside a subtopic).
+ */
+export interface DashboardLesson {
   video_id: string;
   video_title: string;
-  subtopic_title: string;
-  topic_title: string;
+  context_title: string;
   class_id: string;
   class_code: string;
   class_title: string;
   duration: string | null;
-  last_position: string;
-  total_watch_time: string;
+  mode: "resume" | "next";
+  /** Seconds left to watch (resume). 0 for a not-yet-started "next" lesson. */
   remaining_seconds: number;
-  updated_at: string;
 }
 
-export async function getContinueWatching(userId: string, limit = 1): Promise<ContinueWatchingItem[]> {
+interface PlacementContextRow {
+  topic_id: string | null;
+  subtopic_id: string | null;
+  topics: { title: string; classes: { id: string; code: string; title: string } | null } | null;
+  subtopics: { title: string; topics: { classes: { id: string; code: string; title: string } | null } | null } | null;
+}
+
+/** Resolve a placement row (topic OR subtopic) to the class + node title shown in the hero. */
+function placementContext(
+  pl: PlacementContextRow,
+): { context_title: string; class_id: string; class_code: string; class_title: string } | null {
+  if (pl.subtopics && pl.subtopics.topics?.classes) {
+    const c = pl.subtopics.topics.classes;
+    return { context_title: pl.subtopics.title, class_id: c.id, class_code: c.code, class_title: c.title };
+  }
+  if (pl.topics && pl.topics.classes) {
+    const c = pl.topics.classes;
+    return { context_title: pl.topics.title, class_id: c.id, class_code: c.code, class_title: c.title };
+  }
+  return null;
+}
+
+/**
+ * The video the student was midway through (started, not completed), most recent first. Resolves the
+ * placement in a second query keyed by video_id so BOTH topic- and subtopic-level placements are
+ * covered — the previous single-query `subtopics!inner` join silently dropped topic-level videos and
+ * showed "No active lesson". RLS filters the placement to a class the student can actually see, so a
+ * video that was unplaced (or is outside a scoped student's Access Pass) is skipped, not shown.
+ */
+export async function getResumeLesson(userId: string): Promise<DashboardLesson | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("user_video_progress")
-    .select(
-      "video_id, last_position, total_watch_time, updated_at, is_completed, videos!inner(id, title, duration, video_placements!inner(subtopics!inner(id, title, topics!inner(id, title, classes!inner(id, code, title)))))",
-    )
-    .eq("user_id", userId)
-    .eq("is_completed", false)
-    .order("updated_at", { ascending: false })
-    .limit(limit);
+  try {
+    const { data } = await supabase
+      .from("user_video_progress")
+      .select("video_id, last_position, videos!inner(title, duration)")
+      .eq("user_id", userId)
+      .eq("is_completed", false)
+      .order("updated_at", { ascending: false })
+      .limit(10);
 
-  if (!data) return [];
+    const rows = (data ?? []) as unknown as Array<{
+      video_id: string;
+      last_position: string | null;
+      videos: { title: string; duration: string | null };
+    }>;
 
-  return data
-    .map((row): ContinueWatchingItem | null => {
-      const r = row as unknown as {
-        video_id: string;
-        last_position: string;
-        total_watch_time: string;
-        updated_at: string;
-        videos: {
-          id: string;
-          title: string;
-          duration: string | null;
-          video_placements: Array<{
-            subtopics: {
-              id: string;
-              title: string;
-              topics: {
-                id: string;
-                title: string;
-                classes: { id: string; code: string; title: string };
-              };
-            };
-          }>;
-        };
-      };
-      /* RLS filters the embedded placements to classes the user can see, so the
-         first one is a class they belong to. A row with no visible placement
-         (e.g. the video was unplaced after watching) is dropped. */
-      const placement = r.videos.video_placements?.[0];
-      if (!placement) return null;
-      const positionSec = intervalToSeconds(r.last_position);
-      const durationSec = intervalToSeconds(r.videos.duration);
+    for (const row of rows) {
+      const { data: plData } = await supabase
+        .from("video_placements")
+        .select("topic_id, subtopic_id, topics(title, classes(id, code, title)), subtopics(title, topics(classes(id, code, title)))")
+        .eq("video_id", row.video_id)
+        .limit(1)
+        .maybeSingle();
+      if (!plData) continue;
+      const ctx = placementContext(plData as unknown as PlacementContextRow);
+      if (!ctx) continue;
+      const durationSec = intervalToSeconds(row.videos.duration);
+      const positionSec = intervalToSeconds(row.last_position);
       return {
-        video_id: r.video_id,
-        video_title: r.videos.title,
-        subtopic_title: placement.subtopics.title,
-        topic_title: placement.subtopics.topics.title,
-        class_id: placement.subtopics.topics.classes.id,
-        class_code: placement.subtopics.topics.classes.code,
-        class_title: placement.subtopics.topics.classes.title,
-        duration: r.videos.duration,
-        last_position: r.last_position,
-        total_watch_time: r.total_watch_time,
+        video_id: row.video_id,
+        video_title: row.videos.title,
+        duration: row.videos.duration,
+        mode: "resume",
         remaining_seconds: Math.max(0, durationSec - positionSec),
-        updated_at: r.updated_at,
+        ...ctx,
       };
-    })
-    .filter((item): item is ContinueWatchingItem => item !== null);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The next unwatched lesson to start, when there's nothing to resume — so a student who has completed
+ * some (or zero) videos is guided to their next lesson instead of a dead "No active lesson" card.
+ * Walks each enrolled class's curriculum (topic-level materials first, then each subtopic) in order and
+ * returns the first not-completed video. Reuses getCurriculumForClass, so ordering, the topic/subtopic
+ * interleave, per-user completion, and Access-Pass scope are all inherited — a scoped student is never
+ * pointed at a lesson they can't open. Topic `status` is deliberately NOT consulted (it is visual-only
+ * now); filtering on it is what made the class-page "Up Next" permanently dead. Only classes that still
+ * have an unwatched video are walked, and it stops at the first hit.
+ */
+export async function getNextLesson(
+  userId: string,
+  classes: EnrolledClassSummary[],
+): Promise<DashboardLesson | null> {
+  const isUnwatchedVideo = (i: CurriculumItem): i is { kind: "video" } & VideoWithProgress =>
+    i.kind === "video" && !i.is_completed;
+
+  const nextFrom = (cls: EnrolledClassSummary, contextTitle: string, v: VideoWithProgress): DashboardLesson => ({
+    video_id: v.id,
+    video_title: v.title,
+    context_title: contextTitle,
+    class_id: cls.id,
+    class_code: cls.code,
+    class_title: cls.title,
+    duration: v.duration,
+    mode: "next",
+    remaining_seconds: 0,
+  });
+
+  const candidates = classes.filter((c) => c.total_videos > c.watched_videos);
+  for (const cls of candidates) {
+    const curriculum = await getCurriculumForClass(cls.id, userId);
+    for (const topic of curriculum) {
+      const direct = topic.items.find(isUnwatchedVideo);
+      if (direct) return nextFrom(cls, topic.title, direct);
+      for (const sub of topic.subtopics) {
+        const v = sub.items.find(isUnwatchedVideo);
+        if (v) return nextFrom(cls, sub.title, v);
+      }
+    }
+  }
+  return null;
 }
 
 export interface DashboardStats {
@@ -86,29 +146,16 @@ export interface DashboardStats {
   weekly_delta_seconds: number;
 }
 
-export async function getDashboardStats(userId: string): Promise<DashboardStats> {
+export async function getDashboardStats(
+  userId: string,
+  classes: EnrolledClassSummary[],
+): Promise<DashboardStats> {
   const supabase = await createClient();
 
-  const { data: enrollments } = await supabase
-    .from("class_enrollments")
-    .select("class_id")
-    .eq("user_id", userId);
-  const classIds = (enrollments ?? []).map((e) => (e as { class_id: string }).class_id);
-
-  let videosTotal = 0;
-  if (classIds.length > 0) {
-    const { count } = await supabase
-      .from("video_placements")
-      .select("id, subtopics!inner(topics!inner(class_id))", { count: "exact", head: true })
-      .in("subtopics.topics.class_id", classIds);
-    videosTotal = count ?? 0;
-  }
-
-  const { count: watchedCount } = await supabase
-    .from("user_video_progress")
-    .select("video_id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("is_completed", true);
+  /* Sum the per-class totals (which count topic- AND subtopic-level videos via getClassVideoTotals),
+     so the header stat matches the class cards and no longer undercounts topic-level videos. */
+  const videosTotal = classes.reduce((acc, c) => acc + c.total_videos, 0);
+  const videosWatched = classes.reduce((acc, c) => acc + c.watched_videos, 0);
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
   const fourteenDaysAgo = new Date(Date.now() - 14 * 86400 * 1000).toISOString();
@@ -133,7 +180,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
   const lastWeek = sumWatch(lastWeekRows as Array<{ total_watch_time: string }> | null);
 
   return {
-    videos_watched: watchedCount ?? 0,
+    videos_watched: videosWatched,
     videos_total: videosTotal,
     weekly_watch_seconds: thisWeek,
     weekly_delta_seconds: thisWeek - lastWeek,

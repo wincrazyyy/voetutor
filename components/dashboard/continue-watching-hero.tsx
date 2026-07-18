@@ -2,15 +2,15 @@ import Link from "next/link";
 import { Play, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { ContinueWatchingItem } from "@/lib/queries/progress";
+import type { DashboardLesson } from "@/lib/queries/progress";
 import { formatShortDuration } from "@/lib/utils/format";
 
 interface ContinueWatchingHeroProps {
-  item: ContinueWatchingItem | null;
+  lesson: DashboardLesson | null;
 }
 
-export function ContinueWatchingHero({ item }: ContinueWatchingHeroProps) {
-  if (!item) {
+export function ContinueWatchingHero({ lesson }: ContinueWatchingHeroProps) {
+  if (!lesson) {
     return (
       <Card className="w-full relative overflow-hidden border-2 border-dashed border-border bg-card/50">
         <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -29,10 +29,13 @@ export function ContinueWatchingHero({ item }: ContinueWatchingHeroProps) {
     );
   }
 
-  const remainingMinutes = Math.max(1, Math.round(item.remaining_seconds / 60));
-  const remainingLabel = item.remaining_seconds === 0
-    ? formatShortDuration(item.duration)
-    : `${remainingMinutes} min remaining`;
+  const isResume = lesson.mode === "resume";
+  const eyebrow = isResume ? "Continue Watching" : "Up Next";
+  const cta = isResume ? "Resume Lesson" : "Start Lesson";
+  const remainingMinutes = Math.max(1, Math.round(lesson.remaining_seconds / 60));
+  const trailing = isResume && lesson.remaining_seconds > 0
+    ? `${remainingMinutes} min remaining`
+    : formatShortDuration(lesson.duration);
 
   return (
     <Card className="w-full relative overflow-hidden border-2 border-primary/20 bg-card shadow-md">
@@ -43,15 +46,15 @@ export function ContinueWatchingHero({ item }: ContinueWatchingHeroProps) {
             <Play className="w-6 h-6 text-primary ml-1" />
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Continue Watching</div>
-            <h2 className="text-xl font-bold mb-1 break-words">{item.video_title}</h2>
+            <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">{eyebrow}</div>
+            <h2 className="text-xl font-bold mb-1 break-words">{lesson.video_title}</h2>
             <p className="text-sm text-muted-foreground break-words">
-              {item.subtopic_title} • {item.class_code} • {remainingLabel}
+              {lesson.context_title} • {lesson.class_code} • {trailing}
             </p>
           </div>
         </div>
-        <Link href={`/lesson/${item.video_id}?from=${item.class_id}`} className="w-full md:w-auto shrink-0">
-          <Button className="w-full rounded-full shadow-md">Resume Lesson</Button>
+        <Link href={`/lesson/${lesson.video_id}?from=${lesson.class_id}`} className="w-full md:w-auto shrink-0">
+          <Button className="w-full rounded-full shadow-md">{cta}</Button>
         </Link>
       </div>
     </Card>
