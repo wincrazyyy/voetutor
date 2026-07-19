@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { PlayCircle, ArrowRight, GraduationCap } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import type { EnrolledClassSummary } from "@/lib/queries/classes";
@@ -25,48 +24,42 @@ export function EnrolledClassesList({ classes }: EnrolledClassesListProps) {
       ) : (
         <div className="flex flex-col gap-5">
           {classes.map((cls) => (
-            <Card
-              key={cls.id}
-              className="flex flex-col overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow bg-card relative"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
-              <div className="p-5 flex-1 mt-2">
-                <div className="flex items-start justify-between mb-4 gap-4">
-                  <h3 className="min-w-0 break-words text-lg font-bold leading-tight">{cls.title}</h3>
-                  <Badge
-                    variant="secondary"
-                    className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
-                  >
-                    {cls.code}
-                  </Badge>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium mb-5">
-                  <PlayCircle className="w-4 h-4" />
-                  {cls.watched_videos} / {cls.total_videos} Videos Watched
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Progress</span>
-                    <span className="text-primary">{cls.progress_percent}%</span>
+            <Link key={cls.id} href={`/class/${cls.id}`} className="group flex">
+              <Card className="flex w-full flex-col overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow bg-card relative">
+                <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+                <div className="p-5 flex-1 mt-2">
+                  <div className="flex items-start justify-between mb-4 gap-4">
+                    <h3 className="min-w-0 break-words text-lg font-bold leading-tight">{cls.title}</h3>
+                    <Badge
+                      variant="secondary"
+                      className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
+                    >
+                      {cls.code}
+                    </Badge>
                   </div>
-                  <Progress value={cls.progress_percent} className="h-1.5" />
-                </div>
-              </div>
 
-              <div className="p-3 bg-muted/20 border-t border-border">
-                <Link href={`/class/${cls.id}`} className="w-full">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between group hover:bg-primary/5 hover:text-primary text-sm font-semibold h-10"
-                  >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium mb-5">
+                    <PlayCircle className="w-4 h-4" />
+                    {cls.watched_videos} / {cls.total_videos} Videos Watched
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span>Progress</span>
+                      <span className="text-primary">{cls.progress_percent}%</span>
+                    </div>
+                    <Progress value={cls.progress_percent} className="h-1.5" />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-muted/20 border-t border-border">
+                  <div className="flex h-10 w-full items-center justify-between rounded-md px-4 text-sm font-semibold transition-colors group-hover:bg-primary/5 group-hover:text-primary">
                     View Curriculum
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              </div>
-            </Card>
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </div>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

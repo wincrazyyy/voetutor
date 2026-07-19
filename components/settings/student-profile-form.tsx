@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateStudentProfileAction } from "@/app/actions/student-profile";
+import { adminUpdateStudentProfileAction } from "@/app/actions/admin-students";
 
 interface StudentProfileFormProps {
   firstName: string;
@@ -16,10 +17,13 @@ interface StudentProfileFormProps {
   school: string;
   schoolYear: string;
   targetGrade: string;
+  /** When set, saves route through adminUpdateStudentProfileAction for the given student instead
+   *  of the self action (the ProfileBuilder adminEdit precedent). Default self behavior unchanged. */
+  adminEdit?: { studentId: string };
 }
 
 /** Settings form letting a student edit their name + enrolment details (student_profiles sidecar). */
-export function StudentProfileForm(initial: StudentProfileFormProps) {
+export function StudentProfileForm({ adminEdit, ...initial }: StudentProfileFormProps) {
   const router = useRouter();
   const [firstName, setFirstName] = useState(initial.firstName);
   const [lastName, setLastName] = useState(initial.lastName);
@@ -42,14 +46,17 @@ export function StudentProfileForm(initial: StudentProfileFormProps) {
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const result = await updateStudentProfileAction({
+      const values = {
         firstName,
         lastName,
         whatsappNumber,
         school,
         schoolYear,
         targetGrade,
-      });
+      };
+      const result = adminEdit
+        ? await adminUpdateStudentProfileAction(adminEdit.studentId, values)
+        : await updateStudentProfileAction(values);
       if (result?.error) {
         setError(result.error);
         return;

@@ -20,7 +20,7 @@ export default async function AdminStudentsPage() {
           <span className="min-w-0 break-words">Students</span>
         </h1>
         <p className="text-muted-foreground">
-          View and remove student accounts. {students.length}{" "}
+          View, edit and remove student accounts. {students.length}{" "}
           {students.length === 1 ? "student" : "students"} on the platform.
         </p>
       </div>

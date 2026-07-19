@@ -543,6 +543,7 @@ function SortableSubtopic({
             classId={classId}
             name={subtopic.title}
             summary={`${pluralise(subtopic.videos.length, "video")}, ${pluralise(subtopic.notes.length, "note")}`}
+            onError={onError}
           />
         </div>
       </div>
@@ -626,6 +627,7 @@ function SortableTopic({
             classId={classId}
             name={topic.title}
             summary={`${pluralise(topic.subtopics.length, "subtopic")} and ${pluralise(topic.total_videos, "video")}`}
+            onError={onError}
           />
           <button
             type="button"

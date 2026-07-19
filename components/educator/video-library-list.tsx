@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Film, PlayCircle, Search, Trash2 } from "lucide-react";
+import { Film, PlayCircle, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { VideoRenameDialog } from "@/components/educator/video-rename-dialog";
 import { VideoAssignDialog } from "@/components/educator/video-assign-dialog";
 import { deleteVideoAction } from "@/app/actions/videos";
@@ -44,7 +44,6 @@ function LibraryVideoCard({
   tree: PlacementTreeClass[];
 }) {
   const router = useRouter();
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -59,7 +58,6 @@ function LibraryVideoCard({
       const result = await deleteVideoAction(video.id);
       if (result?.error) {
         setError(result.error);
-        setConfirmingDelete(false);
         return;
       }
       router.refresh();
@@ -150,44 +148,16 @@ function LibraryVideoCard({
             )}
             tree={tree}
           />
-          {confirmingDelete ? (
-            <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <span className="min-w-0 text-xs text-muted-foreground">
-                {classCount === 0
-                  ? "Delete this video permanently?"
-                  : `Delete from ${classCount} class${classCount === 1 ? "" : "es"}?`}
-              </span>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="text-xs"
-                onClick={handleDelete}
-                loading={pending}
-                loadingText="Deleting..."
-              >
-                Delete
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-xs"
-                onClick={() => setConfirmingDelete(false)}
-                disabled={pending}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
-              onClick={() => setConfirmingDelete(true)}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
-            </Button>
-          )}
+          <ConfirmDeleteButton
+            label="Delete video"
+            confirmLabel={
+              classCount === 0
+                ? "Permanently delete this video"
+                : `Permanently delete this video from ${classCount} class${classCount === 1 ? "" : "es"}`
+            }
+            pending={pending}
+            onConfirm={handleDelete}
+          />
         </div>
       </div>
     </Card>

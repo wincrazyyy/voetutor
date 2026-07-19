@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, CircleDashed, PlayCircle, Clock } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, CheckCircle2, CircleDashed, PlayCircle, Clock } from "lucide-react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -18,7 +19,13 @@ function formatWatchTime(seconds: number): string {
   return `${secs}s`;
 }
 
-export function StudentProgressList({ students }: { students: StudentEntry[] }) {
+export function StudentProgressList({
+  students,
+  classId,
+}: {
+  students: StudentEntry[];
+  classId: string;
+}) {
   if (students.length === 0) {
     return (
       <div className="p-8 text-center text-sm text-muted-foreground">No students enrolled yet.</div>
@@ -32,22 +39,33 @@ export function StudentProgressList({ students }: { students: StudentEntry[] }) 
           student.total_videos === 0 ? 0 : Math.round((student.completed_count / student.total_videos) * 100);
         return (
           <AccordionItem key={student.user_id} value={student.user_id} className="border-border">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30">
-              <div className="flex items-center gap-3 w-full pr-1 sm:gap-4 sm:pr-4">
-                <UserAvatar avatarUrl={null} firstName={null} lastName={null} displayName={student.name} size="sm" />
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="text-sm font-bold text-foreground truncate">{student.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {student.completed_count} / {student.total_videos}{" "}
-                    <span className="whitespace-nowrap">lessons completed · {completionPct}%</span>
-                  </span>
-                </div>
-                <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground font-medium shrink-0">
-                  <Clock className="w-3.5 h-3.5" />
-                  {formatWatchTime(student.total_watch_seconds)}
-                </div>
+            <div className="flex items-center pr-3 sm:pr-4">
+              <div className="min-w-0 flex-1">
+                <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30">
+                  <div className="flex items-center gap-3 w-full pr-1 sm:gap-4 sm:pr-4">
+                    <UserAvatar avatarUrl={null} firstName={null} lastName={null} displayName={student.name} size="sm" />
+                    <div className="flex flex-col items-start min-w-0">
+                      <span className="text-sm font-bold text-foreground truncate">{student.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {student.completed_count} / {student.total_videos}{" "}
+                        <span className="whitespace-nowrap">lessons completed · {completionPct}%</span>
+                      </span>
+                    </div>
+                    <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground font-medium shrink-0">
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatWatchTime(student.total_watch_seconds)}
+                    </div>
+                  </div>
+                </AccordionTrigger>
               </div>
-            </AccordionTrigger>
+              <Link
+                href={`/students/${student.user_id}?class=${classId}`}
+                className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-9"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+                <span className="sr-only">View full student profile</span>
+              </Link>
+            </div>
             <AccordionContent className="p-0">
               <div className="w-full overflow-x-auto">
                 <table className="w-full min-w-[36rem] text-sm">

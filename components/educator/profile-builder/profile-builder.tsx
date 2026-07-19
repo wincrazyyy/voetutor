@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronsDownUp,
   ChevronsUpDown,
-  Trash2,
   Save,
   CheckCircle2,
   AlertTriangle,
@@ -32,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { cn } from "@/lib/utils";
 import { getDisplayName, getInitials } from "@/lib/utils/format";
 import {
@@ -135,7 +135,6 @@ function IconBtn({
   label,
   onClick,
   disabled,
-  danger,
   ariaExpanded,
   className,
   children,
@@ -143,7 +142,6 @@ function IconBtn({
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  danger?: boolean;
   ariaExpanded?: boolean;
   className?: string;
   children: React.ReactNode;
@@ -158,7 +156,6 @@ function IconBtn({
       disabled={disabled}
       className={cn(
         "flex size-10 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground sm:size-8",
-        danger && "hover:bg-destructive/10 hover:text-destructive",
         className,
       )}
     >
@@ -332,7 +329,6 @@ export function ProfileBuilder({
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "phone">("desktop");
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [pulseId, setPulseId] = useState<string | null>(null);
   const [tipDismissed, setTipDismissed] = useState(true);
   const [isWide, setIsWide] = useState(false);
@@ -424,14 +420,6 @@ export function ProfileBuilder({
       return true;
     }
   };
-  const onDelete = (section: ProfileSection) => {
-    if (!sectionHasContent(section)) {
-      removeSection(section.id);
-      return;
-    }
-    setConfirmingDelete(section.id);
-  };
-
   const addTag = (raw: string) => {
     const t = raw.trim();
     if (!t) return;
@@ -956,7 +944,6 @@ export function ProfileBuilder({
         {sections.map((section, index) => {
           const Icon = TYPE_ICON[section.type];
           const isCollapsed = collapsed.has(section.id);
-          const confirming = confirmingDelete === section.id;
           return (
             <Card
               key={section.id}
@@ -976,56 +963,39 @@ export function ProfileBuilder({
                 </div>
 
                 <div className="ml-auto flex shrink-0 items-center gap-1">
-                  {confirming ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">Delete?</span>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingDelete(null)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => {
-                          removeSection(section.id);
-                          setConfirmingDelete(null);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center overflow-hidden rounded-md border border-border">
-                        <IconBtn
-                          label="Move up"
-                          className="rounded-none"
-                          disabled={index === 0}
-                          onClick={() => moveSection(index, -1)}
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </IconBtn>
-                        <IconBtn
-                          label="Move down"
-                          className="rounded-none border-l border-border"
-                          disabled={index === sections.length - 1}
-                          onClick={() => moveSection(index, 1)}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </IconBtn>
-                      </div>
-                      <IconBtn
-                        label={isCollapsed ? "Expand section" : "Collapse section"}
-                        ariaExpanded={!isCollapsed}
-                        onClick={() => toggleCollapse(section.id)}
-                      >
-                        {isCollapsed ? <ChevronsUpDown className="h-4 w-4" /> : <ChevronsDownUp className="h-4 w-4" />}
-                      </IconBtn>
-                      <IconBtn label="Delete section" danger onClick={() => onDelete(section)}>
-                        <Trash2 className="h-4 w-4" />
-                      </IconBtn>
-                    </>
-                  )}
+                  <div className="flex items-center overflow-hidden rounded-md border border-border">
+                    <IconBtn
+                      label="Move up"
+                      className="rounded-none"
+                      disabled={index === 0}
+                      onClick={() => moveSection(index, -1)}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </IconBtn>
+                    <IconBtn
+                      label="Move down"
+                      className="rounded-none border-l border-border"
+                      disabled={index === sections.length - 1}
+                      onClick={() => moveSection(index, 1)}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </IconBtn>
+                  </div>
+                  <IconBtn
+                    label={isCollapsed ? "Expand section" : "Collapse section"}
+                    ariaExpanded={!isCollapsed}
+                    onClick={() => toggleCollapse(section.id)}
+                  >
+                    {isCollapsed ? <ChevronsUpDown className="h-4 w-4" /> : <ChevronsDownUp className="h-4 w-4" />}
+                  </IconBtn>
+                  <ConfirmDeleteButton
+                    label="Delete section"
+                    confirmLabel="Permanently delete this section"
+                    size="icon-sm"
+                    className="size-10 sm:size-8"
+                    requireConfirm={() => sectionHasContent(section)}
+                    onConfirm={() => removeSection(section.id)}
+                  />
                 </div>
               </div>
 

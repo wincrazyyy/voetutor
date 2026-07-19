@@ -6,7 +6,6 @@ import {
   Star,
   Plus,
   Save,
-  Trash2,
   Pencil,
   X,
   AlertTriangle,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -167,7 +167,8 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<ReviewFormState>(EMPTY_FORM);
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  /* Which review's delete is in flight, so only that card's button spins. */
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const atMax = reviews.length >= maxReviews;
 
@@ -193,7 +194,6 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
     );
 
   const startEdit = (r: EducatorReview) => {
-    setConfirmingDelete(null);
     setEditingId(r.id);
     setEditForm({
       rating: r.rating,
@@ -210,11 +210,22 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
       () => setEditingId(null),
     );
 
-  const remove = (reviewId: string) =>
-    run(
-      () => deleteReviewAction({ educatorId, reviewId }),
-      () => setConfirmingDelete(null),
-    );
+  const remove = (reviewId: string) => {
+    setDeletingId(reviewId);
+    startTransition(async () => {
+      try {
+        setError(null);
+        const res = await deleteReviewAction({ educatorId, reviewId });
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      } finally {
+        setDeletingId(null);
+      }
+    });
+  };
 
   const toggleVisibility = (r: EducatorReview) =>
     run(() => setReviewVisibilityAction({ educatorId, reviewId: r.id, visible: !r.is_visible }));
@@ -300,7 +311,6 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
       <div className="flex flex-col gap-3">
         {reviews.map((r) => {
           const editing = editingId === r.id;
-          const confirming = confirmingDelete === r.id;
           const name = [r.reviewer_first_name, r.reviewer_last_name].filter(Boolean).join(" ") || "Anonymous";
 
           return (
@@ -357,6 +367,7 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                           size="sm"
                           onClick={() => toggleVisibility(r)}
                           disabled={isPending}
+                          aria-label={r.is_visible ? "Hide from public profile" : "Show on public profile"}
                           title={r.is_visible ? "Hide from public profile" : "Show on public profile"}
                         >
                           {r.is_visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -379,30 +390,13 @@ export function ReviewsManager({ reviews, educatorId, maxReviews, adminEdit = fa
                   <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground/85">{r.comment}</p>
 
                   <div className="flex items-center justify-end">
-                    {confirming ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">Delete this review?</span>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(null)} disabled={isPending}>
-                          Cancel
-                        </Button>
-                        <Button variant="destructive" size="sm" loading={isPending} loadingText="Deleting…" onClick={() => remove(r.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setConfirmingDelete(r.id)}
-                        disabled={isPending}
-                        aria-label="Delete review"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Delete</span>
-                      </Button>
-                    )}
+                    <ConfirmDeleteButton
+                      label="Delete review"
+                      confirmLabel={`Permanently delete ${name}'s review`}
+                      pending={deletingId === r.id}
+                      disabled={isPending}
+                      onConfirm={() => remove(r.id)}
+                    />
                   </div>
                 </>
               )}

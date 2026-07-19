@@ -2,11 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Trash2 } from "lucide-react";
+import { Camera } from "lucide-react";
 
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { ImageCropModal } from "@/components/media/image-crop-modal";
 import { uploadUserAvatar } from "@/lib/avatar/upload-avatar";
 import { updateAvatarAction } from "@/app/actions/avatar";
@@ -35,6 +36,7 @@ export function AvatarUploader({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
@@ -71,9 +73,11 @@ export function AvatarUploader({
 
   const onRemove = async () => {
     setError(null);
+    setRemoving(true);
     setBusy(true);
     const saved = await updateAvatarAction(null);
     setBusy(false);
+    setRemoving(false);
     if (saved.error) {
       setError(saved.error);
       return;
@@ -105,17 +109,13 @@ export function AvatarUploader({
             {avatarUrl ? "Change photo" : "Upload photo"}
           </Button>
           {hasCustomAvatar && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={onRemove}
-              disabled={busy}
-              className="text-muted-foreground"
-            >
-              <Trash2 className="h-4 w-4" />
-              Remove
-            </Button>
+            <ConfirmDeleteButton
+              label="Remove photo"
+              confirmLabel="Confirm remove photo"
+              pending={removing}
+              disabled={busy && !removing}
+              onConfirm={onRemove}
+            />
           )}
         </div>
         <p className="text-xs text-muted-foreground">

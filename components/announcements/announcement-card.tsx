@@ -50,9 +50,12 @@ export function AnnouncementCard({ announcement: ann, viewerId, viewerIsAdmin, s
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-foreground">
               <span className="min-w-0 truncate">{authorName}</span>
               {showClassCode && ann.class_code && (
-                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:text-[10px]">
+                <Link
+                  href={`/class/${ann.class_id}`}
+                  className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary sm:text-[10px]"
+                >
                   {ann.class_code}
-                </span>
+                </Link>
               )}
             </div>
             <div className="text-xs text-muted-foreground font-medium mt-0.5">

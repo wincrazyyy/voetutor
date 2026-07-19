@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Circle, MessageSquare, Pencil, Pin, PinOff, PlayCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, MessageSquare, Pencil, Pin, PinOff, PlayCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { FORUM_LIMITS } from "@/lib/forum/limits";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -36,9 +37,10 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(post.title);
   const [content, setContent] = useState(post.content);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /* Which action is in flight so only the clicked control spins while `pending` disables the rest. */
+  const [busy, setBusy] = useState<"save" | "resolve" | "pin" | "delete" | null>(null);
 
   const isAuthor = post.author_id === currentUserId;
   const canEdit = isAuthor || isAdmin;
@@ -54,41 +56,60 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
 
   const saveEdit = () => {
     setError(null);
+    setBusy("save");
     startTransition(async () => {
-      const res = await updateForumPostAction(classId, post.id, { title, content });
-      if (res.error) {
-        setError(res.error);
-        return;
+      try {
+        const res = await updateForumPostAction(classId, post.id, { title, content });
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setEditing(false);
+        router.refresh();
+      } finally {
+        setBusy(null);
       }
-      setEditing(false);
-      router.refresh();
     });
   };
 
   const toggleResolved = () => {
     setError(null);
+    setBusy("resolve");
     startTransition(async () => {
-      const res = await setPostResolvedAction(classId, post.id, !post.is_resolved);
-      if (res.error) setError(res.error);
-      else router.refresh();
+      try {
+        const res = await setPostResolvedAction(classId, post.id, !post.is_resolved);
+        if (res.error) setError(res.error);
+        else router.refresh();
+      } finally {
+        setBusy(null);
+      }
     });
   };
 
   const togglePinned = () => {
     setError(null);
+    setBusy("pin");
     startTransition(async () => {
-      const res = await setPostPinnedAction(classId, post.id, !post.is_pinned);
-      if (res.error) setError(res.error);
-      else router.refresh();
+      try {
+        const res = await setPostPinnedAction(classId, post.id, !post.is_pinned);
+        if (res.error) setError(res.error);
+        else router.refresh();
+      } finally {
+        setBusy(null);
+      }
     });
   };
 
+  /* No `finally` reset here — the button must stay loading through the redirect (the card
+     unmounts on navigation), so busy clears only on the error path. */
   const doDelete = () => {
     setError(null);
+    setBusy("delete");
     startTransition(async () => {
       const res = await deleteForumPostAction(classId, post.id);
       if (res.error) {
         setError(res.error);
+        setBusy(null);
         return;
       }
       router.push(`/class/${classId}/forum`);
@@ -160,7 +181,7 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setTitle(post.title); setContent(post.content); }} disabled={pending}>
                   Cancel
                 </Button>
-                <Button type="button" size="sm" onClick={saveEdit} loading={pending} disabled={title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0} loadingText="Saving…">
+                <Button type="button" size="sm" onClick={saveEdit} loading={busy === "save"} disabled={pending || title.trim().length < FORUM_LIMITS.titleMin || content.trim().length === 0} loadingText="Saving…">
                   Save
                 </Button>
               </div>
@@ -191,40 +212,32 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
               {(canEdit || canDelete || canResolve) && (
                 <div className="mt-4 grid grid-cols-2 gap-1.5 border-t border-border/50 pt-3 [&>button]:justify-start sm:flex sm:flex-wrap sm:items-center sm:[&>button]:justify-center">
                   {canResolve && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={toggleResolved} loading={pending}>
+                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={toggleResolved} loading={busy === "resolve"} disabled={pending}>
                       {post.is_resolved ? <Circle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                       <span className="sm:hidden">{post.is_resolved ? "Unresolve" : "Resolve"}</span>
                       <span className="hidden sm:inline">{post.is_resolved ? "Mark unresolved" : "Mark resolved"}</span>
                     </Button>
                   )}
                   {canModerate && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={togglePinned} loading={pending}>
+                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={togglePinned} loading={busy === "pin"} disabled={pending}>
                       {post.is_pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                       {post.is_pinned ? "Unpin" : "Pin"}
                     </Button>
                   )}
                   {canEdit && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setEditing(true)}>
+                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setEditing(true)} disabled={pending}>
                       <Pencil className="w-4 h-4" />
                       Edit
                     </Button>
                   )}
-                  {canDelete && !confirmDelete && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </Button>
-                  )}
-                  {canDelete && confirmDelete && (
-                    <span className="col-span-2 flex flex-wrap items-center gap-1 text-sm">
-                      <span className="text-muted-foreground">Delete this thread?</span>
-                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={doDelete} loading={pending}>
-                        Yes, delete
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={pending}>
-                        Cancel
-                      </Button>
-                    </span>
+                  {canDelete && (
+                    <ConfirmDeleteButton
+                      label="Delete thread"
+                      confirmLabel="Permanently delete this thread and its replies"
+                      pending={busy === "delete"}
+                      disabled={pending}
+                      onConfirm={doDelete}
+                    />
                   )}
                 </div>
               )}

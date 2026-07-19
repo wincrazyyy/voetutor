@@ -2,10 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Reply as ReplyIcon, Trash2 } from "lucide-react";
+import { Pencil, Reply as ReplyIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { cn } from "@/lib/utils";
 import { FORUM_LIMITS } from "@/lib/forum/limits";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
@@ -81,7 +82,6 @@ function ReplyNode({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [replying, setReplying] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState(reply.content);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -118,7 +118,6 @@ function ReplyNode({
         setError(res.error);
         return;
       }
-      setConfirmDelete(false);
       router.refresh();
     });
   };
@@ -223,22 +222,13 @@ function ReplyNode({
                   Edit
                 </Button>
               )}
-              {canDelete && !confirmDelete && (
-                <Button type="button" variant="ghost" size="xs" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </Button>
-              )}
-              {canDelete && confirmDelete && (
-                <span className="flex flex-wrap items-center gap-1 text-xs">
-                  <span className="text-muted-foreground">Delete?</span>
-                  <Button type="button" variant="ghost" size="xs" className="text-destructive" onClick={doDelete} loading={pending}>
-                    Yes
-                  </Button>
-                  <Button type="button" variant="ghost" size="xs" onClick={() => setConfirmDelete(false)} disabled={pending}>
-                    No
-                  </Button>
-                </span>
+              {canDelete && (
+                <ConfirmDeleteButton
+                  label="Delete reply"
+                  size="icon-xs"
+                  pending={pending}
+                  onConfirm={doDelete}
+                />
               )}
             </div>
           )}

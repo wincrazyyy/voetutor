@@ -33,29 +33,44 @@ export function MarketplaceCard({ cls }: MarketplaceCardProps) {
           </Badge>
         </div>
 
-        <div className="flex min-w-0 items-center gap-2">
-          {cls.educator && (
-            <UserAvatar
-              avatarUrl={cls.educator.avatar_url}
-              firstName={cls.educator.first_name}
-              lastName={cls.educator.last_name}
-              displayName={cls.educator.display_name}
-              size={28}
-            />
+        <div className="flex min-w-0 items-center">
+          {cls.educatorProfilePublished && cls.educator_id ? (
+            <Link
+              href={`/educators/${cls.educator_id}`}
+              className="group/educator flex min-w-0 items-center gap-2"
+            >
+              {cls.educator && (
+                <UserAvatar
+                  avatarUrl={cls.educator.avatar_url}
+                  firstName={cls.educator.first_name}
+                  lastName={cls.educator.last_name}
+                  displayName={cls.educator.display_name}
+                  size={28}
+                />
+              )}
+              <p className="min-w-0 break-words text-xs text-muted-foreground">
+                Taught by{" "}
+                <span className="font-semibold text-primary group-hover/educator:underline">
+                  {educatorName}
+                </span>
+              </p>
+            </Link>
+          ) : (
+            <div className="flex min-w-0 items-center gap-2">
+              {cls.educator && (
+                <UserAvatar
+                  avatarUrl={cls.educator.avatar_url}
+                  firstName={cls.educator.first_name}
+                  lastName={cls.educator.last_name}
+                  displayName={cls.educator.display_name}
+                  size={28}
+                />
+              )}
+              <p className="min-w-0 break-words text-xs text-muted-foreground">
+                Taught by <span className="font-semibold text-foreground">{educatorName}</span>
+              </p>
+            </div>
           )}
-          <p className="min-w-0 break-words text-xs text-muted-foreground">
-            Taught by{" "}
-            {cls.educatorProfilePublished && cls.educator_id ? (
-              <Link
-                href={`/educators/${cls.educator_id}`}
-                className="font-semibold text-primary hover:underline"
-              >
-                {educatorName}
-              </Link>
-            ) : (
-              <span className="font-semibold text-foreground">{educatorName}</span>
-            )}
-          </p>
         </div>
 
         {cls.description && (

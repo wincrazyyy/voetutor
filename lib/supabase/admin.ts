@@ -26,7 +26,13 @@ import { createClient } from "@supabase/supabase-js";
  *      by possession of the 192-bit student_setup_tokens secret in the URL
  *      (analogous to the webhook's HMAC): it resolves the token, mints a fresh
  *      Supabase recovery link, and hands off to /auth/confirm so the student
- *      can set their first password.
+ *      can set their first password;
+ *   6. adminRemoveStudentAvatarAction (app/actions/admin-students.ts), which
+ *      verifies the caller is an admin and the target is a student with the
+ *      regular user session BEFORE constructing this client — it then needs
+ *      the service role only for the best-effort wipe of the target's
+ *      avatars/{id}/ storage prefix (the bucket's delete policy is owner-keyed,
+ *      so an admin cannot remove another user's avatar object under RLS).
  * It must never be imported by a client component, an UNAUTHORIZED server
  * action, a page, or a layout. The `server-only` import turns any such
  * misuse into a build error.

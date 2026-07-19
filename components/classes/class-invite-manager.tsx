@@ -11,7 +11,6 @@ import {
   Mail,
   MailQuestion,
   Ticket,
-  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { cn } from "@/lib/utils";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
 import type { ClassInviteRow, ClassInviteStatus } from "@/lib/queries/class-invites";
@@ -98,7 +98,6 @@ export function ClassInviteManager({
 
   const [form, setForm] = useState<InviteFormState>(EMPTY_FORM);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copy = (key: string, text: string) => {
@@ -161,7 +160,6 @@ export function ClassInviteManager({
           setError(res.error);
           return;
         }
-        setConfirmingDelete(null);
         router.refresh();
       } finally {
         setBusy(null);
@@ -301,7 +299,6 @@ export function ClassInviteManager({
         <div className="flex flex-col gap-3">
           {invites.map((invite) => {
             const badge = STATUS_BADGE[invite.status];
-            const confirming = confirmingDelete === invite.id;
 
             return (
               <Card
@@ -360,6 +357,7 @@ export function ClassInviteManager({
                           className="min-w-11 sm:min-w-0"
                           onClick={() => copy(invite.id, inviteUrl(invite.token))}
                           disabled={isPending}
+                          aria-label={copiedKey === invite.id ? "Copied" : "Copy invite link"}
                         >
                           {copiedKey === invite.id ? (
                             <Check className="h-3.5 w-3.5 text-primary" />
@@ -370,55 +368,24 @@ export function ClassInviteManager({
                             {copiedKey === invite.id ? "Copied" : "Copy link"}
                           </span>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <ConfirmDeleteButton
+                          label="Revoke invite"
+                          confirmLabel="Confirm revoke — the link stops working immediately"
+                          icon={Ban}
                           className="min-w-11 sm:min-w-0"
-                          onClick={() => revoke(invite.id)}
-                          loading={busy === `revoke:${invite.id}`}
+                          pending={busy === `revoke:${invite.id}`}
                           disabled={isPending}
-                          loadingText="Revoking…"
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Revoke</span>
-                        </Button>
+                          onConfirm={() => revoke(invite.id)}
+                        />
                       </>
                     ) : null}
-                    {confirming ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">Delete?</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmingDelete(null)}
-                          disabled={isPending}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => remove(invite.id)}
-                          loading={busy === `remove:${invite.id}`}
-                          disabled={isPending}
-                          loadingText="Deleting…"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="min-w-11 text-muted-foreground hover:text-destructive sm:min-w-0"
-                        onClick={() => setConfirmingDelete(invite.id)}
-                        disabled={isPending}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Delete</span>
-                      </Button>
-                    )}
+                    <ConfirmDeleteButton
+                      label="Delete invite"
+                      className="min-w-11 sm:min-w-0"
+                      pending={busy === `remove:${invite.id}`}
+                      disabled={isPending}
+                      onConfirm={() => remove(invite.id)}
+                    />
                   </div>
                 </div>
 

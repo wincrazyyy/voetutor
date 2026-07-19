@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ListChecks, Pencil, Plus, Ticket, Trash2, Users } from "lucide-react";
+import { AlertTriangle, ListChecks, Pencil, Plus, Ticket, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import type { ClassPassSummary } from "@/lib/queries/class-access";
 import type { ClassPassItem } from "@/lib/types/database";
 import {
@@ -71,7 +71,8 @@ export function ClassPassesManager({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameName, setRenameName] = useState("");
   const [renameDescription, setRenameDescription] = useState("");
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  /* Which pass's delete button is ARMED — keeps the cascade-warning box below the card in sync. */
+  const [armedDelete, setArmedDelete] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ passId: string; passName: string; keys: string[] } | null>(
     null,
   );
@@ -127,7 +128,6 @@ export function ClassPassesManager({
           setError(res.error);
           return;
         }
-        setConfirmingDelete(null);
         router.refresh();
       } finally {
         setBusy(null);
@@ -200,7 +200,7 @@ export function ClassPassesManager({
       ) : (
         <div className="flex flex-col gap-3">
           {passes.map((pass) => {
-            const confirming = confirmingDelete === pass.id;
+            const confirming = armedDelete === pass.id || busy === `delete:${pass.id}`;
             const renaming = renamingId === pass.id;
 
             return (
@@ -307,44 +307,20 @@ export function ClassPassesManager({
                         <Pencil className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Rename</span>
                       </Button>
-                      {confirming ? (
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={isPending}
-                            onClick={() => setConfirmingDelete(null)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            loading={busy === `delete:${pass.id}`}
-                            disabled={isPending}
-                            loadingText="Deleting…"
-                            onClick={() => remove(pass.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label="Delete pass"
-                          className={cn("min-w-11 gap-1.5 text-muted-foreground hover:text-destructive sm:min-w-0")}
-                          disabled={isPending}
-                          onClick={() => {
-                            setConfirmingDelete(pass.id);
-                            setError(null);
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Delete</span>
-                        </Button>
-                      )}
+                      <ConfirmDeleteButton
+                        label="Delete pass"
+                        confirmLabel={`Permanently delete the ${pass.name} pass`}
+                        className="min-w-11 sm:min-w-0"
+                        pending={busy === `delete:${pass.id}`}
+                        disabled={isPending}
+                        onConfirm={() => remove(pass.id)}
+                        onArmedChange={(armed) => {
+                          if (armed) setError(null);
+                          setArmedDelete((prev) =>
+                            armed ? pass.id : prev === pass.id ? null : prev,
+                          );
+                        }}
+                      />
                     </div>
                   </div>
                 )}

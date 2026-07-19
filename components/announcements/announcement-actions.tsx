@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { deleteAnnouncementAction } from "@/app/actions/announcements";
 
 interface AnnouncementActionsProps {
@@ -16,7 +17,6 @@ interface AnnouncementActionsProps {
 
 export function AnnouncementActions({ classId, announcementId, size = "sm" }: AnnouncementActionsProps) {
   const router = useRouter();
-  const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -28,7 +28,6 @@ export function AnnouncementActions({ classId, announcementId, size = "sm" }: An
         setError(res.error);
         return;
       }
-      setConfirm(false);
       router.refresh();
     });
   };
@@ -41,21 +40,12 @@ export function AnnouncementActions({ classId, announcementId, size = "sm" }: An
           Edit
         </Link>
       </Button>
-      {confirm ? (
-        <span className="flex items-center gap-1 text-xs">
-          <Button variant="ghost" size={size} className="text-destructive" onClick={doDelete} loading={pending} loadingText="Deleting…">
-            Delete?
-          </Button>
-          <Button variant="ghost" size={size} onClick={() => setConfirm(false)} disabled={pending}>
-            No
-          </Button>
-        </span>
-      ) : (
-        <Button variant="ghost" size={size} className="text-muted-foreground hover:text-destructive" onClick={() => setConfirm(true)}>
-          <Trash2 className="w-3.5 h-3.5" />
-          Delete
-        </Button>
-      )}
+      <ConfirmDeleteButton
+        label="Delete announcement"
+        size={size === "xs" ? "icon-xs" : "icon-sm"}
+        pending={pending}
+        onConfirm={doDelete}
+      />
       {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );

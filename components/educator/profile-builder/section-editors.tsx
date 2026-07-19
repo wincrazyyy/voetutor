@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, Trash2, Upload, Loader2 } from "lucide-react";
+import { Plus, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { uid } from "@/lib/profile/builder";
 import { PROFILE_LIMITS } from "@/lib/profile/limits";
@@ -55,16 +56,18 @@ function Field({
 
 function RemoveButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       onClick={onClick}
       disabled={disabled}
       aria-label="Remove"
       title="Remove"
-      className="flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground ring-offset-background transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground sm:size-8"
+      className="size-10 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30 sm:size-8"
     >
       <Trash2 className="h-4 w-4" />
-    </button>
+    </Button>
   );
 }
 
@@ -419,8 +422,15 @@ function PhotoCard({
             alt={image.alt || "Preview"}
             className="h-20 w-28 shrink-0 rounded-md border border-border object-cover"
           />
-          <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={busy}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Replace
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            loading={busy}
+            loadingText="Replace"
+          >
+            <Upload className="h-3.5 w-3.5" /> Replace
           </Button>
         </div>
       ) : (
@@ -430,7 +440,7 @@ function PhotoCard({
           disabled={busy}
           className="flex h-24 w-full flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border bg-muted/30 text-xs text-muted-foreground ring-offset-background transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+          {busy ? <Spinner className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
           {busy ? "Uploading…" : "Upload an image — PNG, JPG, or WEBP (compressed automatically)"}
         </button>
       )}

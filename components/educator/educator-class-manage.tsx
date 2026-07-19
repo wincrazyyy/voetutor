@@ -98,30 +98,36 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
             <div className="text-2xl font-black">{stats.total_students}</div>
           </Card>
         </Link>
-        <Card className="p-5 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Avg Completion</span>
-            <BarChart3 className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black">{stats.average_completion_rate}%</div>
-        </Card>
-        <Card className="p-5 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Watch</span>
-            <PlayCircle className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black">
-            {totalWatchHours}
-            <span className="text-sm text-muted-foreground font-medium"> hrs</span>
-          </div>
-        </Card>
-        <Card className="p-5 border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Open Q&A</span>
-            <MessageSquare className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black">{stats.unanswered_posts}</div>
-        </Card>
+        <Link href={`/statistics/${classId}`}>
+          <Card className="p-5 border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Avg Completion</span>
+              <BarChart3 className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-black">{stats.average_completion_rate}%</div>
+          </Card>
+        </Link>
+        <Link href={`/statistics/${classId}`}>
+          <Card className="p-5 border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Watch</span>
+              <PlayCircle className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-black">
+              {totalWatchHours}
+              <span className="text-sm text-muted-foreground font-medium"> hrs</span>
+            </div>
+          </Card>
+        </Link>
+        <Link href={`/class/${classId}/forum?sort=unanswered`}>
+          <Card className="p-5 border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Open Q&A</span>
+              <MessageSquare className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-black">{stats.unanswered_posts}</div>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
@@ -163,9 +169,10 @@ export async function EducatorClassManage({ cls, userId }: { cls: Class; userId:
               Detailed Statistics
             </h2>
             <p className="text-sm text-muted-foreground mb-3">
-              Drill into completions, watch time, and forum activity.
+              Drill into completions, watch time, and forum activity — click any student for their
+              full profile.
             </p>
-            <Link href={`/class/${classId}/stats`} className="w-full">
+            <Link href={`/statistics/${classId}`} className="w-full">
               <Button variant="outline" className="w-full justify-between group">
                 View Stats
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

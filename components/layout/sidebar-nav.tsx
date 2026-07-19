@@ -22,6 +22,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   type LucideIcon,
+  BarChart3,
   LayoutDashboard,
   Settings,
   BookOpen,
@@ -80,6 +81,8 @@ interface NavItem {
   lockable: boolean;
   /** Premium-only item — omitted from the nav entirely for non-premium educators (not shown locked). */
   premium?: boolean;
+  /** Also active on nested paths (`/statistics` stays lit on `/statistics/[classId]`). */
+  prefixActive?: boolean;
   badge?: number;
 }
 
@@ -113,6 +116,8 @@ export function SidebarNav({
     { name: "Educator Hub", href: "/dashboard", icon: LayoutDashboard, lockable: true },
     { name: "My Profile", href: "/profile", icon: UserCircle, lockable: true },
     { name: "Reviews", href: "/reviews", icon: Star, lockable: true },
+    { name: "Statistics", href: "/statistics", icon: BarChart3, lockable: true, premium: true, prefixActive: true },
+    { name: "Students", href: "/students", icon: Users, lockable: true, premium: true, prefixActive: true },
     { name: "Content Library", href: "/library", icon: Video, lockable: true, premium: true },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: true, premium: true },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
@@ -141,7 +146,7 @@ export function SidebarNav({
       badge: pendingApplicationCount,
     },
     { name: "Educators", href: "/admin/educators", icon: Users, lockable: false },
-    { name: "Students", href: "/admin/students", icon: GraduationCap, lockable: false },
+    { name: "Students", href: "/admin/students", icon: GraduationCap, lockable: false, prefixActive: true },
     {
       name: "Reports",
       href: "/reports",
@@ -156,6 +161,8 @@ export function SidebarNav({
     { name: "Educator Hub", href: "/dashboard", icon: LayoutDashboard, lockable: false },
     { name: "My Profile", href: "/profile", icon: UserCircle, lockable: false },
     { name: "Reviews", href: "/reviews", icon: Star, lockable: false },
+    { name: "Statistics", href: "/statistics", icon: BarChart3, lockable: false, prefixActive: true },
+    { name: "Students", href: "/students", icon: Users, lockable: false, prefixActive: true },
     { name: "Content Library", href: "/library", icon: Video, lockable: false },
     { name: "Question Bank", href: "/question-bank", icon: Library, lockable: false },
     { name: "Settings", href: "/settings", icon: Settings, lockable: false },
@@ -204,7 +211,9 @@ export function SidebarNav({
           </div>
           {section.items.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href;
+            const isActive =
+              pathname === link.href ||
+              (link.prefixActive === true && pathname.startsWith(`${link.href}/`));
             const badge = link.badge;
             const locked = isPendingEducator && link.lockable;
 

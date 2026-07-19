@@ -102,50 +102,44 @@ export async function EducatorHub() {
         ) : (
           <div className="grid gap-5 md:grid-cols-2">
             {classes.map((cls) => (
-              <Card
-                key={cls.id}
-                className="flex flex-col gap-0 overflow-hidden border border-border py-0 shadow-sm hover:shadow-md transition-shadow bg-card relative"
-              >
-                <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
-                <div className="p-5 flex-1 mt-2">
-                  <div className="flex items-start justify-between mb-3 gap-4">
-                    <h3 className="min-w-0 break-words text-lg font-bold leading-tight">{cls.title}</h3>
-                    <Badge
-                      variant="secondary"
-                      className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
-                    >
-                      {cls.code}
-                    </Badge>
+              <Link key={cls.id} href={`/class/${cls.id}`} className="group flex">
+                <Card className="flex w-full flex-col gap-0 overflow-hidden border border-border py-0 shadow-sm hover:shadow-md transition-shadow bg-card relative">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+                  <div className="p-5 flex-1 mt-2">
+                    <div className="flex items-start justify-between mb-3 gap-4">
+                      <h3 className="min-w-0 break-words text-lg font-bold leading-tight">{cls.title}</h3>
+                      <Badge
+                        variant="secondary"
+                        className="text-xs sm:text-[10px] font-bold tracking-wider uppercase text-muted-foreground bg-muted shrink-0"
+                      >
+                        {cls.code}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground mt-4">
+                      <div className="bg-muted/30 rounded-md p-2 text-center">
+                        <div className="text-foreground font-bold text-base">{cls.student_count}</div>
+                        <div>Students</div>
+                      </div>
+                      <div className="bg-muted/30 rounded-md p-2 text-center">
+                        <div className="text-foreground font-bold text-base">{cls.video_count}</div>
+                        <div>Videos</div>
+                      </div>
+                      <div className="bg-muted/30 rounded-md p-2 text-center">
+                        <div className="text-foreground font-bold text-base">{cls.unanswered_post_count}</div>
+                        <div>Open Q&A</div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground mt-4">
-                    <div className="bg-muted/30 rounded-md p-2 text-center">
-                      <div className="text-foreground font-bold text-base">{cls.student_count}</div>
-                      <div>Students</div>
-                    </div>
-                    <div className="bg-muted/30 rounded-md p-2 text-center">
-                      <div className="text-foreground font-bold text-base">{cls.video_count}</div>
-                      <div>Videos</div>
-                    </div>
-                    <div className="bg-muted/30 rounded-md p-2 text-center">
-                      <div className="text-foreground font-bold text-base">{cls.unanswered_post_count}</div>
-                      <div>Open Q&A</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-muted/20 border-t border-border">
-                  <Link href={`/class/${cls.id}`} className="w-full">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-between group hover:bg-primary/5 hover:text-primary text-sm font-semibold h-10"
-                    >
+                  <div className="p-3 bg-muted/20 border-t border-border">
+                    <div className="flex h-10 w-full items-center justify-between rounded-md px-4 text-sm font-semibold transition-colors group-hover:bg-primary/5 group-hover:text-primary">
                       Manage Class
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

@@ -47,7 +47,7 @@ export function VideoRenameDialog({ videoId, classId, initialTitle }: VideoRenam
       <Button
         size="sm"
         variant="ghost"
-        className="h-10 w-10 p-0 sm:h-10text-muted-foreground hover:text-foreground xl:h-7 xl:w-7"
+        className="h-10 w-10 p-0 sm:h-10 text-muted-foreground hover:text-foreground xl:h-7 xl:w-7"
         onClick={openDialog}
         aria-label="Rename video"
       >

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Inbox, Search } from "lucide-react";
+import Link from "next/link";
+import { Inbox, Search, UserCog } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DeleteAccountButton } from "@/components/admin/delete-account-button";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -121,6 +123,17 @@ export function StudentsList({ students, currentUserId }: StudentsListProps) {
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
+                <Link href={`/admin/students/${student.id}`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-w-11 gap-1.5 sm:min-w-0"
+                    aria-label="Manage student"
+                  >
+                    <UserCog className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Manage</span>
+                  </Button>
+                </Link>
                 {student.id !== currentUserId ? (
                   <DeleteAccountButton
                     accountId={student.id}

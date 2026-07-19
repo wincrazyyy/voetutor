@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowRightLeft, UserMinus, Users } from "lucide-react";
 
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { cn } from "@/lib/utils";
+import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { getDisplayName } from "@/lib/utils/format";
 import { moveStudentAction, removeStudentAction } from "@/app/actions/class-roster";
 import { StudentAccessEditor, type StudentAccessVM } from "@/components/classes/student-access-editor";
@@ -63,30 +64,7 @@ export function ClassRoster({
   const [busy, setBusy] = useState<string | null>(null);
 
   const [rosterError, setRosterError] = useState<string | null>(null);
-  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
   const [pendingMoveTarget, setPendingMoveTarget] = useState<Record<string, string>>({});
-  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearRemoveTimer = () => {
-    if (removeTimer.current) {
-      clearTimeout(removeTimer.current);
-      removeTimer.current = null;
-    }
-  };
-
-  /** First click arms the Remove button (turns red); a second click within 4s confirms, else it disarms. */
-  const armRemove = (studentId: string) => {
-    setRosterError(null);
-    setConfirmingRemove(studentId);
-    clearRemoveTimer();
-    removeTimer.current = setTimeout(() => setConfirmingRemove(null), 4000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (removeTimer.current) clearTimeout(removeTimer.current);
-    };
-  }, []);
 
   const remove = (studentId: string) => {
     setBusy(`remove:${studentId}`);
@@ -98,8 +76,6 @@ export function ClassRoster({
           setRosterError(res.error);
           return;
         }
-        clearRemoveTimer();
-        setConfirmingRemove(null);
         router.refresh();
       } finally {
         setBusy(null);
@@ -150,7 +126,6 @@ export function ClassRoster({
         <div className="flex flex-col gap-3">
           {roster.map((student) => {
             const name = getDisplayName(student.first_name, student.last_name, student.display_name);
-            const confirming = confirmingRemove === student.id;
             const moveTarget = pendingMoveTarget[student.id];
             const access = accessMap[student.id] ?? FULL_ACCESS;
             /* Zero-passes classes stay visually unchanged (scenario 11) — the access affordances
@@ -162,7 +137,10 @@ export function ClassRoster({
                 key={student.id}
                 className="flex flex-col gap-3 border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
               >
-                <div className="flex min-w-0 items-center gap-3">
+                <Link
+                  href={`/students/${student.id}?class=${classId}`}
+                  className="group flex min-w-0 items-center gap-3"
+                >
                   <UserAvatar
                     avatarUrl={student.avatar_url}
                     firstName={student.first_name}
@@ -171,7 +149,9 @@ export function ClassRoster({
                     size={36}
                   />
                   <div className="min-w-0">
-                    <span className="block truncate font-semibold text-foreground">{name}</span>
+                    <span className="block truncate font-semibold text-foreground group-hover:underline">
+                      {name}
+                    </span>
                     {showAccess ? (
                       <span className="mt-0.5 flex flex-wrap items-center gap-1">
                         {access.scope === "full" ? (
@@ -195,7 +175,7 @@ export function ClassRoster({
                       </span>
                     ) : null}
                   </div>
-                </div>
+                </Link>
 
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   {showAccess ? (
@@ -270,21 +250,17 @@ export function ClassRoster({
                     </Select>
                   )}
 
-                  <Button
-                    variant={confirming ? "destructive" : "ghost"}
-                    size="sm"
-                    className={cn(
-                      "gap-1.5",
-                      !confirming && "text-muted-foreground hover:text-destructive",
-                    )}
-                    loading={busy === `remove:${student.id}`}
+                  <ConfirmDeleteButton
+                    label="Remove student"
+                    confirmLabel={`Remove ${name} from this class`}
+                    icon={UserMinus}
+                    pending={busy === `remove:${student.id}`}
                     disabled={isPending}
-                    loadingText="Removing…"
-                    onClick={() => (confirming ? remove(student.id) : armRemove(student.id))}
-                  >
-                    <UserMinus className="h-3.5 w-3.5" />
-                    {confirming ? "Confirm remove" : "Remove"}
-                  </Button>
+                    onConfirm={() => remove(student.id)}
+                    onArmedChange={(armed) => {
+                      if (armed) setRosterError(null);
+                    }}
+                  />
                 </div>
               </Card>
             );

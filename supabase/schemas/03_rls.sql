@@ -509,6 +509,17 @@ CREATE POLICY announcement_reads_insert_self ON announcement_reads
     );
 COMMENT ON POLICY announcement_reads_insert_self ON announcement_reads IS 'A user may mark an announcement read only for themselves and only if the announcement is in one of their classes. No UPDATE/DELETE policy ⇒ receipts are immutable.';
 
+CREATE POLICY announcement_reads_select_class_educator ON announcement_reads
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.announcements a
+            WHERE a.id = announcement_reads.announcement_id
+              AND (SELECT internal.is_class_educator(a.class_id))
+        )
+    );
+COMMENT ON POLICY announcement_reads_select_class_educator ON announcement_reads IS 'The class educator may read receipts for announcements of classes they teach — the per-student announcement-read ratio on the student insight page. Receipts for other classes stay invisible; admins already read everything via announcement_reads_select_self. Separate permissive SELECT policy; the insert-self-only / no-UPDATE immutability of receipts is unchanged.';
+
 /* ----- FORUM POSTS ----- */
 CREATE POLICY forum_posts_select_authorized ON forum_posts
     FOR SELECT TO authenticated
@@ -746,6 +757,17 @@ CREATE POLICY student_profiles_update_self ON student_profiles
     USING ((SELECT auth.uid()) = student_id)
     WITH CHECK ((SELECT auth.uid()) = student_id);
 COMMENT ON POLICY student_profiles_update_self ON student_profiles IS 'A student edits their own enrolment details in Settings indefinitely. WITH CHECK matches USING so the row cannot be redirected onto another student mid-update (student_id is also locked by prevent_student_profile_modifications).';
+
+CREATE POLICY student_profiles_update_admin ON student_profiles
+    FOR UPDATE TO authenticated
+    USING ((SELECT internal.is_admin()))
+    WITH CHECK ((SELECT internal.is_admin()));
+COMMENT ON POLICY student_profiles_update_admin ON student_profiles IS 'Admins may moderate any student''s enrolment details from the admin students console (adminUpdateStudentProfileAction). Separate permissive policy alongside student_profiles_update_self — a non-admin never satisfies is_admin(), so this widens nothing for them. student_id and created_at stay locked by prevent_student_profile_modifications.';
+
+CREATE POLICY student_profiles_insert_admin ON student_profiles
+    FOR INSERT TO authenticated
+    WITH CHECK ((SELECT internal.is_admin()));
+COMMENT ON POLICY student_profiles_insert_admin ON student_profiles IS 'Backs the admin-side upsert for students who have no sidecar row yet (pre-sidecar accounts). The action verifies the TARGET row belongs to a student before writing, mirroring the adminSaveEducatorProfileAction convention; the PK prevents duplicates.';
 
 CREATE POLICY student_profiles_delete_self_or_admin ON student_profiles
     FOR DELETE TO authenticated
