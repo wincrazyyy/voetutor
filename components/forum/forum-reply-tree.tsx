@@ -7,6 +7,7 @@ import { Pencil, Reply as ReplyIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
+import { IconActionButton } from "@/components/shared/buttons/icon-action-button";
 import { cn } from "@/lib/utils";
 import { FORUM_LIMITS } from "@/lib/forum/limits";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
@@ -211,16 +212,20 @@ function ReplyNode({
                 </div>
               )}
               {!reply.is_deleted && (
-                <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={() => setReplying((v) => !v)}>
-                  <ReplyIcon className="w-3.5 h-3.5" />
-                  Reply
-                </Button>
+                <IconActionButton
+                  icon={ReplyIcon}
+                  label="Reply"
+                  size="icon-xs"
+                  onClick={() => setReplying((v) => !v)}
+                />
               )}
               {canEdit && (
-                <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={() => { setEditing(true); setDraft(reply.content); }}>
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </Button>
+                <IconActionButton
+                  icon={Pencil}
+                  label="Edit"
+                  size="icon-xs"
+                  onClick={() => { setEditing(true); setDraft(reply.content); }}
+                />
               )}
               {canDelete && (
                 <ConfirmDeleteButton

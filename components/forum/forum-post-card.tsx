@@ -8,6 +8,7 @@ import { CheckCircle2, Circle, MessageSquare, Pencil, Pin, PinOff, PlayCircle } 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
+import { IconActionButton } from "@/components/shared/buttons/icon-action-button";
 import { FORUM_LIMITS } from "@/lib/forum/limits";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -210,25 +211,35 @@ export function ForumPostCard({ classId, post, currentUserId, isAdmin, canModera
               <ForumMarkdown content={post.content} />
 
               {(canEdit || canDelete || canResolve) && (
-                <div className="mt-4 grid grid-cols-2 gap-1.5 border-t border-border/50 pt-3 [&>button]:justify-start sm:flex sm:flex-wrap sm:items-center sm:[&>button]:justify-center">
+                <div className="mt-4 flex flex-wrap items-center gap-1 border-t border-border/50 pt-3">
                   {canResolve && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={toggleResolved} loading={busy === "resolve"} disabled={pending}>
-                      {post.is_resolved ? <Circle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                      <span className="sm:hidden">{post.is_resolved ? "Unresolve" : "Resolve"}</span>
-                      <span className="hidden sm:inline">{post.is_resolved ? "Mark unresolved" : "Mark resolved"}</span>
-                    </Button>
+                    <IconActionButton
+                      icon={post.is_resolved ? Circle : CheckCircle2}
+                      label={post.is_resolved ? "Mark unresolved" : "Mark resolved"}
+                      active={post.is_resolved}
+                      activeClassName="text-emerald-600"
+                      onClick={toggleResolved}
+                      loading={busy === "resolve"}
+                      disabled={pending}
+                    />
                   )}
                   {canModerate && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={togglePinned} loading={busy === "pin"} disabled={pending}>
-                      {post.is_pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-                      {post.is_pinned ? "Unpin" : "Pin"}
-                    </Button>
+                    <IconActionButton
+                      icon={post.is_pinned ? PinOff : Pin}
+                      label={post.is_pinned ? "Unpin" : "Pin"}
+                      active={post.is_pinned}
+                      onClick={togglePinned}
+                      loading={busy === "pin"}
+                      disabled={pending}
+                    />
                   )}
                   {canEdit && (
-                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setEditing(true)} disabled={pending}>
-                      <Pencil className="w-4 h-4" />
-                      Edit
-                    </Button>
+                    <IconActionButton
+                      icon={Pencil}
+                      label="Edit"
+                      onClick={() => setEditing(true)}
+                      disabled={pending}
+                    />
                   )}
                   {canDelete && (
                     <ConfirmDeleteButton
