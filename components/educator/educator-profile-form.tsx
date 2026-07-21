@@ -15,7 +15,9 @@ interface EducatorProfileFormProps {
   educatorId: string;
   initial: EducatorProfile | null;
   /** "application" (the /pending approval form) vs "settings" (an approved educator editing later).
-   *  Only changes the framing copy — the fields and save path are identical. */
+   *  The fields and save path are identical; besides the framing copy, "settings" also renders BARE
+   *  (no outer Card, demoted heading) so the form nests inside the Settings Account card's
+   *  "Your details" section while keeping its collapse behavior. */
   context?: "application" | "settings";
 }
 
@@ -130,8 +132,8 @@ export function EducatorProfileForm({ educatorId, initial, context = "applicatio
     router.refresh();
   };
 
-  return (
-    <Card className="p-6 border-border shadow-sm bg-card">
+  const body = (
+    <>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -141,7 +143,11 @@ export function EducatorProfileForm({ educatorId, initial, context = "applicatio
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-lg font-bold">{heading}</h2>
+            {isSettings ? (
+              <h3 className="text-base font-semibold">{heading}</h3>
+            ) : (
+              <h2 className="text-lg font-bold">{heading}</h2>
+            )}
             {hasInitialData && (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -352,6 +358,10 @@ export function EducatorProfileForm({ educatorId, initial, context = "applicatio
           </Button>
         </div>
       </form>
-    </Card>
+    </>
   );
+
+  if (isSettings) return body;
+
+  return <Card className="p-6 border-border shadow-sm bg-card">{body}</Card>;
 }

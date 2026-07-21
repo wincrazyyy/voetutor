@@ -28,6 +28,7 @@ import {
   BookOpen,
   GraduationCap,
   GripVertical,
+  House,
   Library,
   Flag,
   ShieldCheck,
@@ -277,6 +278,25 @@ export function SidebarNav({
           </div>
         </div>
       )}
+
+      {/* Shared for every role: the PUBLIC marketing homepage — deliberately separate from the logo
+          (which goes to /dashboard, the in-app home). Active-state uses exact equality: "/" is a
+          prefix of every path, so startsWith would light it everywhere. */}
+      <div className="mt-auto pt-2">
+        <Link
+          href="/"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+            pathname === "/"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <House className="w-5 h-5" />
+          <span className="flex-1">Homepage</span>
+          <LinkPending className="size-4 shrink-0 opacity-70" />
+        </Link>
+      </div>
     </nav>
   );
 }

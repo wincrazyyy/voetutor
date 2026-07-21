@@ -19,14 +19,17 @@ const LIMITS = {
 } as const;
 
 /**
- * Students save their own name + enrolment details from Settings. Updates the shared profiles row
- * (name) and upserts the student_profiles sidecar (the enrolment fields). Self-only — RLS
+ * Students save their own enrolment details from Settings — and, only when a name is actually
+ * provided, their name too. Upserts the student_profiles sidecar (the enrolment fields) and
+ * optionally updates the shared profiles row. The name fields are OPTIONAL by design: the Settings
+ * page owns the name via the shared AccountNameForm and submits an enrolment-only payload, which
+ * must never overwrite profiles first/last/display_name with a stale value. Self-only — RLS
  * (student_profiles_update_self / _insert_self + the profiles self-update policy) is the real gate;
  * the role check just yields a clean message. Values are clamped to the column caps defensively.
  */
 export async function updateStudentProfileAction(input: {
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   whatsappNumber: string;
   school: string;
   schoolYear: string;
@@ -38,12 +41,17 @@ export async function updateStudentProfileAction(input: {
     return { error: "Only students can edit these details." };
   }
 
-  const firstName = input.firstName.trim();
-  const lastName = input.lastName.trim();
-  if (!firstName) return { error: "First name is required." };
-  if (!lastName) return { error: "Last name is required." };
-  if (firstName.length > LIMITS.name || lastName.length > LIMITS.name) {
-    return { error: "Name is too long." };
+  /* A payload carrying either name field is a deliberate name update and is fully validated;
+     a payload carrying neither leaves the profiles name untouched. */
+  const wantsNameUpdate = input.firstName !== undefined || input.lastName !== undefined;
+  const firstName = (input.firstName ?? "").trim();
+  const lastName = (input.lastName ?? "").trim();
+  if (wantsNameUpdate) {
+    if (!firstName) return { error: "First name is required." };
+    if (!lastName) return { error: "Last name is required." };
+    if (firstName.length > LIMITS.name || lastName.length > LIMITS.name) {
+      return { error: "Name is too long." };
+    }
   }
 
   const clamp = (value: string, max: number) => value.trim().slice(0, max);
@@ -69,12 +77,14 @@ export async function updateStudentProfileAction(input: {
   );
   if (sidecarError) return { error: sidecarError.message };
 
-  const displayName = `${firstName} ${lastName}`.trim();
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ first_name: firstName, last_name: lastName, display_name: displayName })
-    .eq("id", profile.id);
-  if (profileError) return { error: profileError.message };
+  if (wantsNameUpdate) {
+    const displayName = `${firstName} ${lastName}`.trim();
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ first_name: firstName, last_name: lastName, display_name: displayName })
+      .eq("id", profile.id);
+    if (profileError) return { error: profileError.message };
+  }
 
   /* Name changes ripple into the sidebar/navbar identity chip. */
   revalidatePath("/", "layout");

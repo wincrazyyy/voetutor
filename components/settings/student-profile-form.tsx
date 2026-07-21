@@ -20,10 +20,16 @@ interface StudentProfileFormProps {
   /** When set, saves route through adminUpdateStudentProfileAction for the given student instead
    *  of the self action (the ProfileBuilder adminEdit precedent). Default self behavior unchanged. */
   adminEdit?: { studentId: string };
+  /** When false, the name inputs are hidden AND firstName/lastName are omitted from the submitted
+   *  payload — the self Settings page owns the name via the shared AccountNameForm, and an
+   *  enrolment-only save must never overwrite it with a stale value. Defaults to true so the admin
+   *  student-edit page keeps editing name + details in one form. */
+  showName?: boolean;
 }
 
-/** Settings form letting a student edit their name + enrolment details (student_profiles sidecar). */
-export function StudentProfileForm({ adminEdit, ...initial }: StudentProfileFormProps) {
+/** Form letting a student edit their enrolment details (student_profiles sidecar) — plus their
+ *  name when showName is on (the admin student-edit page). */
+export function StudentProfileForm({ adminEdit, showName = true, ...initial }: StudentProfileFormProps) {
   const router = useRouter();
   const [firstName, setFirstName] = useState(initial.firstName);
   const [lastName, setLastName] = useState(initial.lastName);
@@ -46,17 +52,15 @@ export function StudentProfileForm({ adminEdit, ...initial }: StudentProfileForm
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const values = {
-        firstName,
-        lastName,
+      const details = {
         whatsappNumber,
         school,
         schoolYear,
         targetGrade,
       };
       const result = adminEdit
-        ? await adminUpdateStudentProfileAction(adminEdit.studentId, values)
-        : await updateStudentProfileAction(values);
+        ? await adminUpdateStudentProfileAction(adminEdit.studentId, { firstName, lastName, ...details })
+        : await updateStudentProfileAction(showName ? { firstName, lastName, ...details } : details);
       if (result?.error) {
         setError(result.error);
         return;
@@ -68,16 +72,18 @@ export function StudentProfileForm({ adminEdit, ...initial }: StudentProfileForm
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="s-first">First name</Label>
-          <Input id="s-first" required maxLength={100} autoComplete="given-name" value={firstName} onChange={edit(setFirstName)} disabled={pending} />
+      {showName && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="s-first">First name</Label>
+            <Input id="s-first" required maxLength={100} autoComplete="given-name" value={firstName} onChange={edit(setFirstName)} disabled={pending} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="s-last">Last name</Label>
+            <Input id="s-last" required maxLength={100} autoComplete="family-name" value={lastName} onChange={edit(setLastName)} disabled={pending} />
+          </div>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="s-last">Last name</Label>
-          <Input id="s-last" required maxLength={100} autoComplete="family-name" value={lastName} onChange={edit(setLastName)} disabled={pending} />
-        </div>
-      </div>
+      )}
 
       <div className="grid gap-1.5">
         <Label htmlFor="s-whatsapp">WhatsApp number</Label>

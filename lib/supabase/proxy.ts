@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
 const PENDING_GATE_PATH = "/pending";
-const ALLOWED_WHILE_PENDING = new Set<string>([PENDING_GATE_PATH, "/settings"]);
+/* "/" is the PUBLIC marketing homepage (anon-reachable below), so a pending educator may view it —
+   the sidebar's Homepage link points there for every role. */
+const ALLOWED_WHILE_PENDING = new Set<string>([PENDING_GATE_PATH, "/settings", "/"]);
 /* Forced first-sign-in password change: while profiles.must_change_password is TRUE the signed-in
    user is confined here (only /auth/* and the maintenance screen stay reachable). */
 const SET_PASSWORD_PATH = "/onboarding/set-password";
