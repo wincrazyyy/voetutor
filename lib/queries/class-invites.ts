@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { effectiveInviteExpiry } from "@/lib/utils/link-expiry";
 import type { ClassInvite, ClassInvitePreview, ProfilePublic } from "@/lib/types/database";
 
 export type ClassInviteStatus = "pending" | "redeemed" | "revoked" | "expired";
@@ -11,13 +12,16 @@ export interface ClassInviteRow extends ClassInvite {
 }
 
 /** Derives the display status of an invite. Revoked wins over redeemed wins over expired,
- *  mirroring the reason precedence in the get_class_invite_preview RPC. */
+ *  mirroring the reason precedence in the get_class_invite_preview RPC — including its 7-day
+ *  effective expiry, so legacy never-expiring rows correctly read "expired" after a week. */
 export function deriveClassInviteStatus(
-  invite: Pick<ClassInvite, "revoked_at" | "redeemed_at" | "expires_at">,
+  invite: Pick<ClassInvite, "revoked_at" | "redeemed_at" | "expires_at" | "created_at">,
 ): ClassInviteStatus {
   if (invite.revoked_at) return "revoked";
   if (invite.redeemed_at) return "redeemed";
-  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return "expired";
+  if (effectiveInviteExpiry(invite.created_at, invite.expires_at).getTime() <= Date.now()) {
+    return "expired";
+  }
   return "pending";
 }
 

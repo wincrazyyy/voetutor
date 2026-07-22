@@ -28,6 +28,7 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { ConfirmDeleteButton } from "@/components/shared/buttons/confirm-delete-button";
 import { cn } from "@/lib/utils";
 import { getDisplayName, relativeTime } from "@/lib/utils/format";
+import { SEVEN_DAYS_MS, effectiveInviteExpiry } from "@/lib/utils/link-expiry";
 import type { ClassInviteRow, ClassInviteStatus } from "@/lib/queries/class-invites";
 import {
   createClassInviteAction,
@@ -99,6 +100,14 @@ export function ClassInviteManager({
   const [form, setForm] = useState<InviteFormState>(EMPTY_FORM);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  /* datetime-local max = now + 7 days, in LOCAL time; computed post-mount for hydration safety.
+     Cosmetic only — the action clamps and the RPCs enforce the cap regardless. */
+  const [expiryMax, setExpiryMax] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    const cap = new Date(Date.now() + SEVEN_DAYS_MS - new Date().getTimezoneOffset() * 60000);
+    setExpiryMax(cap.toISOString().slice(0, 16));
+  }, []);
 
   const copy = (key: string, text: string) => {
     void navigator.clipboard.writeText(text).then(() => {
@@ -210,10 +219,13 @@ export function ClassInviteManager({
               id="inv-expiry"
               type="datetime-local"
               value={form.expiresAt}
+              max={expiryMax}
               disabled={isPending}
               onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">Leave blank for a link that never expires.</p>
+            <p className="text-xs text-muted-foreground">
+              Leave blank for the maximum. Every invite link expires within 7 days.
+            </p>
           </div>
         </div>
         <div className="grid gap-1.5">
@@ -339,10 +351,13 @@ export function ClassInviteManager({
                     ) : null}
                     <p className="mt-1 text-xs text-muted-foreground">
                       Created {relativeTime(invite.created_at)}
-                      {invite.status === "pending" && invite.expires_at ? (
+                      {invite.status === "pending" ? (
                         <>
                           {" "}
-                          · expires <LocalDateTime at={invite.expires_at} />
+                          · expires{" "}
+                          <LocalDateTime
+                            at={effectiveInviteExpiry(invite.created_at, invite.expires_at).toISOString()}
+                          />
                         </>
                       ) : null}
                     </p>

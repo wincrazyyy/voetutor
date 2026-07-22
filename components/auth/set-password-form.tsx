@@ -23,6 +23,9 @@ import { validatePassword } from "@/lib/utils/password";
  * supabase.auth.updateUser, then clears profiles.must_change_password with the browser client (an
  * RLS-only self-UPDATE, per the documented convention). If the flag-clear fails after the password
  * change succeeded, the proxy re-gates the user here and the next successful submit self-heals.
+ * After the flag clears it also best-effort calls the consume_own_setup_tokens RPC, stamping
+ * consumed_at on every outstanding setup link to this account so /welcome links die permanently,
+ * independent of the mutable flag; a failure there never blocks the redirect.
  */
 export function SetPasswordForm({
   className,
@@ -58,6 +61,14 @@ export function SetPasswordForm({
         .update({ must_change_password: false })
         .eq("id", user.id);
       if (clearError) throw clearError;
+
+      /* Belt-and-braces: hard-consume every setup link to this account (consumed_at), so the
+         /welcome link dies even if the flag is ever re-set. Best-effort — never blocks. */
+      try {
+        await supabase.rpc("consume_own_setup_tokens");
+      } catch {
+        /* Hardening only; the flag clear above remains the primary gate. */
+      }
 
       /* Stay loading through the push — see login-form. */
       router.push("/dashboard");

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/profile";
+import { SEVEN_DAYS_MS } from "@/lib/utils/link-expiry";
 
 export interface ClassInviteActionState {
   error?: string;
@@ -55,12 +56,17 @@ export async function createClassInviteAction(
   const note = input.note?.trim() || null;
   if (note && note.length > 200) return { error: "Note must be 200 characters or fewer." };
 
-  let expiresAt: string | null = null;
+  /* Every invite hard-expires within 7 days of creation (the RPCs enforce it at the DB layer);
+     the stored expires_at is clamped to the cap so the manager always shows the real expiry. */
+  const capMs = Date.now() + SEVEN_DAYS_MS;
+  let expiresAt: string;
   if (input.expiresAt) {
     const parsed = new Date(input.expiresAt);
     if (Number.isNaN(parsed.getTime())) return { error: "Expiry date is not valid." };
     if (parsed.getTime() <= Date.now()) return { error: "Expiry must be in the future." };
-    expiresAt = parsed.toISOString();
+    expiresAt = new Date(Math.min(parsed.getTime(), capMs)).toISOString();
+  } else {
+    expiresAt = new Date(capMs).toISOString();
   }
 
   const supabase = await createClient();

@@ -894,11 +894,11 @@ BEGIN
         COALESCE(NULLIF(TRIM(COALESCE(pp.display_name, CONCAT_WS(' ', pp.first_name, pp.last_name))), ''), 'An educator'),
         (ci.revoked_at IS NULL
             AND ci.redeemed_at IS NULL
-            AND (ci.expires_at IS NULL OR ci.expires_at > NOW())),
+            AND LEAST(COALESCE(ci.expires_at, ci.created_at + INTERVAL '7 days'), ci.created_at + INTERVAL '7 days') > NOW()),
         CASE
             WHEN ci.revoked_at IS NOT NULL THEN 'revoked'
             WHEN ci.redeemed_at IS NOT NULL THEN 'redeemed'
-            WHEN ci.expires_at IS NOT NULL AND ci.expires_at <= NOW() THEN 'expired'
+            WHEN LEAST(COALESCE(ci.expires_at, ci.created_at + INTERVAL '7 days'), ci.created_at + INTERVAL '7 days') <= NOW() THEN 'expired'
             ELSE 'valid'
         END,
         cp.name
@@ -909,7 +909,7 @@ BEGIN
     WHERE ci.token = p_token;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION public.get_class_invite_preview(TEXT) IS 'Public (anon-callable) read boundary for the invite landing page: given the secret token, returns the class title, the educator''s display name, whether the invite is still redeemable (with a reason of revoked / redeemed / expired / valid), and the audience pass name (pass_name; NULL = full-access invite). Leaks nothing beyond the title + name + pass label — never email, note, or issuer — and returns zero rows for unknown tokens, so there is no existence oracle without holding the 192-bit secret. The pass name is the same trust surface as the class title (revealed only to secret-holders). SECURITY DEFINER with empty search_path; the WHERE clause and column list ARE the boundary, following the get_public_educator_profile pattern.';
+COMMENT ON FUNCTION public.get_class_invite_preview(TEXT) IS 'Public (anon-callable) read boundary for the invite landing page: given the secret token, returns the class title, the educator''s display name, whether the invite is still redeemable (with a reason of revoked / redeemed / expired / valid), and the audience pass name (pass_name; NULL = full-access invite). Expiry is the effective expiry — LEAST(COALESCE(expires_at, created_at + 7 days), created_at + 7 days) — so every invite, including legacy rows created with no expiry, dies within 7 days of creation. Leaks nothing beyond the title + name + pass label — never email, note, or issuer — and returns zero rows for unknown tokens, so there is no existence oracle without holding the 192-bit secret. The pass name is the same trust surface as the class title (revealed only to secret-holders). SECURITY DEFINER with empty search_path; the WHERE clause and column list ARE the boundary, following the get_public_educator_profile pattern.';
 
 REVOKE EXECUTE ON FUNCTION public.get_class_invite_preview(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_class_invite_preview(TEXT) TO anon, authenticated;
@@ -921,6 +921,7 @@ DECLARE
     v_invite    public.class_invites%ROWTYPE;
     v_educator  UUID;
     v_caller_email TEXT;
+    v_effective_expiry TIMESTAMPTZ;
 BEGIN
     IF v_uid IS NULL THEN
         RAISE EXCEPTION 'AUTH REQUIRED: Sign in to accept this invite.';
@@ -933,7 +934,10 @@ BEGIN
     IF v_invite.revoked_at IS NOT NULL THEN
         RAISE EXCEPTION 'This invite has been revoked.';
     END IF;
-    IF v_invite.expires_at IS NOT NULL AND v_invite.expires_at <= NOW() THEN
+    v_effective_expiry := LEAST(
+        COALESCE(v_invite.expires_at, v_invite.created_at + INTERVAL '7 days'),
+        v_invite.created_at + INTERVAL '7 days');
+    IF v_effective_expiry <= NOW() THEN
         RAISE EXCEPTION 'This invite has expired.';
     END IF;
 
@@ -997,10 +1001,24 @@ BEGIN
     RETURN v_invite.class_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-COMMENT ON FUNCTION public.redeem_class_invite(TEXT) IS 'The manual-payment enrollment writer. Validates the secret invite token (exists, not revoked, not expired), enforces single use (idempotent for the same caller — re-opening a redeemed link just re-lands them in the class; anyone else is rejected), honors the optional email binding against auth.users, and blocks the class educator from self-enrolling, then inserts the class_enrollments row and stamps redeemed_by / redeemed_at. Access Pass aware: a scoped invite (pass_id set) enrolls with access_scope = scoped and adds the class_pass_holders row, NEVER downgrading an existing enrollment (ON CONFLICT DO NOTHING); a full invite (pass_id NULL) enrolls full and UPGRADES an existing scoped enrollment in place (ON CONFLICT DO UPDATE), clearing the student''s holder rows — the deliberate trial-to-paid link upgrade path. The same branch applies on the idempotent same-redeemer re-open. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments (the holder-row write is likewise sanctioned), exactly like enroll_in_free_class. Deliberately does NOT require is_published or price_cents = 0 — the invite is an explicit grant for an externally-paid (possibly draft) class. SELECT ... FOR UPDATE locks the invite row so two concurrent redeems cannot both win the single use. Returns the class_id for the post-join redirect.';
+COMMENT ON FUNCTION public.redeem_class_invite(TEXT) IS 'The manual-payment enrollment writer. Validates the secret invite token (exists, not revoked, not past its effective expiry — LEAST(COALESCE(expires_at, created_at + 7 days), created_at + 7 days), so every invite, including legacy rows created with no expiry, dies within 7 days of creation), enforces single use (idempotent for the same caller — re-opening a redeemed link just re-lands them in the class; anyone else is rejected), honors the optional email binding against auth.users, and blocks the class educator from self-enrolling, then inserts the class_enrollments row and stamps redeemed_by / redeemed_at. Access Pass aware: a scoped invite (pass_id set) enrolls with access_scope = scoped and adds the class_pass_holders row, NEVER downgrading an existing enrollment (ON CONFLICT DO NOTHING); a full invite (pass_id NULL) enrolls full and UPGRADES an existing scoped enrollment in place (ON CONFLICT DO UPDATE), clearing the student''s holder rows — the deliberate trial-to-paid link upgrade path. The same branch applies on the idempotent same-redeemer re-open. SECURITY DEFINER bypasses the admin/educator-only insert policy on class_enrollments (the holder-row write is likewise sanctioned), exactly like enroll_in_free_class. Deliberately does NOT require is_published or price_cents = 0 — the invite is an explicit grant for an externally-paid (possibly draft) class. SELECT ... FOR UPDATE locks the invite row so two concurrent redeems cannot both win the single use. Returns the class_id for the post-join redirect.';
 
 REVOKE EXECUTE ON FUNCTION public.redeem_class_invite(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.redeem_class_invite(TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.consume_own_setup_tokens()
+RETURNS void AS $$
+BEGIN
+    UPDATE public.student_setup_tokens
+    SET consumed_at = NOW()
+    WHERE user_id = (SELECT auth.uid())
+      AND consumed_at IS NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+COMMENT ON FUNCTION public.consume_own_setup_tokens() IS 'Hard-consumes every outstanding setup link for the CALLER''s own account, called by the set-password form the moment first-password setup completes. Self-scoped by auth.uid() — a student can only spend their own tokens — and idempotent (only NULL consumed_at rows are stamped). Consuming ALL of the user''s tokens is deliberate: once they hold their own password, every setup link to that account must die. SECURITY DEFINER is required because student_setup_tokens has no authenticated write policy (writes are otherwise service-role only); this RPC is the single sanctioned, narrowly-scoped exception. Belt-and-braces alongside profiles.must_change_password: the /welcome route rejects a non-NULL consumed_at independently of the owner-clearable flag.';
+
+REVOKE EXECUTE ON FUNCTION public.consume_own_setup_tokens() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.consume_own_setup_tokens() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.educator_enroll_student_by_email(p_class_id UUID, p_email TEXT, p_pass_id UUID DEFAULT NULL)
 RETURNS TABLE (status TEXT, student_id UUID, student_name TEXT)

@@ -238,6 +238,8 @@ export interface StudentSetupToken {
   class_id: string;
   created_by: string | null;
   revoked_at: string | null;
+  /** Stamped by consume_own_setup_tokens once first-password setup completes — hard spent signal. */
+  consumed_at: string | null;
   created_at: string;
 }
 
