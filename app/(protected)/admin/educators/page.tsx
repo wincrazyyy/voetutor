@@ -23,7 +23,8 @@ export default async function AdminEducatorsPage() {
           <span className="min-w-0 break-words">Educator Profiles</span>
         </h1>
         <p className="text-muted-foreground">
-          View and edit any educator&apos;s public profile and reviews. To approve pending educators, use{" "}
+          Select any educator to open their full management HUD — profile, tier, stats, and controls.
+          To approve pending educators, use{" "}
           <Link
             href="/approvals"
             className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-2"
@@ -34,11 +35,7 @@ export default async function AdminEducatorsPage() {
           .
         </p>
       </div>
-      <EducatorProfilesList
-        educators={educators}
-        educatorProfiles={educatorProfiles}
-        currentUserId={profile.id}
-      />
+      <EducatorProfilesList educators={educators} educatorProfiles={educatorProfiles} />
     </div>
   );
 }

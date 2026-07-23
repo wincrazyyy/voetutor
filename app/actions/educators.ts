@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getProfileById } from "@/lib/queries/profile";
 import { deleteVideo } from "@/lib/cloudflare/client";
 import { wipeNotePrefix } from "@/lib/storage/r2";
+import type { EducatorTier } from "@/lib/types/database";
 
 export interface DeleteEducatorState {
   error?: string;
@@ -120,8 +122,9 @@ async function deleteAccountAndAssets(
 }
 
 /**
- * Admin-only, irreversible deletion of an entire educator (or admin) account and EVERYTHING tied to
- * it — leaving no ghost rows or orphaned assets.
+ * Admin-only, irreversible deletion of an entire EDUCATOR account and EVERYTHING tied to it —
+ * leaving no ghost rows or orphaned assets. Admin accounts are non-deletable here: the target-role
+ * guard rejects anything that isn't an educator (which also covers the caller's own admin row).
  *
  * The caller is authorized with the NORMAL user session FIRST (admin role + not self), exactly like
  * the other two sanctioned importers of the service-role client. Only then is the service-role admin
@@ -140,8 +143,8 @@ export async function deleteEducatorAccountAction(
 
   const target = await getProfileById(educatorId);
   if (!target) return { error: "Account not found." };
-  if (target.role !== "educator" && target.role !== "admin") {
-    return { error: "Only educator or admin accounts can be deleted here." };
+  if (target.role !== "educator") {
+    return { error: "Admin accounts can't be deleted." };
   }
 
   /* Confirmation is the account's id — globally unique, so it can't accidentally match a different,
@@ -214,4 +217,104 @@ export async function deleteStudentAccountAction(
   revalidatePath("/dashboard");
 
   return { ok: true };
+}
+
+export interface EducatorAdminActionState {
+  error?: string;
+}
+
+/**
+ * Shared guard for the tier/verified admin controls. Confirms the caller is an admin and the TARGET
+ * is an educator-capable row (educator or admin) — never a student — mirroring
+ * ensureAdminEditingEducator in app/actions/educator-profile.ts (that one is module-private, so the
+ * check is re-stated here). Returns an error state, or null when allowed.
+ */
+async function ensureAdminManagingEducator(
+  educatorId: string,
+): Promise<EducatorAdminActionState | null> {
+  const me = await getCurrentProfile();
+  if (!me) return { error: "Sign in required." };
+  if (me.role !== "admin") return { error: "Admins only." };
+  const target = await getProfileById(educatorId);
+  if (!target) return { error: "Educator not found." };
+  if (target.role !== "educator" && target.role !== "admin") {
+    return { error: "Tier and verification only apply to educator accounts." };
+  }
+  return null;
+}
+
+/**
+ * The set_educator_tier / set_educator_verified RPCs RAISE 'Educator profile % not found' when the
+ * educator has no educator_profiles row (profile-state "none"). An admin may INSERT a bare sidecar
+ * row via the educator_profiles_insert_admin RLS policy (protect_educator_admin_fields
+ * early-returns for admins, and column defaults are all safe), so materialise it first.
+ * ignoreDuplicates makes this a no-op when the row already exists — existing content is never
+ * touched.
+ */
+async function ensureEducatorProfileRow(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  educatorId: string,
+): Promise<EducatorAdminActionState | null> {
+  const { error } = await supabase
+    .from("educator_profiles")
+    .upsert({ educator_id: educatorId }, { onConflict: "educator_id", ignoreDuplicates: true });
+  if (error) return { error: "Could not prepare the educator's profile record." };
+  return null;
+}
+
+/**
+ * Tier/verified flips can change the public marketplace surfaces too: list_published_educators
+ * orders premium-first, and the verified badge only renders publicly for premium educators.
+ */
+function revalidateEducatorSurfaces(educatorId: string): void {
+  revalidatePath(`/admin/educators/${educatorId}`);
+  revalidatePath("/admin/educators");
+  revalidatePath("/educators");
+  revalidatePath(`/educators/${educatorId}`);
+}
+
+/** Admin sets an educator's commercial tier via the set_educator_tier RPC (admin-enforced in SQL). */
+export async function setEducatorTierAction(
+  educatorId: string,
+  tier: EducatorTier,
+): Promise<EducatorAdminActionState> {
+  if (tier !== "basic" && tier !== "premium") return { error: "Unknown tier." };
+
+  const denied = await ensureAdminManagingEducator(educatorId);
+  if (denied) return denied;
+
+  const supabase = await createClient();
+  const prep = await ensureEducatorProfileRow(supabase, educatorId);
+  if (prep) return prep;
+
+  const { error } = await supabase.rpc("set_educator_tier", {
+    p_educator_id: educatorId,
+    p_tier: tier,
+  });
+  if (error) return { error: "Tier could not be updated." };
+
+  revalidateEducatorSurfaces(educatorId);
+  return {};
+}
+
+/** Admin flips the verified badge via the set_educator_verified RPC (stamps/clears verified_by/_at). */
+export async function setEducatorVerifiedAction(
+  educatorId: string,
+  verified: boolean,
+): Promise<EducatorAdminActionState> {
+  const denied = await ensureAdminManagingEducator(educatorId);
+  if (denied) return denied;
+
+  const supabase = await createClient();
+  const prep = await ensureEducatorProfileRow(supabase, educatorId);
+  if (prep) return prep;
+
+  const { error } = await supabase.rpc("set_educator_verified", {
+    p_educator_id: educatorId,
+    p_verified: verified,
+  });
+  if (error) return { error: "Verification could not be updated." };
+
+  revalidateEducatorSurfaces(educatorId);
+  return {};
 }
