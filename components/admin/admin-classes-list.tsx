@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Flag, Globe, Library, Lock } from "lucide-react";
+import { Flag, Globe, Library, Lock, Settings } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +67,14 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1 flex-wrap">
-                      <h2 className="text-lg font-bold truncate">{c.title}</h2>
+                      <h2 className="text-lg font-bold truncate">
+                        <Link
+                          href={`/class/${c.id}`}
+                          className="rounded-sm outline-none transition-colors hover:text-primary hover:underline underline-offset-4"
+                        >
+                          {c.title}
+                        </Link>
+                      </h2>
                       <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase tracking-wider font-bold">
                         {c.code}
                       </Badge>
@@ -98,8 +105,8 @@ export function AdminClassesList({ classes }: AdminClassesListProps) {
                       href={`/class/${c.id}/edit`}
                       className="relative inline-flex w-fit items-center gap-1 text-sm text-muted-foreground after:absolute after:-inset-3 after:content-[''] hover:text-foreground sm:text-xs"
                     >
-                      Manage
-                      <ExternalLink className="w-3 h-3" />
+                      <Settings className="w-3 h-3" />
+                      Settings
                     </Link>
                     <DeleteClassButton
                       classId={c.id}
