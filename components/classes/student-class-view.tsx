@@ -104,9 +104,9 @@ export async function StudentClassView({ cls, userId }: { cls: Class; userId: st
           educatorName={educatorName}
         />
 
-        <div className="order-1 space-y-8 xl:order-none xl:col-span-5 xl:sticky xl:top-24">
-          <CommunityBanner classId={classId} />
+        <div className="order-1 space-y-8 xl:order-none xl:col-span-5">
           <CurriculumAccordion curriculum={curriculum} classId={classId} />
+          <CommunityBanner classId={classId} />
         </div>
       </div>
     </div>
